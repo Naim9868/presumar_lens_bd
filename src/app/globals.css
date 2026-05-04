@@ -84,3 +84,64 @@ body {
     }
   }
 }
+
+/* Drag and drop styles */
+.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.drag-over {
+  background-color: rgba(245, 158, 11, 0.1);
+  border: 2px dashed #f59e0b;
+}
+
+/* Category tree animations */
+.category-enter {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+.category-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 300ms, transform 300ms;
+}
+
+.category-exit {
+  opacity: 1;
+}
+
+.category-exit-active {
+  opacity: 0;
+  transform: translateX(-20px);
+  transition: opacity 300ms, transform 300ms;
+}
+
+
+/* product drawer styles */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.animate-slideInRight {
+  animation: slideInRight 0.3s ease-out;
+}

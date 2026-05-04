@@ -3,6 +3,10 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import Navbar from '@/components/Navbar';
+// import AppProviders from '@/components/providers/AppProviders';
+import ToastProvider from '@/components/providers/ToastProvider';
+// import ProductDrawer from '@/components/product/ProductDrawer';
+import { QueryProviders } from '@/components/providers/QueryClientProvider';
 
 const inter = Inter({ 
   subsets: ['latin'], 
@@ -26,10 +30,14 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable}`}>
       <body className="font-sans antialiased bg-gray-50">
+      <QueryProviders>
         <Navbar />
         <main className="min-h-screen">
           {children}
         </main>
+        {/* <ProductDrawer /> */}
+      <ToastProvider />
+      </QueryProviders>
       </body>
     </html>
   );

@@ -65,10 +65,11 @@ const HeroSection = () => {
             <div className="relative rounded-2xl overflow-hidden shadow-2xl">
               <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/20 to-transparent"></div>
               <Image 
-                src="/hero-glasses.jpg" 
+                src="https://plus.unsplash.com/premium_photo-1673349178750-b35929b751b1?w=400&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTd8fGNhbWVyYSUyMGxlbnN8ZW58MHx8MHx8fDA%3D" 
                 alt="Premium Eyewear"
                 width={600}
                 height={500}
+                priority
                 className="w-full h-auto object-cover"
               />
             </div>

@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+   // Use serverExternalPackages instead of experimental.serverComponentsExternalPackages
+  // serverExternalPackages: ['mongoose', 'bcryptjs', 'next-auth'],
+  
+  // // Add turbopack configuration (empty is fine for now)
+  // turbopack: {},
+   
   /* config options here */
   images: {
     remotePatterns: [
@@ -31,6 +37,12 @@ const nextConfig: NextConfig = {
        {
         protocol: 'https',
         hostname: 'img.abercrombie.com',
+        port: '',
+        pathname: '/**', // Allows all paths from this hostname
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.denon.com',
         port: '',
         pathname: '/**', // Allows all paths from this hostname
       },
