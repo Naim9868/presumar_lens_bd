@@ -208,11 +208,44 @@ export interface Notification {
   createdAt: Date;
 }
 
-export interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
+// export interface ApiResponse<T = any> {
+//   success: boolean;
+//   data?: T;
+//   error?: string;
+//   message?: string;
+// }
+
+
+export interface SpecField {
+  key: string;
+  label: string;
+  value?: string | number | boolean | string[];
+  group: string;
+  unit?: string;
+  filterable?: boolean;
+  type?: string;
+  options?: string[];
+  required?: boolean;
+  isVariantAttribute?: boolean;
+  defaultValue?: unknown;
+}
+
+export interface SpecGroup {
+  groupName: string;
+  fields: SpecField[];
+  displayOrder?: number;
+}
+
+
+export interface Category {
+  _id: string;
+  name: string;
+  specificationTemplate: SpecGroup[];
+}
+
+export interface Brand {
+  _id: string;
+  name: string;
 }
 
 export interface VariantAttribute {
@@ -220,98 +253,22 @@ export interface VariantAttribute {
   value: string;
 }
 
+
 export interface ProductVariant {
   sku: string;
-  variantKey: string;
+  variantKey?: string;
   attributes: VariantAttribute[];
   price: number;
   compareAtPrice?: number;
   inventory: number;
-  reserved: number;
-  weight?: number;
-  images: string[];
-  isDefault: boolean;
+  reserved?: number;
+  // weight?: number;
+  images?: string[];
+  isDefault?: boolean;
   status: 'in_stock' | 'out_of_stock' | 'discontinued';
 }
 
-export interface ProductSpec {
-  key: string;
-  label: string;
-  value: string | number | boolean;
-  group: string;
-  unit?: string;
-  filterable: boolean;
-}
-
-export interface Product {
-  _id: string;
-  name: string;
-  slug: string;
-  description: string;
-  shortDescription: string;
-  brandId: {
-    _id: string;
-    name: string;
-    slug: string;
-  };
-  categoryId: {
-    _id: string;
-    name: string;
-    slug: string;
-  };
-  subcategoryId?: {
-    _id: string;
-    name: string;
-    slug: string;
-  };
-  specsFlat: ProductSpec[];
-  variants: ProductVariant[];
-  images: string[];
-  thumbnail: string;
-  tags: string[];
-  lowestPrice: number;
-  highestPrice: number;
-  totalInventory: number;
-  status: 'draft' | 'active' | 'archived';
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface TransformedProduct {
-  _id: string;
-  id: string;
-  name: string;
-  slug: string;
-  brand: string;
-  brandId?: string;
-  categoryId?: string;
-  rating: number;
-  reviewCount: number;
-  soldCount: number;
-  originalPrice: number;
-  discountPrice: number;
-  imageUrl: string;
-  thumbnail: string;
-  images: string[];
-  isAvailable: boolean;
-  stock: number;
-  freeShipping: boolean;
-  emiAvailable: boolean;
-  warranty: string;
-  badges: {
-    isBestSeller?: boolean;
-    isNewArrival?: boolean;
-    isLimitedStock?: boolean;
-    isPremium?: boolean;
-  };
-  variants: ProductVariant[];
-  specs: ProductSpec[];
-  description: string;
-  shortDescription: string;
-  tags: string[];
-  status: string;
-  fullProductData: Product;
-}
+ 
 
 export interface CartItem {
   id: string;
@@ -337,21 +294,37 @@ export interface WishlistItem {
 }
 
 export interface FilterOptions {
-  minPrice?: number;
+ minPrice?: number;
   maxPrice?: number;
   brands?: string[];
   tags?: string[];
-  rating?: number;
+  search?: string;
   inStock?: boolean;
-  sortBy?: 'price_asc' | 'price_desc' | 'rating_desc' | 'newest' | 'popularity';
+
+  specs?: {
+    key: string;
+    values: string[];
+  }[];
+
+  sortBy?:
+  | 'price_asc'
+  | 'price_desc'
+  | 'newest'
+  | 'rating_desc';
 }
 
-export interface Review {
-  _id: string;
-  productId: string;
-  userId?: string;
+
+export interface CheckoutItem {
+  productId: string;     // match Order schema
+  variantId?: string;    // SKU বা variantKey
   name: string;
-  rating: number;
-  comment: string;
-  createdAt: Date;
+  sku?: string;
+
+  price: number;
+  quantity: number;
+
+  image?: string;
+
+  // UI extras (optional)
+  selectedAttributes?: Record<string, string>;
 }

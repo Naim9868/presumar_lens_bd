@@ -138,6 +138,6 @@ const OrderSchema = new Schema<IOrder>(
 );
 
 // Check if model exists before creating a new one
-const Order = mongoose.models.Order || mongoose.model<IOrder>('Order', OrderSchema);
+ const Order = mongoose.models.Order || mongoose.model<IOrder>('Order', OrderSchema);
 
 export default Order;

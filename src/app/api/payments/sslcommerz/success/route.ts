@@ -8,25 +8,25 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    const formData = await req.formData();
-    const transactionId = formData.get('tran_id') as string;
+    // const formData = await req.formData();
+    // const transactionId = formData.get('tran_id') as string;
     
-    const result = await PaymentService.handlePaymentSuccess(transactionId);
+    // const result = await PaymentService.handlePaymentSuccess(transactionId);
     
-    if (result.success) {
-      // Send payment success notification
-      const order = await Order.findById(result.orderId);
-      await sendNotification({
-        userId: order.userId,
-        type: 'PAYMENT_SUCCESS',
-        orderId: order._id,
-      });
+    // if (result) {
+    //   // Send payment success notification
+    //   const order = await Order.findById(result.orderId);
+    //   // await sendNotification({
+    //   //   userId: order.userId,
+    //   //   type: 'PAYMENT_SUCCESS',
+    //   //   orderId: order._id,
+    //   // });
       
-      return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_URL}/payment/success?orderId=${result.orderId}`,
-        303
-      );
-    }
+    //   return NextResponse.redirect(
+    //     `${process.env.NEXT_PUBLIC_URL}/payment/success?orderId=${result.orderId}`,
+    //     303
+    //   );
+  // }
     
     return NextResponse.redirect(
       `${process.env.NEXT_PUBLIC_URL}/payment/failed`,

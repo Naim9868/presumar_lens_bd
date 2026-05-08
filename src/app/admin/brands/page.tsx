@@ -74,42 +74,46 @@ export default function BrandsPage() {
     }
   };
 
+  const submitBrand = async () => {
+  setSubmitting(true);
+
+  try {
+    const url = editingBrand 
+      ? `/api/admin/brands/${editingBrand._id}`
+      : '/api/admin/brands';
+
+    const method = editingBrand ? 'PUT' : 'POST';
+
+    const response = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData)
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      showToast(
+        `Brand ${editingBrand ? 'updated' : 'created'} successfully`,
+        'success'
+      );
+      setIsModalOpen(false);
+      resetForm();
+      fetchBrands();
+    } else {
+      showToast(data.error || 'Failed to save brand', 'error');
+    }
+  } catch (error) {
+    console.error(error);
+    showToast('Failed to save brand', 'error');
+  } finally {
+    setSubmitting(false);
+  }
+};
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
-
-    try {
-      const url = editingBrand 
-        ? `/api/admin/brands/${editingBrand._id}`
-        : '/api/admin/brands';
-      
-      const method = editingBrand ? 'PUT' : 'POST';
-      
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        showToast(
-          `Brand ${editingBrand ? 'updated' : 'created'} successfully`,
-          'success'
-        );
-        setIsModalOpen(false);
-        resetForm();
-        fetchBrands();
-      } else {
-        showToast(data.error || 'Failed to save brand', 'error');
-      }
-    } catch (error) {
-      console.error('Error saving brand:', error);
-      showToast('Failed to save brand', 'error');
-    } finally {
-      setSubmitting(false);
-    }
+    await submitBrand();
   };
 
   const handleDelete = async () => {
@@ -389,7 +393,7 @@ export default function BrandsPage() {
         size="lg"
         showConfirm
         confirmText={editingBrand ? 'Update' : 'Create'}
-        onConfirm={handleSubmit}
+        onConfirm={submitBrand}
         loading={submitting}
       >
         <form onSubmit={handleSubmit} className="space-y-4">

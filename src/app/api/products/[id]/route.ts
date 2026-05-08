@@ -1,159 +1,212 @@
-// app/api/products/[id]/route.ts (add GET method)
+// app/api/products/[id]/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
-import { dbConnect as connectDB } from '@/lib/dbConnect';
+import { dbConnect } from '@/lib/dbConnect';
 import { Product } from '@/models/Product';
 
+/* ===============================
+   TYPES
+=============================== */
+type Variant = {
+  price?: number;
+  inventory?: number;
+};
+
+/* ===============================
+   GET PRODUCT
+=============================== */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    await connectDB();
-    const { id } = await params;
-    
+    await dbConnect();
+    const { id } = await context.params;
+
+    // ✅ Validate ObjectId
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
-        { error: 'Invalid product ID' },
+        { success: false, error: 'Invalid product ID' },
         { status: 400 }
       );
     }
-    
+
     const product = await Product.findById(id)
       .populate('categoryId', 'name slug specificationTemplate')
       .populate('brandId', 'name')
       .lean();
-    
+
     if (!product) {
       return NextResponse.json(
-        { error: 'Product not found' },
+        { success: false, error: 'Product not found' },
         { status: 404 }
       );
     }
-    // Calculate total inventory from variants
+
+    /* ===============================
+       CALCULATIONS
+    =============================== */
     let totalInventory = 0;
-    let lowestPrice = Infinity;
-    let highestPrice = -Infinity;
-    
+    let lowestPrice = 0;
+    let highestPrice = 0;
+
     if (product.variants && product.variants.length > 0) {
-      totalInventory = product.variants.reduce((sum, variant) => 
-        sum + (variant.inventory || 0), 0
+      const variants = product.variants as Variant[];
+
+      totalInventory = variants.reduce(
+        (sum: number, variant) => sum + (variant.inventory ?? 0),
+        0
       );
-      
-      const prices = product.variants.map(v => v.price);
+
+      const prices = variants.map(v => v.price ?? 0);
+
       lowestPrice = Math.min(...prices);
       highestPrice = Math.max(...prices);
     }
-    
+
     return NextResponse.json({
-      ...product,
-      totalInventory,
-      lowestPrice: lowestPrice === Infinity ? 0 : lowestPrice,
-      highestPrice: highestPrice === -Infinity ? 0 : highestPrice,
+      success: true,
+      data: {
+        ...product,
+        totalInventory,
+        lowestPrice,
+        highestPrice,
+      },
     });
-    
+
   } catch (error: any) {
-    console.error('Error fetching product:', error);
+    console.error('GET product error:', error);
+
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      {
+        success: false,
+        error: error.message || 'Internal server error',
+      },
       { status: 500 }
     );
   }
 }
 
-// app/api/products/[id]/route.ts - Update the PUT method
-
+/* ===============================
+   UPDATE PRODUCT
+=============================== */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    await connectDB();
-    const { id } = await params;
+    await dbConnect();
+    const { id } = await context.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
-        { error: 'Invalid product ID' },
+        { success: false, error: 'Invalid product ID' },
         { status: 400 }
       );
     }
 
     const body = await request.json();
-    
-    // Clean the body - remove empty subcategoryId
+
+    // ✅ Clean subcategory
     const cleanBody = { ...body };
-    if (cleanBody.subcategoryId === '' || cleanBody.subcategoryId === null || cleanBody.subcategoryId === undefined) {
+    if (
+      cleanBody.subcategoryId === '' ||
+      cleanBody.subcategoryId === null ||
+      cleanBody.subcategoryId === undefined
+    ) {
       delete cleanBody.subcategoryId;
     }
-    
+
     const product = await Product.findByIdAndUpdate(
       id,
       { $set: cleanBody },
-      { new: true, runValidators: true, returnDocument: 'after' }
+      {
+        new: true,
+        runValidators: true,
+      }
     );
 
     if (!product) {
       return NextResponse.json(
-        { error: 'Product not found' },
+        { success: false, error: 'Product not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(product);
+    return NextResponse.json({
+      success: true,
+      data: product,
+      message: 'Product updated successfully',
+    });
+
   } catch (error: any) {
-    console.error('Error updating product:', error);
-    
+    console.error('PUT product error:', error);
+
     if (error.name === 'ZodError') {
       return NextResponse.json(
-        { error: 'Validation failed', details: error.errors },
+        { success: false, error: 'Validation failed', details: error.errors },
         { status: 400 }
       );
     }
 
-    // Handle duplicate slug error
     if (error.code === 11000 && error.keyPattern?.slug) {
       return NextResponse.json(
-        { error: 'Product with this slug already exists' },
+        { success: false, error: 'Product slug already exists' },
         { status: 400 }
       );
     }
 
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      {
+        success: false,
+        error: error.message || 'Internal server error',
+      },
       { status: 500 }
     );
   }
 }
 
+/* ===============================
+   DELETE PRODUCT
+=============================== */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    await connectDB();
-    const { id } = await params;
-    
+    await dbConnect();
+    const { id } = await context.params;
+
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
-        { error: 'Invalid product ID' },
+        { success: false, error: 'Invalid product ID' },
         { status: 400 }
       );
     }
-    
+
     const product = await Product.findByIdAndDelete(id);
-    
+
     if (!product) {
       return NextResponse.json(
-        { error: 'Product not found' },
+        { success: false, error: 'Product not found' },
         { status: 404 }
       );
     }
-    
-    return NextResponse.json({ success: true, message: 'Product deleted successfully' });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Product deleted successfully',
+    });
+
   } catch (error: any) {
-    console.error('Error deleting product:', error);
+    console.error('DELETE product error:', error);
+
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      {
+        success: false,
+        error: error.message || 'Internal server error',
+      },
       { status: 500 }
     );
   }

@@ -40,7 +40,7 @@ const ProductSpecSchema = new Schema({
 
 const ProductSchema = new Schema({
   name: { type: String, required: true },
-  slug: { type: String, unique: true, sparse: true },
+  slug: { type: String, sparse: true },
   description: { type: String, required: true },
   shortDescription: { type: String, required: true },
   brandId: { type: Schema.Types.ObjectId, ref: 'Brand', required: true },
@@ -60,7 +60,12 @@ const ProductSchema = new Schema({
 }, { timestamps: true });
 
 // ================= INDEXES =================
-ProductSchema.index({ categoryId: 1, status: 1, lowestPrice: 1 });
+ProductSchema.index({
+  'specsFlat.key': 1,
+  'specsFlat.value': 1,
+  categoryId: 1,
+  status: 1
+});
 ProductSchema.index({ 'specsFlat.key': 1, 'specsFlat.value': 1 });
 ProductSchema.index({ slug: 1 }, { unique: true });
 ProductSchema.index({ tags: 1 });
@@ -118,3 +123,13 @@ ProductSchema.pre('save', async function () {
 });
 
 export const Product = mongoose.models.Product || mongoose.model('Product', ProductSchema);
+
+// models/ProductVariant.ts
+export const ProductVariant =
+  mongoose.models.ProductVariant ||
+  mongoose.model('ProductVariant', ProductVariantSchema);
+
+// models/ProductSpecification.ts
+export const ProductSpecification =
+  mongoose.models.ProductSpecification ||
+  mongoose.model('ProductSpecification', ProductSpecSchema);

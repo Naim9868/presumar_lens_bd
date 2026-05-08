@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/dbConnect';
 import { Product } from '@/models/Product';
-import { ProductVariant } from '@/models/ProductVariant';
-import { ProductSpecification } from '@/models/ProductSpecification';
-import { Brand } from '@/models/Brand';
 import { Category } from '@/models/Category';
 
 export async function GET(
@@ -12,55 +9,57 @@ export async function GET(
 ) {
   try {
     await dbConnect();
+
     const { slug } = await params;
-    
-    // Find product by slug
-    const product = await Product.findOne({ slug, status: 'active' }).lean();
-    
+
+    const product = await Product.findOne({
+      slug,
+      status: 'active',
+      deletedAt: null
+    }).lean();
+
     if (!product) {
-      return NextResponse.json({
-        success: false,
-        error: 'Product not found'
-      }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: 'Product not found' },
+        { status: 404 }
+      );
     }
-    
-    // Get brand details
-    const brand = await Brand.findById(product.brandId).select('name slug').lean();
-    
-    // Get category details
-    const category = await Category.findById(product.categoryId).select('name slug').lean();
-    
-    // Get variants
-    const variants = await ProductVariant.find({ productId: product._id }).lean();
-    
-    // Get specifications
-    const specifications = await ProductSpecification.findOne({ productId: product._id }).lean();
-    
-    // Calculate min/max prices
-    const prices = variants.map(v => v.price);
-    const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
-    const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
-    
-    const defaultVariant = variants.find(v => v.isDefault) || variants[0];
-    
+
+    // Optional populate
+    let category = null;
+    if (product.categoryId) {
+      category = await Category.findById(product.categoryId)
+        .select('name slug')
+        .lean();
+    }
+
+    const variants = product.variants || [];
+
+    const defaultVariant =
+      variants.find((v: any) => v.isDefault) || variants[0] || null;
+
     return NextResponse.json({
       success: true,
       data: {
         ...product,
-        brandId: brand,
         categoryId: category,
+        specifications: product.specsFlat,
         variants,
-        specifications,
-        minPrice,
-        maxPrice,
+        minPrice: product.lowestPrice,
+        maxPrice: product.highestPrice,
         defaultVariant
       }
     });
+
   } catch (error: any) {
     console.error('Error fetching product:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Failed to fetch product'
-    }, { status: 500 });
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.message || 'Failed to fetch product'
+      },
+      { status: 500 }
+    );
   }
 }

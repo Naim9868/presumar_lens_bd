@@ -1,6 +1,6 @@
 // app/api/products/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import mongoose from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import { dbConnect as connectDB } from '@/lib/dbConnect';
 import { Product } from '@/models/Product';
 import { Category } from '@/models/Category';
@@ -112,6 +112,7 @@ export async function GET(request: NextRequest) {
       Product.countDocuments(filter)
     ]);
     
+    
     return NextResponse.json({
       products,
       total,
@@ -158,7 +159,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Handle subcategoryId - can be optional
-    let cleanBody = { ...body };
+    const cleanBody = { ...body };
     if (body.subcategoryId === '' || body.subcategoryId === null || body.subcategoryId === undefined) {
       delete cleanBody.subcategoryId;
     } else if (!isValidObjectId(body.subcategoryId)) {

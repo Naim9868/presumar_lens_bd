@@ -22,7 +22,7 @@ export default async function Home() {
       {/* Hero Section - Main banner */}
       <HeroSection />
 
-        <ProductGrid initialProducts={products} />
+      <ProductGrid initialProducts={products} />
       
       {/* Brand Showcase - Trust signals */}
       {/* <BrandShowcase /> */}

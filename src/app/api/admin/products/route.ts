@@ -1,34 +1,32 @@
-// export const runtime = 'nodejs';
-// export const dynamic = 'force-dynamic';
-
 import { NextRequest, NextResponse } from 'next/server';
+import mongoose, { Types } from 'mongoose';
 import { dbConnect } from '@/lib/dbConnect';
-// import { Product } from '@/models/Product';
-// import { ProductVariant } from '@/models/ProductVariant';
-// import { ProductSpecification } from '@/models/ProductSpecification';
-// import mongoose from 'mongoose';
+import { Product, ProductVariant, ProductSpecification } from '@/models/Product';
 
-// Import models to ensure they are registered
+
+// Ensure models are registered
 import '@/models/Brand';
 import '@/models/Category';
 
-// Helper function to clean ObjectId fields
-function cleanObjectId(value: any): mongoose.Types.ObjectId | null {
-  if (!value || value === '' || value === 'null' || value === 'undefined') {
-    return null;
-  }
-  if (mongoose.Types.ObjectId.isValid(value)) {
-    return new mongoose.Types.ObjectId(value);
-  }
-  return null;
+/* ================================
+   🔧 UTIL: Safe ObjectId parser
+================================ */
+function cleanObjectId(value: unknown): Types.ObjectId | null {
+  if (!value || typeof value !== 'string') return null;
+  if (!Types.ObjectId.isValid(value)) return null;
+  return new Types.ObjectId(value);
 }
 
+/* ================================
+   🚀 CREATE PRODUCT (POST)
+================================ */
 export async function POST(request: NextRequest) {
   try {
     await dbConnect();
+
     const body = await request.json();
-    
-    // Clean the data - remove subcategoryId if it's empty
+
+    /* ---------- Clean Input ---------- */
     const cleanData = {
       name: body.name?.trim(),
       slug: body.slug?.trim().toLowerCase(),
@@ -36,204 +34,178 @@ export async function POST(request: NextRequest) {
       description: body.description?.trim(),
       brandId: cleanObjectId(body.brandId),
       categoryId: cleanObjectId(body.categoryId),
-      images: body.images || [],
-      thumbnail: body.thumbnail || (body.images && body.images[0]) || '',
-      tags: Array.isArray(body.tags) ? body.tags : (body.tags ? body.tags.split(',').map((t: string) => t.trim()) : []),
+      images: Array.isArray(body.images) ? body.images : [],
+      thumbnail:
+        body.thumbnail ||
+        (Array.isArray(body.images) ? body.images[0] : '') ||
+        '',
+      tags: Array.isArray(body.tags)
+        ? body.tags
+        : typeof body.tags === 'string'
+        ? body.tags.split(',').map((t: string) => t.trim())
+        : [],
       status: body.status || 'draft',
     };
-    
-    // Only add subcategoryId if it's a valid ObjectId
+
     const subcategoryId = cleanObjectId(body.subcategoryId);
     if (subcategoryId) {
       (cleanData as any).subcategoryId = subcategoryId;
     }
-    
-    // Validate required fields
+
+    /* ---------- Validation ---------- */
     if (!cleanData.name) {
-      return NextResponse.json({
-        success: false,
-        error: 'Product name is required'
-      }, { status: 400 });
+      return NextResponse.json({ error: 'Product name is required' }, { status: 400 });
     }
-    
+
     if (!cleanData.slug) {
-      return NextResponse.json({
-        success: false,
-        error: 'Product slug is required'
-      }, { status: 400 });
+      return NextResponse.json({ error: 'Slug is required' }, { status: 400 });
     }
-    
+
     if (!cleanData.brandId) {
-      return NextResponse.json({
-        success: false,
-        error: 'Brand is required'
-      }, { status: 400 });
+      return NextResponse.json({ error: 'Brand is required' }, { status: 400 });
     }
-    
+
     if (!cleanData.categoryId) {
-      return NextResponse.json({
-        success: false,
-        error: 'Category is required'
-      }, { status: 400 });
+      return NextResponse.json({ error: 'Category is required' }, { status: 400 });
     }
-    
-    // Check for duplicate slug
-    const existingProduct = await Product.findOne({ slug: cleanData.slug });
-    if (existingProduct) {
-      return NextResponse.json({
-        success: false,
-        error: 'Product with this slug already exists'
-      }, { status: 409 });
+
+    /* ---------- Duplicate Check ---------- */
+    const exists = await Product.findOne({ slug: cleanData.slug });
+    if (exists) {
+      return NextResponse.json(
+        { error: 'Slug already exists' },
+        { status: 409 }
+      );
     }
-    
-    // Create product
+
+    /* ---------- Create Product ---------- */
     const product = await Product.create(cleanData);
-    
-    // Create variants if provided
-    if (body.variants && body.variants.length > 0) {
-      const variants = body.variants.map((variant: any) => ({
-        ...variant,
+
+    /* ---------- Create Variants ---------- */
+    if (Array.isArray(body.variants) && body.variants.length > 0) {
+      const variants = body.variants.map((v: any) => ({
         productId: product._id,
-        price: variant.price || 0,
-        stock: variant.stock || 0,
+        attributes: v.attributes || [],
+        price: Number(v.price) || 0,
+        stock: Number(v.stock) || 0,
+        sku: v.sku || '',
       }));
-      await ProductVariant.create(variants);
+
+      await ProductVariant.insertMany(variants);
     }
-    
-    // Create specifications if provided
-    if (body.specifications && Object.keys(body.specifications).length > 0) {
+
+    /* ---------- Create Specifications ---------- */
+    if (body.specifications && typeof body.specifications === 'object') {
       await ProductSpecification.create({
         ...body.specifications,
-        productId: product._id
+        productId: product._id,
       });
     }
-    
-    return NextResponse.json({
-      success: true,
-      data: product,
-      message: 'Product created successfully'
-    }, { status: 201 });
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: product,
+      },
+      { status: 201 }
+    );
   } catch (error: any) {
-    console.error('Error creating product:', error);
-    
-    // Handle validation errors
-    if (error.name === 'ValidationError') {
-      const errors = Object.values(error.errors).map((err: any) => err.message);
-      return NextResponse.json({
-        success: false,
-        error: errors.join(', ')
-      }, { status: 400 });
-    }
-    
-    // Handle duplicate key errors
+    console.error('POST ERROR:', error);
+
     if (error.code === 11000) {
-      const field = Object.keys(error.keyPattern)[0];
-      return NextResponse.json({
-        success: false,
-        error: `Duplicate ${field} value. Please use a unique ${field}.`
-      }, { status: 409 });
+      return NextResponse.json(
+        { error: 'Duplicate field value' },
+        { status: 409 }
+      );
     }
-    
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Failed to create product'
-    }, { status: 500 });
+
+    return NextResponse.json(
+      { error: error.message || 'Server error' },
+      { status: 500 }
+    );
   }
 }
 
+/* ================================
+   📦 GET PRODUCTS
+================================ */
 export async function GET(request: NextRequest) {
   try {
     await dbConnect();
-    
-    const searchParams = request.nextUrl.searchParams;
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
-    const status = searchParams.get('status');
-    
-    const query: any = {};
+
+    const params = request.nextUrl.searchParams;
+
+    const page = Number(params.get('page') || 1);
+    const limit = Number(params.get('limit') || 10);
+    const status = params.get('status');
+
+    const query: Record<string, any> = {};
     if (status && status !== 'all') query.status = status;
-    
+
     const skip = (page - 1) * limit;
-    
-    // Get products without population first to avoid model errors
-    const products = await Product.find(query)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
-    
-    const total = await Product.countDocuments(query);
-    
-    // Manually fetch brand and category names if needed
-    const productsWithDetails = await Promise.all(
-      products.map(async (product) => {
-        let brand = null;
-        let category = null;
-        let subcategory = null;
-        
-        // Fetch brand if brandId exists
-        if (product.brandId) {
-          try {
-            const Brand = mongoose.model('Brand');
-            brand = await Brand.findById(product.brandId).select('name slug').lean();
-          } catch (err) {
-            console.error('Error fetching brand:', err);
-          }
-        }
-        
-        // Fetch category if categoryId exists
-        if (product.categoryId) {
-          try {
-            const Category = mongoose.model('Category');
-            category = await Category.findById(product.categoryId).select('name slug').lean();
-          } catch (err) {
-            console.error('Error fetching category:', err);
-          }
-        }
-        
-        // Fetch subcategory if subcategoryId exists
-        if (product.subcategoryId) {
-          try {
-            const Category = mongoose.model('Category');
-            subcategory = await Category.findById(product.subcategoryId).select('name slug').lean();
-          } catch (err) {
-            console.error('Error fetching subcategory:', err);
-          }
-        }
-        
-        // Get variants for this product
-        const variants = await ProductVariant.find({ productId: product._id });
-        const prices = variants.map(v => v.price);
-        
-        return {
-          ...product,
-          minPrice: prices.length > 0 ? Math.min(...prices) : 0,
-          maxPrice: prices.length > 0 ? Math.max(...prices) : 0,
-          variantCount: variants.length,
-          brand: brand,
-          category: category,
-          subcategory: subcategory
-        };
-      })
-    );
-    
+
+    /* ---------- Fetch Products ---------- */
+    const [products, total] = await Promise.all([
+      Product.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Product.countDocuments(query),
+    ]);
+
+
+    /* ---------- Batch Fetch Relations ---------- */
+    const productIds = products.map((p) => p._id);
+
+    const variants = await ProductVariant.find({
+      productId: { $in: productIds },
+    }).lean();
+
+    console.log(variants);
+
+
+    const variantsMap = new Map<string, any[]>();
+
+    variants.forEach((v) => {
+      const key = v.productId.toString();
+      if (!variantsMap.has(key)) variantsMap.set(key, []);
+      variantsMap.get(key)?.push(v);
+    });
+
+    /* ---------- Attach Computed Fields ---------- */
+    const finalProducts = products.map((product) => {
+      const productVariants = variantsMap.get(product._id.toString()) || [];
+
+      const prices = productVariants.map((v) => v.price);
+      console.log(prices);
+
+      return {
+        ...product,
+        minPrice: prices.length ? Math.min(...prices) : 0,
+        maxPrice: prices.length ? Math.max(...prices) : 0,
+        variantCount: productVariants.length,
+      };
+    });
+
     return NextResponse.json({
       success: true,
       data: {
-        products: productsWithDetails,
+        products: finalProducts,
         pagination: {
           page,
           limit,
           total,
-          pages: Math.ceil(total / limit)
-        }
-      }
+          pages: Math.ceil(total / limit),
+        },
+      },
     });
   } catch (error: any) {
-    console.error('Error fetching products:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Failed to fetch products'
-    }, { status: 500 });
+    console.error('GET ERROR:', error);
+
+    return NextResponse.json(
+      { error: error.message || 'Server error' },
+      { status: 500 }
+    );
   }
 }

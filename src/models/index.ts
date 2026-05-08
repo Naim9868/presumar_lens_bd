@@ -2,7 +2,7 @@
 import './Brand';
 import './Category';
 import './Product';
-import './Order';
+import Order from './Order';
 
 
 
@@ -10,6 +10,6 @@ import './Order';
 export { Brand } from './Brand';
 export { Category } from './Category';
 export { Product } from './Product';
-export { Order } from './Order';
+export default Order ;
 // export { OrderEvent } from './OrderEvent';
 // export { Payment } from './Payment';

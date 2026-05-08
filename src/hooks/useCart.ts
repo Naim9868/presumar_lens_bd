@@ -4,13 +4,14 @@ import { useLocalStorage } from './useLocalStorage';
 import { CartItem, ProductVariant } from '@/types';
 import { verifyProductAvailability } from '@/app/actions/cart.actions';
 import { toast } from 'react-hot-toast';
+import { IProduct } from '@/types/product';
 
 export function useCart() {
   const { storedValue: cartItems, setValue: setCartItems, isLoaded } = useLocalStorage<CartItem[]>('cart', []);
 
-  const addToCart = async (product: any, variant?: ProductVariant, quantity: number = 1) => {
-    const variantToUse = variant || product.variants?.find((v: any) => v.isDefault) || product.variants?.[0];
-    
+  const addToCart = async (product: IProduct, variant?: ProductVariant, quantity: number = 1) => {
+    const variantToUse = variant || product.variants?.find((v) => v.isDefault) || product.variants?.[0];
+    console.log(variantToUse);
     // Verify availability
     const availability = await verifyProductAvailability(product._id, variantToUse?.variantKey);
     
@@ -48,7 +49,7 @@ export function useCart() {
         productId: product._id,
         variantId: variantToUse?.sku,
         name: product.name,
-        price: variantToUse?.price || product.discountPrice,
+        price: variantToUse?.price || product.price,
         quantity,
         image: product.thumbnail || product.images?.[0],
         sku: variantToUse?.sku,

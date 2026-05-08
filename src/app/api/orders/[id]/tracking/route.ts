@@ -1,66 +1,100 @@
 // app/api/orders/[id]/tracking/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
-import { dbConnect as connectDB } from '@/lib/dbConnect';
+import { dbConnect } from '@/lib/dbConnect';
 import Order from '@/models/Order';
-// import { authenticate } from '@/lib/auth';
 import { courierService } from '@/lib/services/courier.service';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // const user = await authenticate(req);
-    // if (!user) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // }
+    await dbConnect();
 
-    await connectDB();
+    const { id } = await params;
 
-    const order = await Order.findById(params.id);
+    const order = await Order.findById(id).lean();
+
     if (!order) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: 'Order not found' },
+        { status: 404 }
+      );
     }
 
-    // Check access
-    // if (user.role !== 'admin' && order.userId?.toString() !== user.id) {
-    //   return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    // }
+    let trackingInfo: unknown = null;
 
-    let trackingInfo = null;
-    
-    // Get tracking info from courier if available
+    /* ===============================
+       🚚 COURIER TRACKING
+    =============================== */
     if (order.delivery?.trackingId && order.delivery?.courier) {
       try {
-        if (order.delivery.courier.toLowerCase() === 'pathao') {
-          trackingInfo = await courierService.pathao.trackOrder(order.delivery.trackingId);
-        } else if (order.delivery.courier.toLowerCase() === 'redx') {
-          trackingInfo = await courierService.redx.trackOrder(order.delivery.trackingId);
+        const courier = order.delivery.courier.toLowerCase();
+
+        switch (courier) {
+          case 'pathao':
+            trackingInfo = await courierService.pathao.trackOrder(
+              order.delivery.trackingId
+            );
+            break;
+
+          case 'redx':
+            trackingInfo = await courierService.redx.trackOrder(
+              order.delivery.trackingId
+            );
+            break;
         }
-      } catch (error) {
-        console.error('Courier tracking error:', error);
+      } catch (err) {
+        console.error('Tracking failed:', err);
       }
     }
 
-    // Calculate estimated delivery date
-    let estimatedDelivery = null;
+    /* ===============================
+       📅 ESTIMATED DELIVERY
+    =============================== */
+    let estimatedDelivery: Date | null = null;
+
     if (order.status === 'SHIPPED') {
-      const shippingDate = new Date(order.timeline.find(t => t.status === 'SHIPPED')?.createdAt || order.updatedAt);
-      const deliveryDays = order.delivery?.type === 'INSIDE_DHAKA' ? 2 : 4;
+      const shippedEvent = order.timeline?.find(
+        (t: any) => t.status === 'SHIPPED'
+      );
+
+      const shippingDate = new Date(
+        shippedEvent?.createdAt || order.updatedAt
+      );
+
+      const deliveryDays =
+        order.delivery?.type === 'INSIDE_DHAKA' ? 2 : 4;
+
       estimatedDelivery = new Date(shippingDate);
-      estimatedDelivery.setDate(shippingDate.getDate() + deliveryDays);
+      estimatedDelivery.setDate(
+        shippingDate.getDate() + deliveryDays
+      );
     }
 
     return NextResponse.json({
-      orderId: order.orderId,
-      status: order.status,
-      timeline: order.timeline,
-      tracking: trackingInfo,
-      estimatedDelivery,
-      currentLocation: trackingInfo?.current_location || null,
+      success: true,
+      data: {
+        orderId: order.orderId,
+        status: order.status,
+        timeline: order.timeline || [],
+        tracking: trackingInfo,
+        estimatedDelivery,
+        currentLocation:
+          (trackingInfo as any)?.current_location || null,
+      },
     });
-  } catch (error) {
-    console.error('Error fetching tracking info:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+
+  } catch (error: any) {
+    console.error('Tracking API Error:', error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.message || 'Internal server error',
+      },
+      { status: 500 }
+    );
   }
 }

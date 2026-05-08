@@ -59,7 +59,7 @@ export default function ProductDetailPage() {
     try {
       const res = await fetch(`/api/products/${productId}`);
       const data = await res.json();
-      
+      console.log("data:");
       // Calculate total inventory from variants if not provided by API
       if (data.variants && data.variants.length > 0) {
         data.totalInventory = data.variants.reduce((sum: number, variant: any) => 

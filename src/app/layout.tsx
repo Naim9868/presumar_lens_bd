@@ -7,6 +7,7 @@ import Navbar from '@/components/Navbar';
 import ToastProvider from '@/components/providers/ToastProvider';
 // import ProductDrawer from '@/components/product/ProductDrawer';
 import { QueryProviders } from '@/components/providers/QueryClientProvider';
+import { ProductDrawerProvider } from '@/components/providers/DrawerProvider';
 
 const inter = Inter({ 
   subsets: ['latin'], 
@@ -30,14 +31,17 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable}`}>
       <body className="font-sans antialiased bg-gray-50">
-      <QueryProviders>
-        <Navbar />
-        <main className="min-h-screen">
-          {children}
-        </main>
-        {/* <ProductDrawer /> */}
-      <ToastProvider />
-      </QueryProviders>
+        <ProductDrawerProvider>
+          <QueryProviders>
+          <Navbar />
+          <main className="min-h-screen">
+            {children}
+          </main>
+          {/* <ProductDrawer /> */}
+        <ToastProvider />
+        </QueryProviders>
+        </ProductDrawerProvider>
+      
       </body>
     </html>
   );

@@ -18,7 +18,19 @@ interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'cla
 }
 
 const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, error, required, options, placeholder, helpText, className = '', ...props }, ref) => {
+  (
+    {
+      label,
+      error,
+      required,
+      options,
+      placeholder,
+      helpText,
+      className = '',
+      ...props
+    },
+    ref
+  ) => {
     return (
       <div className={`w-full ${className}`}>
         {label && (
@@ -27,7 +39,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
             {required && <span className="text-red-500 ml-1">*</span>}
           </label>
         )}
-        
+
         <select
           ref={ref}
           className={`
@@ -40,26 +52,32 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
             ${error ? 'border-red-500 dark:border-red-500' : ''}
             ${props.disabled ? 'bg-gray-100 dark:bg-gray-900 cursor-not-allowed' : ''}
           `}
+          required={required}
           {...props}
         >
           {placeholder && (
-            <option value="" disabled={props.required}>
+            <option value="" disabled={required}>
               {placeholder}
             </option>
           )}
+
           {options.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
           ))}
         </select>
-        
+
         {helpText && (
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{helpText}</p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {helpText}
+          </p>
         )}
-        
+
         {error && (
-          <p className="mt-1 text-xs text-red-500 dark:text-red-400">{error}</p>
+          <p className="mt-1 text-xs text-red-500 dark:text-red-400">
+            {error}
+          </p>
         )}
       </div>
     );

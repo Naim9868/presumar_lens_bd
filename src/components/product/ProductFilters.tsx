@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Filter, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { FilterOptions } from '@/types';
+import { FilterSection } from './FilterSection';
 
 interface ProductFiltersProps {
   brands: Array<{ _id: string; name: string; slug: string }>;
@@ -18,7 +19,7 @@ export function ProductFilters({ brands, onFilterChange, initialFilters, onClose
   const [selectedBrands, setSelectedBrands] = useState<string[]>(initialFilters?.brands || []);
   const [priceRange, setPriceRange] = useState({ min: initialFilters?.minPrice || 0, max: initialFilters?.maxPrice || 100000 });
   const [inStockOnly, setInStockOnly] = useState(initialFilters?.inStock || false);
-  const [selectedRating, setSelectedRating] = useState(initialFilters?.rating || 0);
+  // const [selectedRating, setSelectedRating] = useState(initialFilters?.rating || 0);
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev =>
@@ -42,7 +43,7 @@ export function ProductFilters({ brands, onFilterChange, initialFilters, onClose
       maxPrice: priceRange.max < 100000 ? priceRange.max : undefined,
       brands: selectedBrands.length > 0 ? selectedBrands : undefined,
       inStock: inStockOnly || undefined,
-      rating: selectedRating > 0 ? selectedRating : undefined,
+      // rating: selectedRating > 0 ? selectedRating : undefined,
     });
     if (isMobile && onClose) onClose();
   };
@@ -51,25 +52,25 @@ export function ProductFilters({ brands, onFilterChange, initialFilters, onClose
     setSelectedBrands([]);
     setPriceRange({ min: 0, max: 100000 });
     setInStockOnly(false);
-    setSelectedRating(0);
+    // setSelectedRating(0);
     onFilterChange({});
     if (isMobile && onClose) onClose();
   };
 
-  const hasActiveFilters = selectedBrands.length > 0 || priceRange.min > 0 || priceRange.max < 100000 || inStockOnly || selectedRating > 0;
+  const hasActiveFilters = selectedBrands.length > 0 || priceRange.min > 0 || priceRange.max < 100000 || inStockOnly
 
-  const FilterSection = ({ title, section, children }: { title: string; section: string; children: React.ReactNode }) => (
-    <div className="border-b border-gray-200 dark:border-gray-800 py-4">
-      <button
-        onClick={() => toggleSection(section)}
-        className="w-full flex justify-between items-center text-left"
-      >
-        <span className="font-semibold text-gray-900 dark:text-white">{title}</span>
-        {expandedSections.includes(section) ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-      </button>
-      {expandedSections.includes(section) && <div className="mt-3 space-y-3">{children}</div>}
-    </div>
-  );
+  // const FilterSection = ({ title, section, children }: { title: string; section: string; children: React.ReactNode }) => (
+  //   <div className="border-b border-gray-200 dark:border-gray-800 py-4">
+  //     <button
+  //       onClick={() => toggleSection(section)}
+  //       className="w-full flex justify-between items-center text-left"
+  //     >
+  //       <span className="font-semibold text-gray-900 dark:text-white">{title}</span>
+  //       {expandedSections.includes(section) ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+  //     </button>
+  //     {expandedSections.includes(section) && <div className="mt-3 space-y-3">{children}</div>}
+  //   </div>
+  // );
 
   const filterContent = (
     <div className="space-y-4">
@@ -87,7 +88,11 @@ export function ProductFilters({ brands, onFilterChange, initialFilters, onClose
       </div>
 
       {/* Price Range */}
-      <FilterSection title="Price Range" section="price">
+      <FilterSection
+        title="Price Range" section="price"
+        expandedSections={expandedSections}
+        toggleSection={toggleSection}
+      >
         <div className="space-y-3">
           <div className="flex gap-3">
             <div className="flex-1">
@@ -121,7 +126,11 @@ export function ProductFilters({ brands, onFilterChange, initialFilters, onClose
       </FilterSection>
 
       {/* Brands */}
-      <FilterSection title="Brands" section="brands">
+      <FilterSection
+        title="Brands" section="brands"
+        expandedSections={expandedSections}
+        toggleSection={toggleSection}
+      >
         <div className="space-y-2 max-h-48 overflow-y-auto">
           {brands.map(brand => (
             <label key={brand._id} className="flex items-center gap-2 cursor-pointer">
@@ -138,7 +147,11 @@ export function ProductFilters({ brands, onFilterChange, initialFilters, onClose
       </FilterSection>
 
       {/* Availability */}
-      <FilterSection title="Availability" section="availability">
+      <FilterSection
+        title="Availability" section="availability"
+        expandedSections={expandedSections}
+        toggleSection={toggleSection}
+      >
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
@@ -151,7 +164,7 @@ export function ProductFilters({ brands, onFilterChange, initialFilters, onClose
       </FilterSection>
 
       {/* Rating */}
-      <FilterSection title="Customer Rating" section="rating">
+      {/* <FilterSection title="Customer Rating" section="rating">
         <div className="space-y-2">
           {[4, 3, 2, 1].map(rating => (
             <label key={rating} className="flex items-center gap-2 cursor-pointer">
@@ -175,7 +188,7 @@ export function ProductFilters({ brands, onFilterChange, initialFilters, onClose
             </label>
           ))}
         </div>
-      </FilterSection>
+      </FilterSection> */}
 
       {/* Apply Button for Mobile */}
       {isMobile && (

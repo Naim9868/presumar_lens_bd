@@ -3,25 +3,8 @@
 
 import { useState } from 'react';
 import { X, Plus, Copy, Sparkles } from 'lucide-react';
+import { VariantAttribute, ProductVariant } from '@/types';
 
-interface VariantAttribute {
-  key: string;
-  value: string;
-}
-
-interface ProductVariant {
-  sku: string;
-  variantKey?: string;
-  attributes: VariantAttribute[];
-  price: number;
-  compareAtPrice?: number;
-  inventory: number;
-  reserved?: number;
-  weight?: number;
-  images?: string[];
-  isDefault: boolean;
-  status: 'in_stock' | 'out_of_stock' | 'discontinued';
-}
 
 interface ProductVariantManagerProps {
   variants: ProductVariant[];
@@ -59,7 +42,7 @@ export function ProductVariantManager({
       attributes: newAttributes,
       price: 0,
       inventory: 0,
-      isDefault: variants.length === 0,
+      isDefault: variants.length === 0 ? true : false,
       status: 'in_stock'
     };
     onChange([...variants, newVariant]);

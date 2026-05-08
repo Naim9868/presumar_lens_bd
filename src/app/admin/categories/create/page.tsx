@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { ReactElement } from 'react';
 import { ArrowLeft, Save, Plus, X } from 'lucide-react';
 
 interface Category {
@@ -35,14 +36,14 @@ export default function CreateCategoryPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
-  
+
   const [formData, setFormData] = useState({
     name: '',
     slug: '',
     parentId: '',
     status: 'active' as 'active' | 'inactive'
   });
-  
+
   const [specGroups, setSpecGroups] = useState<CategoryGroup[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -128,96 +129,100 @@ export default function CreateCategoryPage() {
 
   // app/admin/categories/create/page.tsx - Update the handleSubmit function
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setLoading(true);
-  setErrors({});
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrors({});
 
-  if (!formData.name) {
-    setErrors({ name: 'Category name is required' });
-    setLoading(false);
-    return;
-  }
-
-  // Clean up the specification template
-  const cleanSpecGroups = specGroups
-    .filter(group => group.groupName && group.groupName.trim() !== '')
-    .map(group => ({
-      groupName: group.groupName.trim(),
-      displayOrder: group.displayOrder,
-      fields: group.fields
-        .filter(field => field.key && field.key.trim() !== '' && field.label && field.label.trim() !== '')
-        .map(field => ({
-          key: field.key.trim(),
-          label: field.label.trim(),
-          type: field.type,
-          unit: field.unit || undefined,
-          options: field.options && field.options.length > 0 ? field.options : undefined,
-          required: field.required || false,
-          filterable: field.filterable || false,
-          isVariantAttribute: field.isVariantAttribute || false,
-          defaultValue: field.defaultValue
-        }))
-    }));
-
-  const categoryData = {
-    name: formData.name.trim(),
-    slug: formData.slug || undefined,
-    parentId: formData.parentId || undefined,
-    status: formData.status,
-    specificationTemplate: cleanSpecGroups
-  };
-
-  // Remove parentId if empty string
-  if (!categoryData.parentId) {
-    delete categoryData.parentId;
-  }
-
-  console.log('Submitting category data:', categoryData);
-
-  try {
-    const res = await fetch('/api/categories', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(categoryData)
-    });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      router.push('/admin/categories');
-    } else {
-      setErrors({ submit: data.error || 'Failed to create category' });
+    if (!formData.name) {
+      setErrors({ name: 'Category name is required' });
+      setLoading(false);
+      return;
     }
-  } catch (error) {
-    console.error('Error creating category:', error);
-    setErrors({ submit: 'An error occurred. Please try again.' });
-  } finally {
-    setLoading(false);
-  }
-};
+
+    // Clean up the specification template
+    const cleanSpecGroups = specGroups
+      .filter(group => group.groupName && group.groupName.trim() !== '')
+      .map(group => ({
+        groupName: group.groupName.trim(),
+        displayOrder: group.displayOrder,
+        fields: group.fields
+          .filter(field => field.key && field.key.trim() !== '' && field.label && field.label.trim() !== '')
+          .map(field => ({
+            key: field.key.trim(),
+            label: field.label.trim(),
+            type: field.type,
+            unit: field.unit || undefined,
+            options: field.options && field.options.length > 0 ? field.options : undefined,
+            required: field.required || false,
+            filterable: field.filterable || false,
+            isVariantAttribute: field.isVariantAttribute || false,
+            defaultValue: field.defaultValue
+          }))
+      }));
+
+    const categoryData = {
+      name: formData.name.trim(),
+      slug: formData.slug || undefined,
+      parentId: formData.parentId || undefined,
+      status: formData.status,
+      specificationTemplate: cleanSpecGroups
+    };
+
+    // Remove parentId if empty string
+    if (!categoryData.parentId) {
+      delete categoryData.parentId;
+    }
+
+    console.log('Submitting category data:', categoryData);
+
+    try {
+      const res = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(categoryData)
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        router.push('/admin/categories');
+      } else {
+        setErrors({ submit: data.error || 'Failed to create category' });
+      }
+    } catch (error) {
+      console.error('Error creating category:', error);
+      setErrors({ submit: 'An error occurred. Please try again.' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Get category name with indentation for display
   const getCategoryDisplay = (category: Category, level = 0): string => {
     return '—'.repeat(level) + ' ' + category.name;
   };
 
-  // Build hierarchical options for parent dropdown
-  const buildParentOptions = (categories: Category[], level = 0): JSX.Element[] => {
-    const options: JSX.Element[] = [];
-    
-    categories.forEach(cat => {
-      options.push(
-        <option key={cat._id} value={cat._id}>
-          {' '.repeat(level * 4)}{cat.name}
-        </option>
-      );
-      // Add children if they exist (not in flat list)
-      // This would require recursive logic
-    });
-    
-    return options;
-  };
+  // // Build hierarchical options for parent dropdown
+  // const buildParentOptions = (
+  //   categories: Category[],
+  //   level = 0
+  // ): ReactElement[] => {
+
+  //   const options: JSX.Element[] = [];
+
+  //   categories.forEach(cat => {
+  //     options.push(
+  //       <option key={cat._id} value={cat._id}>
+  //         {' '.repeat(level * 4)}{cat.name}
+  //       </option>
+  //     );
+  //     // Add children if they exist (not in flat list)
+  //     // This would require recursive logic
+  //   });
+
+  //   return options;
+  // };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -392,19 +397,19 @@ const handleSubmit = async (e: React.FormEvent) => {
                               onChange={(e) => updateSpecField(groupIndex, fieldIndex, { unit: e.target.value })}
                               className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
                             />
-                            
+
                             {(field.type === 'select' || field.type === 'multiselect') && (
                               <input
                                 type="text"
                                 placeholder="Options (comma separated)"
                                 value={field.options?.join(', ') || ''}
-                                onChange={(e) => updateSpecField(groupIndex, fieldIndex, { 
+                                onChange={(e) => updateSpecField(groupIndex, fieldIndex, {
                                   options: e.target.value.split(',').map(o => o.trim()).filter(o => o)
                                 })}
                                 className="col-span-2 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
                               />
                             )}
-                            
+
                             <div className="flex items-center gap-2">
                               <label className="flex items-center gap-1 text-sm">
                                 <input

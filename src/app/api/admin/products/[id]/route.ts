@@ -6,6 +6,11 @@ import { dbConnect } from '@/lib/dbConnect';
 import { Product } from '@/models/Product';
 import mongoose from 'mongoose';
 
+type Variant = {
+  price?: number;
+  inventory?: number;
+};
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -32,10 +37,36 @@ export async function GET(
         error: 'Product not found'
       }, { status: 404 });
     }
+
+    /* ===============================
+       CALCULATIONS
+    =============================== */
+    let totalInventory = 0;
+    let lowestPrice = 0;
+    let highestPrice = 0;
+
+    if (product.variants && product.variants.length > 0) {
+      const variants = product.variants as Variant[];
+
+      totalInventory = variants.reduce(
+        (sum: number, variant) => sum + (variant.inventory ?? 0),
+        0
+      );
+
+      const prices = variants.map(v => v.price ?? 0);
+
+      lowestPrice = Math.min(...prices);
+      highestPrice = Math.max(...prices);
+    }
     
     return NextResponse.json({
       success: true,
-      data: product
+      data: {
+        ...product,
+        totalInventory,
+        lowestPrice,
+        highestPrice,
+      }
     });
   } catch (error: any) {
     console.error('Error fetching product:', error);

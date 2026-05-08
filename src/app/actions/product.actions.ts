@@ -1,27 +1,69 @@
 'use server';
 
+import mongoose from 'mongoose';
 import { dbConnect as connectDB } from '@/lib/dbConnect';
 import "@/models";
 import { Product } from '@/models/Product';
-import { Brand } from '@/models/Brand';
-import {Category}  from '@/models/Category';
-import { FilterOptions, TransformedProduct } from '@/types';
+import { Brand, IBrand } from '@/models/Brand';
+import { IProduct, IProductPopulated, ProductVariant } from '@/types/product';
+import { toProductDTO } from '@/utils/ProductDTO';
+
+
+
+export type FilterOptions = {
+  minPrice?: number;
+  maxPrice?: number;
+  brands?: string[];
+  tags?: string[];
+  search?: string;
+  inStock?: boolean;
+
+  specs?: {
+    key: string;
+    values: string[];
+  }[];
+
+  sortBy?:
+  | 'price_asc'
+  | 'price_desc'
+  | 'newest'
+  | 'rating_desc';
+};
+
+interface GetAllProductsResponse {
+  success: boolean;
+  products: IProduct[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  error?: string;
+}
+
+interface GetAllProductsParams extends FilterOptions {
+  page?: number;
+  limit?: number;
+  query?: string;
+  categoryId?: string;
+  brandId?: string;
+  status?: string;
+}
 
 // Helper function to serialize MongoDB documents
 function serializeDocument(doc: any): any {
   if (!doc) return null;
-  
+
   // Handle arrays
   if (Array.isArray(doc)) {
     return doc.map(item => serializeDocument(item));
   }
-  
+
   // Handle objects
   if (typeof doc === 'object') {
     const serialized: any = {};
     for (const key in doc) {
       const value = doc[key];
-      
+
       // Convert ObjectId to string
       if (value && typeof value === 'object' && value._bsontype === 'ObjectId') {
         serialized[key] = value.toString();
@@ -40,109 +82,296 @@ function serializeDocument(doc: any): any {
     }
     return serialized;
   }
-  
+
   return doc;
 }
 
-// Get all products with filters
-export async function getAllProducts(filters?: FilterOptions) {
+
+
+export async function getAllProducts(
+  params: GetAllProductsParams = {}
+): Promise<GetAllProductsResponse> {
   try {
     await connectDB();
-    
-    const query: any = { 
-      status: 'active',
-      deletedAt: null 
+
+    const {
+      page = 1,
+      limit = 20,
+      query,
+      categoryId,
+      brandId,
+      status,
+      minPrice,
+      maxPrice,
+      tags,
+      specs,
+      sortBy = 'newest',
+      inStock,
+    } = params;
+
+    const filter: any = {
+      deletedAt: null,
     };
-    
-    // Apply filters
-    if (filters) {
-      if (filters.minPrice || filters.maxPrice) {
-        query.lowestPrice = {};
-        if (filters.minPrice) query.lowestPrice.$gte = filters.minPrice;
-        if (filters.maxPrice) query.lowestPrice.$lte = filters.maxPrice;
-      }
-      
-      if (filters.brands && filters.brands.length > 0) {
-        query.brandId = { $in: filters.brands };
-      }
-      
-      if (filters.tags && filters.tags.length > 0) {
-        query.tags = { $in: filters.tags };
-      }
-      
-      if (filters.inStock) {
-        query.totalInventory = { $gt: 0 };
-      }
-    }
-    
-    let productsQuery = Product.find(query)
-      .select('_id name slug thumbnail brandId categoryId lowestPrice highestPrice status tags variants images createdAt')
-      .populate('brandId', 'name slug')
-      .populate('categoryId', 'name slug')
-      .lean();
-    
-    // Apply sorting
-    if (filters?.sortBy) {
-      switch (filters.sortBy) {
-        case 'price_asc':
-          productsQuery = productsQuery.sort({ lowestPrice: 1 });
-          break;
-        case 'price_desc':
-          productsQuery = productsQuery.sort({ lowestPrice: -1 });
-          break;
-        case 'newest':
-          productsQuery = productsQuery.sort({ createdAt: -1 });
-          break;
-        case 'rating_desc':
-          productsQuery = productsQuery.sort({ rating: -1 });
-          break;
-        default:
-          productsQuery = productsQuery.sort({ createdAt: -1 });
-      }
+
+    /* ================= STATUS ================= */
+
+    if (status && status !== 'all') {
+      filter.status = status;
     } else {
-      productsQuery = productsQuery.sort({ createdAt: -1 });
+      filter.status = 'active';
     }
-    
-    const products = await productsQuery;
-    
-    // Serialize and transform products
-    const transformedProducts = products.map((product: any) => {
-      const serializedProduct = serializeDocument(product);
-      return transformProduct(serializedProduct);
+
+    /* ================= CATEGORY ================= */
+
+    if (
+      categoryId &&
+      mongoose.Types.ObjectId.isValid(categoryId)
+    ) {
+      filter.categoryId = new mongoose.Types.ObjectId(categoryId);
+    }
+
+    /* ================= BRAND ================= */
+
+    if (
+      brandId &&
+      mongoose.Types.ObjectId.isValid(brandId)
+    ) {
+      filter.brandId = new mongoose.Types.ObjectId(brandId);
+    }
+
+
+
+
+    /* ================= PRICE ================= */
+
+    if (
+      minPrice !== undefined ||
+      maxPrice !== undefined
+    ) {
+      filter.lowestPrice = {};
+
+      if (minPrice !== undefined) {
+        filter.lowestPrice.$gte = minPrice;
+      }
+
+      if (maxPrice !== undefined) {
+        filter.lowestPrice.$lte = maxPrice;
+      }
+    }
+
+    /* ================= STOCK ================= */
+
+    if (inStock) {
+      filter.totalInventory = { $gt: 0 };
+    }
+
+    /* ================= SEARCH ================= */
+
+    if (query?.trim()) {
+      filter.$or = [
+        {
+          name: {
+            $regex: query,
+            $options: 'i',
+          },
+        },
+        {
+          shortDescription: {
+            $regex: query,
+            $options: 'i',
+          },
+        },
+        {
+          tags: {
+            $in: [new RegExp(query, 'i')],
+          },
+        },
+      ];
+    }
+
+    /* ================= TAGS ================= */
+
+    if (tags?.length) {
+      filter.tags = { $in: tags };
+    }
+
+    /* ================= SPECS ================= */
+
+    if (specs?.length) {
+      filter.$and = specs.map((spec) => ({
+        specsFlat: {
+          $elemMatch: {
+            key: spec.key,
+            value: { $in: spec.values },
+          },
+        },
+      }));
+    }
+
+    /* ================= SORT ================= */
+
+    let sort: any = {
+      createdAt: -1,
+    };
+
+    switch (sortBy) {
+      case 'price_asc':
+        sort = { lowestPrice: 1 };
+        break;
+
+      case 'price_desc':
+        sort = { lowestPrice: -1 };
+        break;
+
+      case 'rating_desc':
+        sort = { rating: -1 };
+        break;
+
+      case 'newest':
+      default:
+        sort = { createdAt: -1 };
+        break;
+    }
+
+    /* ================= PAGINATION ================= */
+
+    const skip = (page - 1) * limit;
+
+    /* ================= QUERY ================= */
+
+    const [products, total] = await Promise.all([
+      Product.find(filter)
+        .populate('brandId', 'name slug')
+        .populate('categoryId', 'name slug')
+        .populate('subcategoryId', 'name slug')
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+
+      Product.countDocuments(filter),
+    ]);
+
+
+
+    /* ---------- Batch Fetch Relations ---------- */
+
+    const variants = products.map((p, i) => {
+      // console.log(`product[${i}] variant:`, p.variants);
+      // console.log(p.variants.map(v => v.price));
+      return p.variants;
+    })
+
+
+    /* ---------- Attach Computed Fields ---------- */
+    const finalProducts = products.map((product, i) => {
+
+      const prices = product.variants.map((v: ProductVariant) => v.price);
+
+      return {
+        ...product,
+        lowestPrice: prices.length ? Math.min(...prices) : 0,
+        heighestPrice: prices.length ? Math.max(...prices) : 0,
+        variantCount: variants.length,
+      };
     });
-    
-    return { success: true, products: transformedProducts };
-  } catch (error) {
-    console.error('Error fetching products:', error);
-    return { success: false, products: [] };
+
+
+
+    /* ================= DTO ================= */
+
+    const productsDTO: IProduct[] = finalProducts.map((product: any) =>
+      toProductDTO(serializeDocument(product))
+    );
+
+
+    // console.log(productsDTO);
+
+
+    return {
+      success: true,
+      products: productsDTO,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  } catch (error: any) {
+    console.error('getAllProducts error:', error);
+
+    return {
+      success: false,
+      products: [],
+      total: 0,
+      page: 1,
+      limit: 20,
+      totalPages: 1,
+      error: error.message || 'Something went wrong',
+    };
   }
 }
+
 
 // Get single product by slug
 export async function getProductBySlug(slug: string) {
   try {
     await connectDB();
-    
-    const product = await Product.findOne({ 
-      slug, 
+
+    const product = await Product.findOne({
+      slug,
       status: 'active',
-      deletedAt: null 
+      deletedAt: null
     })
       .populate('brandId', 'name slug description')
       .populate('categoryId', 'name slug')
       .populate('subcategoryId', 'name slug')
       .lean();
-    
+
     if (!product) {
       return { success: false, product: null };
     }
-    
+
     const serializedProduct = serializeDocument(product);
-    const transformedProduct = transformProduct(serializedProduct);
-    
-    return { success: true, product: transformedProduct };
+    console.log(serializedProduct);
+
+    return {
+      success: true,
+      product: toProductDTO(serializedProduct)
+    };
   } catch (error) {
     console.error('Error fetching product:', error);
+    return { success: false, product: null };
+  }
+}
+
+// get product by id
+export async function getProductById(productId: string) {
+  try {
+    await connectDB();
+
+    const product = await Product.findOne({
+      _id: productId,
+      status: 'active',
+      deletedAt: null
+    })
+      .populate('brandId', 'name slug description')
+      .populate('categoryId', 'name slug')
+      .populate('subcategoryId', 'name slug')
+      .lean();
+
+    if (!product) {
+      return { success: false, product: null };
+    }
+
+    const serializedProduct = serializeDocument(product);
+    console.log(serializedProduct);
+
+    return {
+      success: true,
+      product: toProductDTO(serializedProduct)
+    };
+  } catch (error) {
+    console.error('Error fetching product by ID:', error);
     return { success: false, product: null };
   }
 }
@@ -151,29 +380,31 @@ export async function getProductBySlug(slug: string) {
 export async function getProductsByCategory(categoryId: string, limit?: number) {
   try {
     await connectDB();
-    
-    const query = { 
+
+    const query = {
       categoryId,
       status: 'active',
-      deletedAt: null 
+      deletedAt: null
     };
-    
+
     let productsQuery = Product.find(query)
-      .select('_id name slug thumbnail brandId lowestPrice highestPrice status variants images')
+      .select('_id name slug thumbnail brandId categoryId lowestPrice highestPrice status variants images createdAt')
       .populate('brandId', 'name slug')
+      .populate('categoryId', 'name slug')
       .sort({ createdAt: -1 });
-    
+
     if (limit) {
       productsQuery = productsQuery.limit(limit);
     }
-    
+
     const products = await productsQuery.lean();
-    const transformedProducts = products.map((product: any) => {
-      const serializedProduct = serializeDocument(product);
-      return transformProduct(serializedProduct);
-    });
-    
-    return { success: true, products: transformedProducts };
+
+
+    const productsDTO = products.map((p: IProductPopulated) =>
+      toProductDTO(serializeDocument(p))
+    );
+
+    return { success: true, products: productsDTO };
   } catch (error) {
     console.error('Error fetching products by category:', error);
     return { success: false, products: [] };
@@ -184,16 +415,16 @@ export async function getProductsByCategory(categoryId: string, limit?: number) 
 export async function getAllBrands() {
   try {
     await connectDB();
+
     const brands = await Brand.find({ isActive: true })
       .select('_id name slug')
       .lean();
-    
-    const serializedBrands = brands.map(brand => ({
-      _id: brand._id.toString(),
-      name: brand.name,
-      slug: brand.slug
-    }));
-    
+
+    // ✅ Use same serializer for consistency
+    const serializedBrands = brands.map((brand: IBrand) =>
+      serializeDocument(brand)
+    );
+
     return { success: true, brands: serializedBrands };
   } catch (error) {
     console.error('Error fetching brands:', error);
@@ -201,69 +432,3 @@ export async function getAllBrands() {
   }
 }
 
-// Transform product helper function
-function transformProduct(product: any): TransformedProduct {
-  const defaultVariant = product.variants?.find((v: any) => v.isDefault) || product.variants?.[0];
-  const totalStock = product.variants?.reduce((sum: number, v: any) => sum + (v.inventory || 0), 0) || 0;
-  
-  const hasDiscount = defaultVariant?.compareAtPrice && defaultVariant.compareAtPrice > defaultVariant?.price;
-  const originalPrice = hasDiscount ? defaultVariant?.compareAtPrice : product.lowestPrice || defaultVariant?.price || 0;
-  const discountPrice = defaultVariant?.price || product.lowestPrice || 0;
-  
-  // Calculate rating (from reviews if available, otherwise default)
-  const rating = product.averageRating || 4.5;
-  const reviewCount = product.reviewCount || Math.floor(Math.random() * 200) + 10;
-  const soldCount = product.soldCount || Math.floor(Math.random() * 500) + 50;
-  
-  const badges: any = {};
-  
-  if (soldCount > 300) badges.isBestSeller = true;
-  if (discountPrice > 50000) badges.isPremium = true;
-  if (totalStock <= 5 && totalStock > 0) badges.isLimitedStock = true;
-  
-  const createdAt = product.createdAt ? new Date(product.createdAt) : new Date();
-  const daysOld = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
-  if (daysOld <= 30) badges.isNewArrival = true;
-  
-  return {
-    _id: product._id?.toString() || product.id,
-    id: product._id?.toString() || product.id,
-    name: product.name,
-    slug: product.slug,
-    brand: product.brandId?.name || 'Unknown',
-    brandId: product.brandId ? {
-      _id: product.brandId._id?.toString(),
-      name: product.brandId.name,
-      slug: product.brandId.slug
-    } : null,
-    categoryId: product.categoryId ? {
-      _id: product.categoryId._id?.toString(),
-      name: product.categoryId.name,
-      slug: product.categoryId.slug
-    } : null,
-    rating,
-    reviewCount,
-    soldCount,
-    originalPrice,
-    discountPrice,
-    imageUrl: product.thumbnail || product.images?.[0] || '/placeholder-image.jpg',
-    thumbnail: product.thumbnail || product.images?.[0] || '/placeholder-image.jpg',
-    images: product.images || [],
-    isAvailable: product.status === 'active' && totalStock > 0,
-    stock: totalStock,
-    freeShipping: discountPrice > 5000,
-    emiAvailable: discountPrice > 10000,
-    warranty: discountPrice > 30000 ? '2 Years' : '1 Year',
-    badges,
-    variants: product.variants?.map((v: any) => ({
-      ...v,
-      _id: v._id?.toString()
-    })) || [],
-    specs: product.specsFlat || [],
-    description: product.description,
-    shortDescription: product.shortDescription,
-    tags: product.tags || [],
-    status: product.status,
-    fullProductData: product,
-  };
-}

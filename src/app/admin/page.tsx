@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  ShoppingCart, 
-  Package, 
-  Users, 
+import {
+  TrendingUp,
+  TrendingDown,
+  ShoppingCart,
+  Package,
+  Users,
   DollarSign,
   Eye,
   ArrowUpRight,
@@ -170,7 +170,7 @@ export default function AdminDashboard() {
           const Icon = stat.icon;
           const TrendIcon = stat.trend === 'up' ? ArrowUpRight : ArrowDownRight;
           const trendColor = stat.trend === 'up' ? 'text-green-600' : 'text-red-600';
-          
+
           return (
             <div
               key={index}
@@ -227,8 +227,8 @@ export default function AdminDashboard() {
               <AreaChart data={salesData}>
                 <defs>
                   <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.1} />
+                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -236,12 +236,12 @@ export default function AdminDashboard() {
                 <YAxis stroke="#9ca3af" />
                 <Tooltip />
                 <Legend />
-                <Area 
-                  type="monotone" 
-                  dataKey="sales" 
-                  stroke="#f59e0b" 
-                  fillOpacity={1} 
-                  fill="url(#colorSales)" 
+                <Area
+                  type="monotone"
+                  dataKey="sales"
+                  stroke="#f59e0b"
+                  fillOpacity={1}
+                  fill="url(#colorSales)"
                 />
                 <Line type="monotone" dataKey="revenue" stroke="#3b82f6" />
               </AreaChart>
@@ -262,7 +262,9 @@ export default function AdminDashboard() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent }) =>
+                    `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`
+                  }
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="value"
@@ -379,7 +381,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center justify-between">
                     <div className="flex-1 mr-4">
                       <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                        <div 
+                        <div
                           className="h-full bg-amber-500 rounded-full"
                           style={{ width: `${(product.sales / topProducts[0].sales) * 100}%` }}
                         />

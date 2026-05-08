@@ -10,14 +10,14 @@ export async function POST(req: NextRequest) {
     //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     // }
     
-    const { userId, type, orderId, customMessage } = await req.json();
+    // const { userId, type, orderId, customMessage } = await req.json();
     
-    await sendNotification({
-      userId,
-      type,
-      orderId,
-      customMessage,
-    });
+    // await sendNotification({
+    //   userId,
+    //   type,
+    //   orderId,
+    //   customMessage,
+    // });
     
     return NextResponse.json({ success: true });
   } catch (error) {

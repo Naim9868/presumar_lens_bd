@@ -37,7 +37,7 @@ export default function EditCategoryPage() {
   const router = useRouter();
   const params = useParams();
   const categoryId = params.id as string;
-  
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -60,10 +60,10 @@ export default function EditCategoryPage() {
         fetch(`/api/categories/${categoryId}`),
         fetch('/api/categories')
       ]);
-      
+
       const category = await categoryRes.json();
       const allCategories = await categoriesRes.json();
-      
+
       // Flatten categories for parent dropdown
       const flatCategories = flattenCategories(allCategories);
       // Exclude current category and its children to prevent circular references
@@ -73,7 +73,7 @@ export default function EditCategoryPage() {
         if (isDescendant(cat._id, categoryId, flatCategories)) return false;
         return true;
       });
-      
+
       setCategories(filteredCategories);
       setFormData({
         name: category.name,
@@ -199,7 +199,11 @@ export default function EditCategoryPage() {
     const categoryData = {
       ...formData,
       slug: formData.slug || generateSlug(formData.name),
-      specificationTemplate: specGroups
+      specificationTemplate: specGroups,
+      parentId:
+        formData.parentId && formData.parentId !== ''
+          ? formData.parentId
+          : undefined
     };
 
     // Remove parentId if empty string
@@ -271,9 +275,8 @@ export default function EditCategoryPage() {
                       setFormData({ ...formData, name: e.target.value, slug: generateSlug(e.target.value) });
                     }
                   }}
-                  className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
-                    errors.name ? 'border-red-500' : ''
-                  }`}
+                  className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.name ? 'border-red-500' : ''
+                    }`}
                 />
                 {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
               </div>
@@ -295,9 +298,8 @@ export default function EditCategoryPage() {
                 <select
                   value={formData.parentId}
                   onChange={(e) => setFormData({ ...formData, parentId: e.target.value })}
-                  className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
-                    errors.parentId ? 'border-red-500' : ''
-                  }`}
+                  className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.parentId ? 'border-red-500' : ''
+                    }`}
                 >
                   <option value="">None (Top Level Category)</option>
                   {categories.map(cat => (
@@ -418,19 +420,19 @@ export default function EditCategoryPage() {
                               onChange={(e) => updateSpecField(groupIndex, fieldIndex, { unit: e.target.value })}
                               className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
                             />
-                            
+
                             {(field.type === 'select' || field.type === 'multiselect') && (
                               <input
                                 type="text"
                                 placeholder="Options (comma separated)"
                                 value={field.options?.join(', ') || ''}
-                                onChange={(e) => updateSpecField(groupIndex, fieldIndex, { 
+                                onChange={(e) => updateSpecField(groupIndex, fieldIndex, {
                                   options: e.target.value.split(',').map(o => o.trim()).filter(o => o)
                                 })}
                                 className="col-span-2 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
                               />
                             )}
-                            
+
                             <div className="flex items-center gap-2 flex-wrap">
                               <label className="flex items-center gap-1 text-sm">
                                 <input

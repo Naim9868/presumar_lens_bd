@@ -8,12 +8,13 @@ interface BulkActionModalProps {
   selectedCount: number;
   onAction: (action: string) => void;
   onClear: () => void;
+  isLoading?: boolean;
 }
 
-export function BulkActionModal({ selectedCount, onAction, onClear }: BulkActionModalProps) {
+export function BulkActionModal({ selectedCount, onAction, onClear, isLoading = false }: BulkActionModalProps) {
   const [selectedAction, setSelectedAction] = useState('');
   const [isOpen, setIsOpen] = useState(false);
-  
+
   const actions = [
     { id: 'confirm', label: 'Confirm Orders', color: 'green', icon: CheckCircle },
     { id: 'process', label: 'Start Processing', color: 'blue', icon: CheckCircle },
@@ -21,7 +22,7 @@ export function BulkActionModal({ selectedCount, onAction, onClear }: BulkAction
     { id: 'deliver', label: 'Mark as Delivered', color: 'emerald', icon: CheckCircle },
     { id: 'cancel', label: 'Cancel Orders', color: 'red', icon: AlertCircle },
   ];
-  
+
   const handleAction = () => {
     if (selectedAction) {
       onAction(selectedAction);
@@ -29,7 +30,7 @@ export function BulkActionModal({ selectedCount, onAction, onClear }: BulkAction
       setSelectedAction('');
     }
   };
-  
+
   return (
     <>
       {selectedCount > 0 && (
@@ -62,7 +63,7 @@ export function BulkActionModal({ selectedCount, onAction, onClear }: BulkAction
           </div>
         </div>
       )}
-      
+
       {isOpen && selectedAction && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg max-w-md w-full mx-4 p-6">
@@ -84,9 +85,10 @@ export function BulkActionModal({ selectedCount, onAction, onClear }: BulkAction
               </button>
               <button
                 onClick={handleAction}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                disabled={isLoading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                Confirm
+                {isLoading ? 'Processing...' : 'Confirm'}
               </button>
             </div>
           </div>

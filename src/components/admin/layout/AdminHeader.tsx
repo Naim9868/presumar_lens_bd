@@ -7,10 +7,9 @@ import Link from 'next/link';
 
 interface AdminHeaderProps {
   onMenuClick: () => void;
-  user: any;
 }
 
-export default function AdminHeader({ onMenuClick, user }: AdminHeaderProps) {
+export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -165,7 +164,7 @@ export default function AdminHeader({ onMenuClick, user }: AdminHeaderProps) {
                 <User className="h-4 w-4 text-white" />
               </div>
               <span className="hidden text-sm font-medium text-gray-700 dark:text-gray-300 lg:block">
-                {user?.name || 'Admin User'}
+                {'Admin User'}
               </span>
               <ChevronDown className="hidden h-4 w-4 text-gray-500 dark:text-gray-400 lg:block" />
             </button>
@@ -181,10 +180,10 @@ export default function AdminHeader({ onMenuClick, user }: AdminHeaderProps) {
                   <div className="py-1">
                     <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                       <p className="text-sm font-medium text-gray-900 dark:text-white">
-                        {user?.name || 'Admin User'}
+                        { 'Admin User'}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {user?.email || 'admin@lensstore.com'}
+                        {'admin@lensstore.com'}
                       </p>
                     </div>
                     <Link

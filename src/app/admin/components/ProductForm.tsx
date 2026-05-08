@@ -1,4 +1,5 @@
-// app/admin/components/ProductForm.tsx (Updated)
+
+// app/admin/components/ProductForm.tsx
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -10,35 +11,13 @@ import { ProductSpecForm } from './ProductSpecForm';
 import { ProductVariantManager } from './ProductVariantManager';
 import ImageUploader from './ImageUploader';
 import { TagInput } from './TagInput';
-// import { IBrand } from '@/models/Brand';
-// import { ICategory } from '@/types';
+import { Category, Brand, SpecGroup, SpecField } from '@/types';
+import { VariantAttribute, ProductVariant, ProductSpec } from '@/types/product';
 
 
-// ... (keep all interfaces the same)
-interface Category {
-  _id: string;
-  name: string;
-  specificationTemplate: Array<{
-    groupName: string;
-    fields: Array<{
-      key: string;
-      label: string;
-      type: string;
-      unit?: string;
-      options?: string[];
-      required: boolean;
-      filterable: boolean;
-      isVariantAttribute: boolean;
-      defaultValue?: unknown;
-    }>;
-    displayOrder: number;
-  }>;
-}
 
-interface Brand {
-  _id: string;
-  name: string;
-}
+// Types - reuse from ProductSpecForm when possible
+
 
 interface ProductFormData {
   name: string;
@@ -57,13 +36,38 @@ interface ProductFormData {
 interface ProductFormProps {
   initialData?: {
     formData: ProductFormData;
-    specs: unknown[];
-    variants: unknown[];
+    specs: ProductSpec[];
+    variants: ProductVariant[];
   };
   productId?: string;
   isEditing?: boolean;
   onSuccess?: () => void;
 }
+
+export type { ProductSpec, ProductVariant, ProductFormData, Category, Brand };
+
+// Helper function to safely convert defaultValue to appropriate type
+const normalizeDefaultValue = (value: unknown, type: string): string | number | boolean | string[] => {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  switch (type) {
+    case 'number':
+      return typeof value === 'number' ? value : Number(value) || 0;
+    case 'boolean':
+      return typeof value === 'boolean' ? value : Boolean(value);
+    case 'array':
+      return Array.isArray(value) ? value.join(', ') : String(value);
+    case 'multiselect':
+      return Array.isArray(value) ? value : [];
+    case 'select':
+    case 'text':
+    case 'textarea':
+    default:
+      return String(value);
+  }
+};
 
 export function ProductForm({ initialData, productId, isEditing = false, onSuccess }: ProductFormProps) {
   const router = useRouter();
@@ -71,7 +75,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
   const [categories, setCategories] = useState<Category[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [categoryTemplate, setCategoryTemplate] = useState<Category['specificationTemplate']>([]);
+  const [categoryTemplate, setCategoryTemplate] = useState<SpecGroup[]>([]);
   const [isInitializing, setIsInitializing] = useState(true);
   const [isChangingCategory, setIsChangingCategory] = useState(false);
   const [categoryVersion, setCategoryVersion] = useState(0);
@@ -92,17 +96,17 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
     }
   );
 
-  const [specs, setSpecs] = useState<unknown[]>(initialData?.specs || []);
-  const [variants, setVariants] = useState<unknown[]>(initialData?.variants || []);
+  const [specs, setSpecs] = useState<ProductSpec[]>(() => initialData?.specs || []);
+  const [variants, setVariants] = useState<ProductVariant[]>(() => initialData?.variants || []);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Cache for form data to prevent loss during re-renders
+  // Cache refs
   const formDataCache = useRef(formData);
   const specsCache = useRef(specs);
   const variantsCache = useRef(variants);
 
-  // Update caches when state changes
+  // Update caches
   useEffect(() => {
     formDataCache.current = formData;
   }, [formData]);
@@ -124,7 +128,6 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
   // Handle category change
   const handleCategoryChange = useCallback(async (categoryId: string) => {
     setIsChangingCategory(true);
-
     setFormData(prev => ({ ...prev, categoryId }));
     setSelectedCategory(categoryId);
 
@@ -134,27 +137,28 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
       const template = category.specificationTemplate || [];
       setCategoryTemplate(template);
 
-      // 🔥 Reset EVERYTHING properly
-      const initialSpecs = template.flatMap(group =>
+      // Initialize specs from template with proper value conversion
+      const initialSpecs: ProductSpec[] = template.flatMap(group =>
         group.fields.map(field => ({
           key: field.key,
           label: field.label,
-          value: field.defaultValue || '',
+          value: normalizeDefaultValue(field.defaultValue, field.type || 'text') as string | number | boolean,
           group: group.groupName,
           unit: field.unit,
-          filterable: field.filterable || false
+          filterable: field.filterable ?? false
         }))
       );
 
-      specsCache.current = [];
-      variantsCache.current = [];
+      setSpecs(initialSpecs);
+      specsCache.current = initialSpecs;
 
+      // Initialize variants based on variant attributes
       const variantAttrs = template.flatMap(group =>
         group.fields.filter(f => f.isVariantAttribute).map(f => f.key)
       );
 
       if (variantAttrs.length > 0) {
-        setVariants([{
+        const initialVariants: ProductVariant[] = [{
           sku: '',
           attributes: variantAttrs.map(attr => ({ key: attr, value: '' })),
           price: 0,
@@ -162,33 +166,34 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
           images: [],
           isDefault: true,
           status: 'in_stock'
-        }]);
+        }];
+        setVariants(initialVariants);
+        variantsCache.current = initialVariants;
       } else {
         setVariants([]);
+        variantsCache.current = [];
       }
 
-      // 🔥 force full remount
+      // Force remount of spec and variant components
       setCategoryVersion(prev => prev + 1);
     }
 
     setTimeout(() => setIsChangingCategory(false), 100);
   }, [categories]);
 
-  // Initialize category template and specs when category is selected or editing
+  // Initialize for editing mode
   useEffect(() => {
     if (selectedCategory && categories.length > 0 && !isChangingCategory) {
       const category = categories.find(c => c._id === selectedCategory);
       if (category) {
         setCategoryTemplate(category.specificationTemplate || []);
 
-        if (isEditing && initialData && !isChangingCategory) {
-          // For editing: use existing specs from initialData
-          if (specsCache.current.length === 0 && initialData.specs.length > 0) {
+        if (isEditing && initialData) {
+          // Use existing data for editing
+          if (specsCache.current.length === 0 && initialData.specs && initialData.specs.length > 0) {
             setSpecs(initialData.specs);
           }
-
-          // For editing: use existing variants from initialData
-          if (variantsCache.current.length === 0 && initialData.variants.length > 0) {
+          if (variantsCache.current.length === 0 && initialData.variants && initialData.variants.length > 0) {
             setVariants(initialData.variants);
           }
         }
@@ -207,7 +212,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
       // For editing: set selected category after categories are loaded
       if (isEditing && initialData?.formData.categoryId && !selectedCategory) {
         setSelectedCategory(initialData.formData.categoryId);
-        setFormData(prev => ({ ...prev, categoryId: initialData.formData.categoryId }));
+        setFormData(prev => ({ ...prev, categoryId: initialData.formData.categoryId || '' }));
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -215,7 +220,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
   };
 
   const flattenCategories = (categories: any[]): Category[] => {
-    let flat: Category[] = [];
+    const flat: Category[] = [];
     categories.forEach(cat => {
       flat.push({
         _id: cat._id,
@@ -223,7 +228,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
         specificationTemplate: cat.specificationTemplate || []
       });
       if (cat.children && cat.children.length > 0) {
-        flat = [...flat, ...flattenCategories(cat.children)];
+        flat.push(...flattenCategories(cat.children));
       }
     });
     return flat;
@@ -233,20 +238,22 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
     try {
       const res = await fetch('/api/admin/brands');
       const data = await res.json();
+      let brandsList: Brand[] = [];
+
       if (data.success && Array.isArray(data.data)) {
-        setBrands(data.data);
+        brandsList = data.data;
       } else if (Array.isArray(data)) {
-        setBrands(data);
-      } else {
-        setBrands([]);
+        brandsList = data;
       }
+
+      setBrands(brandsList);
     } catch (error) {
       console.error('Error fetching brands:', error);
       setBrands([]);
     }
   };
 
-  const generateSlug = (name: string) => {
+  const generateSlug = (name: string): string => {
     return name
       .toLowerCase()
       .trim()
@@ -254,7 +261,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
       .replace(/^-+|-+$/g, '');
   };
 
-  const generateVariantKey = (attributes: Array<{ key: string; value: string }>) => {
+  const generateVariantKey = (attributes: VariantAttribute[]): string => {
     if (!attributes || attributes.length === 0) {
       return 'default';
     }
@@ -263,9 +270,10 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
     return keyString || 'default';
   };
 
-  const validateForm = () => {
+  const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
+    // Basic validation
     if (!formData.brandId) {
       newErrors.brandId = 'Please select a brand';
     }
@@ -278,13 +286,25 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
       newErrors.thumbnail = 'Please select a thumbnail image';
     }
 
+    if (!formData.name.trim()) {
+      newErrors.name = 'Product name is required';
+    }
+
+    if (!formData.shortDescription.trim() || formData.shortDescription.length < 10) {
+      newErrors.shortDescription = 'Short description must be at least 10 characters';
+    }
+
+    if (!formData.description.trim() || formData.description.length < 50) {
+      newErrors.description = 'Full description must be at least 50 characters';
+    }
+
     // Validate required specs
     const requiredSpecs = categoryTemplate.flatMap(group =>
       group.fields.filter(f => f.required).map(f => f.key)
     );
 
     const missingSpecs = requiredSpecs.filter(key =>
-      !specs.some(s => s.key === key && s.value && s.value !== '')
+      !specs.some((spec: ProductSpec) => spec.key === key && spec.value && spec.value !== '')
     );
 
     if (missingSpecs.length > 0) {
@@ -294,23 +314,23 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
     // Validate variants
     if (variants.length === 0) {
       newErrors.variants = 'At least one variant is required';
-    }
+    } else {
+      const invalidSKUVariants = variants.filter(v => !v.sku || v.sku.trim().length === 0);
+      if (invalidSKUVariants.length > 0) {
+        newErrors.variants = `Please provide SKUs for all variants. ${invalidSKUVariants.length} variant(s) missing SKU.`;
+      }
 
-    const invalidSKUVariants = variants.filter(v => !v.sku || v.sku.trim().length === 0);
-    if (invalidSKUVariants.length > 0) {
-      newErrors.variants = `Please provide SKUs for all variants. ${invalidSKUVariants.length} variant(s) missing SKU.`;
-    }
+      const invalidPriceVariants = variants.filter(v => v.price <= 0);
+      if (invalidPriceVariants.length > 0) {
+        newErrors.variants = `All variants must have a price greater than 0. ${invalidPriceVariants.length} variant(s) have invalid price.`;
+      }
 
-    const invalidPriceVariants = variants.filter(v => v.price <= 0);
-    if (invalidPriceVariants.length > 0) {
-      newErrors.variants = `All variants must have a price greater than 0. ${invalidPriceVariants.length} variant(s) have invalid price.`;
-    }
-
-    // Check for duplicate SKUs
-    const skus = variants.map(v => v.sku);
-    const duplicateSKUs = skus.filter((sku, index) => skus.indexOf(sku) !== index);
-    if (duplicateSKUs.length > 0) {
-      newErrors.variants = `Duplicate SKUs found: ${duplicateSKUs.join(', ')}. Please ensure all SKUs are unique.`;
+      // Check for duplicate SKUs
+      const skus = variants.map(v => v.sku);
+      const duplicateSKUs = skus.filter((sku, index) => skus.indexOf(sku) !== index);
+      if (duplicateSKUs.length > 0) {
+        newErrors.variants = `Duplicate SKUs found: ${duplicateSKUs.join(', ')}. Please ensure all SKUs are unique.`;
+      }
     }
 
     setErrors(newErrors);
@@ -321,6 +341,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
     e.preventDefault();
 
     if (!validateForm()) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
@@ -329,10 +350,9 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
     // Process variants to ensure variantKey exists
     const processedVariants = variants.map((variant) => ({
       ...variant,
-      variantKey:
-        variant.variantKey && variant.variantKey !== ''
-          ? variant.variantKey
-          : generateVariantKey(variant.attributes || [])
+      variantKey: variant.variantKey && variant.variantKey !== ''
+        ? variant.variantKey
+        : generateVariantKey(variant.attributes || [])
     }));
 
     const productData = {
@@ -394,7 +414,6 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
     }
   };
 
-  // Handle image upload without losing form data
   const handleImagesUpdate = useCallback((newImages: string[]) => {
     setFormData(prev => ({
       ...prev,
@@ -402,7 +421,6 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
     }));
   }, []);
 
-  // Handle thumbnail change
   const handleThumbnailChange = useCallback((thumbnailUrl: string) => {
     setFormData(prev => ({
       ...prev,
@@ -414,6 +432,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
     group.fields.filter(f => f.isVariantAttribute).map(f => f.key)
   );
 
+  // Loading state
   if (isInitializing && isEditing) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -456,7 +475,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
           </div>
         </div>
 
-        {/* Error Display - keep same */}
+        {/* Error Display */}
         {Object.keys(errors).length > 0 && (
           <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
             <h3 className="text-sm font-medium text-red-800 mb-2">Please fix the following errors:</h3>
@@ -468,7 +487,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
           </div>
         )}
 
-        {/* Delete Confirmation Modal - keep same */}
+        {/* Delete Confirmation Modal */}
         {showDeleteConfirm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
@@ -517,8 +536,9 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                       setFormData(prev => ({ ...prev, name: e.target.value, slug: generateSlug(e.target.value) }));
                     }
                   }}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.name ? 'border-red-500' : ''}`}
                 />
+                {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
               </div>
 
               <div>
@@ -546,17 +566,14 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                     required
                     value={formData.categoryId}
                     onChange={(e) => handleCategoryChange(e.target.value)}
-                    className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.categoryId ? 'border-red-500' : ''
-                      }`}
+                    className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.categoryId ? 'border-red-500' : ''}`}
                   >
                     <option value="">Select a category...</option>
                     {categories.map(cat => (
                       <option key={cat._id} value={cat._id}>{cat.name}</option>
                     ))}
                   </select>
-                  {errors.categoryId && (
-                    <p className="mt-1 text-xs text-red-500">{errors.categoryId}</p>
-                  )}
+                  {errors.categoryId && <p className="mt-1 text-xs text-red-500">{errors.categoryId}</p>}
                   {selectedCategory && !isEditing && (
                     <p className="mt-1 text-xs text-green-600">✓ Category template loaded. Specifications will appear below.</p>
                   )}
@@ -570,20 +587,17 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                     required
                     value={formData.brandId}
                     onChange={(e) => setFormData({ ...formData, brandId: e.target.value })}
-                    className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.brandId ? 'border-red-500' : ''
-                      }`}
+                    className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.brandId ? 'border-red-500' : ''}`}
                   >
                     <option value="">Select a brand...</option>
                     {brands.map(brand => (
                       <option key={brand._id} value={brand._id}>{brand.name}</option>
                     ))}
                   </select>
-                  {errors.brandId && (
-                    <p className="mt-1 text-xs text-red-500">{errors.brandId}</p>
-                  )}
+                  {errors.brandId && <p className="mt-1 text-xs text-red-500">{errors.brandId}</p>}
                   {brands.length === 0 && (
                     <p className="mt-1 text-xs text-yellow-600">
-                      {isEditing ? 'No brands found. Please create a brand first.' : 'No brands found. Please create a brand first via MongoDB or API.'}
+                      {isEditing ? 'No brands found.' : 'No brands found. Please create a brand first.'}
                     </p>
                   )}
                 </div>
@@ -599,10 +613,11 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                   placeholder="Brief description (10-500 characters)"
                   value={formData.shortDescription}
                   onChange={(e) => setFormData({ ...formData, shortDescription: e.target.value })}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.shortDescription ? 'border-red-500' : ''}`}
                 />
+                {errors.shortDescription && <p className="mt-1 text-xs text-red-500">{errors.shortDescription}</p>}
                 <p className="mt-1 text-xs text-gray-500">
-                  {isEditing ? 'Used in product listings and search results.' : 'Used in product listings and search results. Minimum 10 characters.'}
+                  Used in product listings and search results. Minimum 10 characters.
                 </p>
               </div>
 
@@ -616,16 +631,15 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                   placeholder="Detailed product description (50-5000 characters)"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.description ? 'border-red-500' : ''}`}
                 />
-                <p className="mt-1 text-xs text-gray-500">
-                  {isEditing ? '' : 'Minimum 50 characters. Provide detailed information about the product.'}
-                </p>
+                {errors.description && <p className="mt-1 text-xs text-red-500">{errors.description}</p>}
+                <p className="mt-1 text-xs text-gray-500">Minimum 50 characters. Provide detailed information about the product.</p>
               </div>
             </div>
           </div>
 
-          {/* Product Specifications Section - FIXED with key prop */}
+          {/* Product Specifications Section */}
           {selectedCategory && categoryTemplate.length > 0 && (
             <div className="bg-white rounded-lg shadow-sm p-6">
               <div className="flex items-start gap-2 mb-4">
@@ -634,22 +648,22 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                   <h2 className="text-lg font-medium text-gray-900">Product Specifications</h2>
                   <p className="text-sm text-gray-500">
                     These specifications are defined by the selected category.
-                    {!isEditing && ' Required fields are marked with a red border. Specifications marked as "variant attribute" will be used to create product variants.'}
+                    {!isEditing && ' Required fields are marked. Specifications marked as "variant attribute" will be used to create product variants.'}
                   </p>
                 </div>
               </div>
 
-              {/* Add key to force re-render when category changes */}
               <ProductSpecForm
                 key={`specs-${selectedCategory}-${categoryVersion}`}
                 groups={categoryTemplate}
-                specs={specs}
-                onChange={setSpecs}
+                specs={specs as any}
+                onChange={setSpecs as any}
               />
+              {errors.specs && <p className="mt-2 text-sm text-red-500">{errors.specs}</p>}
             </div>
           )}
 
-          {/* Product Variants Section - FIXED with key prop */}
+          {/* Product Variants Section */}
           {selectedCategory && variantAttributes.length > 0 && (
             <div className="bg-white rounded-lg shadow-sm p-6">
               <div className="flex items-start gap-2 mb-4">
@@ -663,17 +677,17 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                 </div>
               </div>
 
-              {/* Add key to force re-render when category changes */}
               <ProductVariantManager
                 key={`variants-${selectedCategory}-${variants.length}`}
                 variants={variants}
                 onChange={setVariants}
                 variantAttributes={variantAttributes}
               />
+              {errors.variants && <p className="mt-2 text-sm text-red-500">{errors.variants}</p>}
             </div>
           )}
 
-          {/* Media Section - keep same */}
+          {/* Media Section */}
           <div className="bg-white rounded-lg shadow-sm p-6">
             <h2 className="text-lg font-medium text-gray-900 mb-4">Media</h2>
 
@@ -685,7 +699,6 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                 Select which image will be the main product thumbnail. Click "Set as Thumbnail" on any image below.
               </p>
 
-              {/* Thumbnail Preview */}
               {formData.thumbnail && (
                 <div className="relative w-32 h-32 rounded-lg overflow-hidden border-2 border-amber-500 mb-4">
                   <NextImage
@@ -708,6 +721,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                   </p>
                 </div>
               )}
+              {errors.thumbnail && <p className="mt-1 text-xs text-red-500">{errors.thumbnail}</p>}
             </div>
 
             <div>
@@ -724,7 +738,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
             </div>
           </div>
 
-          {/* Tags & Status Section - keep same */}
+          {/* Tags & Status Section */}
           <div className="bg-white rounded-lg shadow-sm p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -744,7 +758,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                 </label>
                 <select
                   value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value as 'draft' | 'active' | 'archived' })}
                   className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 >
                   <option value="draft">Draft (Not visible to customers)</option>
@@ -755,7 +769,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
             </div>
           </div>
 
-          {/* Submit Buttons - keep same */}
+          {/* Submit Buttons */}
           <div className="flex justify-end gap-3">
             <Link
               href="/admin/products"

@@ -1,3 +1,4 @@
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 class API {
@@ -23,26 +24,38 @@ class API {
   }
   
   get<T>(endpoint: string) {
-    return this.request<T>(endpoint, { method: 'GET' });
+    return this.request<T>(endpoint, {
+      method: 'GET',
+    });
   }
-  
-  post<T>(endpoint: string, body: any) {
+
+  post<T>(endpoint: string, body: unknown) {
     return this.request<T>(endpoint, {
       method: 'POST',
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     });
   }
-  
-  put<T>(endpoint: string, body: any) {
+
+  put<T>(endpoint: string, body: unknown) {
     return this.request<T>(endpoint, {
       method: 'PUT',
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     });
   }
-  
-  delete<T>(endpoint: string) {
-    return this.request<T>(endpoint, { method: 'DELETE' });
+
+  patch<T>(endpoint: string, body?: unknown) {
+    return this.request<T>(endpoint, {
+      method: 'PATCH',
+      body: body ? JSON.stringify(body) : undefined,
+    });
   }
+
+  delete<T>(endpoint: string) {
+    return this.request<T>(endpoint, {
+      method: 'DELETE',
+    });
+  }
+
 }
 
 export const api = new API();
@@ -60,6 +73,6 @@ export const productAPI = {
 export const orderAPI = {
   getAll: (params?: any) => api.get(`/admin/orders?${new URLSearchParams(params)}`),
   getById: (id: string) => api.get(`/admin/orders/${id}`),
-  updateStatus: (id: string, status: string) => 
-    api.patch(`/admin/orders/${id}/status`, { status })
+  updateStatus: (id: string ) => 
+    api.patch(`/admin/orders/${id}`)
 };
