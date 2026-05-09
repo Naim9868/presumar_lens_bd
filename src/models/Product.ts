@@ -19,7 +19,7 @@ const ProductVariantSchema = new Schema({
   compareAtPrice: { type: Number },
   inventory: { type: Number, default: 0 },
   reserved: { type: Number, default: 0 },
-  weight: { type: Number },
+  // weight: { type: Number },
   images: { type: [String], default: [] },
   isDefault: { type: Boolean, default: false },
   status: { 

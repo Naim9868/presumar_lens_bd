@@ -1,3 +1,4 @@
+// app/admin/brands/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -11,13 +12,15 @@ import {
   Globe,
   CheckCircle,
   XCircle,
-  Upload
+  Upload,
+  Loader2
 } from 'lucide-react';
 import Button from '@/components/admin/ui/Button';
 import Input from '@/components/admin/ui/Input';
 import Modal from '@/components/admin/ui/Modal';
 import { useToast } from '@/hooks/useToast';
 import LoadingSpinner from '@/components/admin/ui/LoadingSpinner';
+import Image from 'next/image';
 
 interface Brand {
   _id: string;
@@ -30,6 +33,12 @@ interface Brand {
   productCount?: number;
   createdAt: string;
   updatedAt: string;
+}
+
+interface UploadProgress {
+  fileName: string;
+  progress: number;
+  status: 'uploading' | 'success' | 'error';
 }
 
 export default function BrandsPage() {
@@ -49,6 +58,7 @@ export default function BrandsPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -74,42 +84,235 @@ export default function BrandsPage() {
     }
   };
 
-  const submitBrand = async () => {
-  setSubmitting(true);
-
-  try {
-    const url = editingBrand 
-      ? `/api/admin/brands/${editingBrand._id}`
-      : '/api/admin/brands';
-
-    const method = editingBrand ? 'PUT' : 'POST';
-
-    const response = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData)
-    });
-
-    const data = await response.json();
-
-    if (data.success) {
-      showToast(
-        `Brand ${editingBrand ? 'updated' : 'created'} successfully`,
-        'success'
-      );
-      setIsModalOpen(false);
-      resetForm();
-      fetchBrands();
-    } else {
-      showToast(data.error || 'Failed to save brand', 'error');
+  const compressImage = async (file: File): Promise<File> => {
+    if (file.size < 500 * 1024) {
+      return file;
     }
-  } catch (error) {
-    console.error(error);
-    showToast('Failed to save brand', 'error');
-  } finally {
-    setSubmitting(false);
-  }
-};
+
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new (window as any).Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          const MAX_WIDTH = 500;
+          const MAX_HEIGHT = 500;
+          
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height = Math.round((height * MAX_WIDTH) / width);
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width = Math.round((width * MAX_HEIGHT) / height);
+              height = MAX_HEIGHT;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new File(
+                  [blob],
+                  file.name.replace(/\.[^/.]+$/, '.jpg'),
+                  { type: 'image/jpeg' }
+                );
+                resolve(compressedFile);
+              } else {
+                reject(new Error('Compression failed'));
+              }
+            },
+            'image/jpeg',
+            0.8
+          );
+        };
+        img.onerror = () => reject(new Error('Failed to load image'));
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+    });
+  };
+
+  const uploadToCloudinary = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', 'brands');
+
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable) {
+          const percent = (event.loaded / event.total) * 100;
+          setUploadProgress({
+            fileName: file.name,
+            progress: percent,
+            status: 'uploading'
+          });
+        }
+      });
+      
+      xhr.addEventListener('load', () => {
+        if (xhr.status === 200) {
+          try {
+            const response = JSON.parse(xhr.responseText);
+            resolve(response.url);
+          } catch (error) {
+            reject(new Error('Invalid response format'));
+          }
+        } else {
+          try {
+            const error = JSON.parse(xhr.responseText);
+            reject(new Error(error.error || 'Upload failed'));
+          } catch {
+            reject(new Error(`Upload failed with status ${xhr.status}`));
+          }
+        }
+      });
+      
+      xhr.addEventListener('error', () => reject(new Error('Network error')));
+      xhr.addEventListener('timeout', () => reject(new Error('Upload timeout')));
+      
+      xhr.open('POST', '/api/upload');
+      xhr.timeout = 60000;
+      xhr.send(formData);
+    });
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      showToast('Please upload an image file', 'error');
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      showToast('Image size should be less than 2MB', 'error');
+      return;
+    }
+
+    setUploadingLogo(true);
+    setUploadProgress(null);
+
+    try {
+      // Compress image if needed
+      let fileToUpload = file;
+      if (file.size > 500 * 1024) {
+        fileToUpload = await compressImage(file);
+      }
+
+      // Upload to Cloudinary
+      const imageUrl = await uploadToCloudinary(fileToUpload);
+      
+      setUploadProgress({
+        fileName: file.name,
+        progress: 100,
+        status: 'success'
+      });
+      
+      setFormData({ ...formData, logo: imageUrl });
+      showToast('Logo uploaded successfully', 'success');
+      
+      // Clear progress after 2 seconds
+      setTimeout(() => {
+        setUploadProgress(null);
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Upload error:', error);
+      showToast('Failed to upload logo. Please try again.', 'error');
+      setUploadProgress(null);
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const extractPublicIdFromUrl = (url: string): string | null => {
+    try {
+      const matches = url.match(/\/upload\/(?:v\d+\/)?(.+?)\./);
+      return matches ? matches[1] : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    if (!formData.logo) return;
+
+    const publicId = extractPublicIdFromUrl(formData.logo);
+    
+    if (publicId) {
+      try {
+        const response = await fetch('/api/upload', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ publicId }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete from Cloudinary');
+        }
+      } catch (error) {
+        console.error('Delete error:', error);
+        showToast('Failed to delete old logo', 'error');
+      }
+    }
+    
+    setFormData({ ...formData, logo: '' });
+    showToast('Logo removed', 'success');
+  };
+
+  const submitBrand = async () => {
+    setSubmitting(true);
+
+    try {
+      const url = editingBrand 
+        ? `/api/admin/brands/${editingBrand._id}`
+        : '/api/admin/brands';
+
+      const method = editingBrand ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        showToast(
+          `Brand ${editingBrand ? 'updated' : 'created'} successfully`,
+          'success'
+        );
+        setIsModalOpen(false);
+        resetForm();
+        fetchBrands();
+      } else {
+        showToast(data.error || 'Failed to save brand', 'error');
+      }
+    } catch (error) {
+      console.error(error);
+      showToast('Failed to save brand', 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,35 +345,6 @@ export default function BrandsPage() {
     }
   };
 
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      showToast('Please upload an image file', 'error');
-      return;
-    }
-
-    // Validate file size (max 2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      showToast('Image size should be less than 2MB', 'error');
-      return;
-    }
-
-    setUploadingLogo(true);
-    
-    // Simulate upload - replace with actual upload to your server/CDN
-    setTimeout(() => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData({ ...formData, logo: reader.result as string });
-        setUploadingLogo(false);
-      };
-      reader.readAsDataURL(file);
-    }, 1000);
-  };
-
   const openCreateModal = () => {
     resetForm();
     setEditingBrand(null);
@@ -199,6 +373,7 @@ export default function BrandsPage() {
       website: '',
       isActive: true
     });
+    setUploadProgress(null);
   };
 
   const filteredBrands = brands.filter(brand =>
@@ -286,9 +461,11 @@ export default function BrandsPage() {
                       <div className="flex items-center space-x-3">
                         <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
                           {brand.logo ? (
-                            <img
+                            <Image
                               src={brand.logo}
                               alt={brand.name}
+                              width={48}
+                              height={48}
                               className="h-full w-full object-cover"
                             />
                           ) : (
@@ -402,12 +579,14 @@ export default function BrandsPage() {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Brand Logo
             </label>
-            <div className="mt-1 flex items-center space-x-4">
+            <div className="mt-1 flex items-start space-x-4">
               <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 flex items-center justify-center">
                 {formData.logo ? (
-                  <img
+                  <Image
                     src={formData.logo}
                     alt="Brand logo preview"
+                    width={80}
+                    height={80}
                     className="h-full w-full object-cover"
                   />
                 ) : (
@@ -415,30 +594,70 @@ export default function BrandsPage() {
                 )}
               </div>
               <div className="flex-1">
-                <label className="cursor-pointer">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleLogoUpload}
-                    className="hidden"
-                    disabled={uploadingLogo}
-                  />
-                  <div className="inline-flex items-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
-                    {uploadingLogo ? (
-                      <>
-                        <LoadingSpinner size="sm" className="mr-2" />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="mr-2 h-4 w-4" />
-                        Upload Logo
-                      </>
+                <div className="flex items-center gap-2">
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      className="hidden"
+                      disabled={uploadingLogo}
+                    />
+                    <div className="inline-flex items-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                      {uploadingLogo ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="mr-2 h-4 w-4" />
+                          Upload Logo
+                        </>
+                      )}
+                    </div>
+                  </label>
+                  
+                  {formData.logo && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveLogo}
+                      className="inline-flex items-center rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Remove
+                    </button>
+                  )}
+                </div>
+                
+                {/* Upload Progress */}
+                {uploadProgress && (
+                  <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-blue-600 dark:text-blue-400 truncate flex-1">
+                        {uploadProgress.fileName}
+                      </span>
+                      <span className="text-blue-600 dark:text-blue-400 ml-2">
+                        {uploadProgress.status === 'uploading' 
+                          ? `${Math.round(uploadProgress.progress)}%` 
+                          : uploadProgress.status === 'success' 
+                            ? '✓ Complete' 
+                            : '✗ Failed'}
+                      </span>
+                    </div>
+                    {uploadProgress.status === 'uploading' && (
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${uploadProgress.progress}%` }}
+                        />
+                      </div>
                     )}
                   </div>
-                </label>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Recommended: Square image, max 2MB
+                )}
+                
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  Recommended: Square image, max 2MB. JPG, PNG, GIF, WebP
                 </p>
               </div>
             </div>
@@ -530,6 +749,6 @@ export default function BrandsPage() {
           </p>
         </div>
       </Modal>
-  </div>
+    </div>
   );
 }

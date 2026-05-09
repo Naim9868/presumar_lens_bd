@@ -73,7 +73,7 @@ export async function PUT(
     const brand = await Brand.findByIdAndUpdate(
       id,
       { ...body, updatedAt: new Date() },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     );
     
     if (!brand) {

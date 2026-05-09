@@ -61,6 +61,7 @@ export interface IProduct {
   isAvailable: boolean;
   createdAt: string;
   updatedAt: string;
+  status: 'draft' | 'active' | 'archived';
   // Optional fields for UI
   soldCount?: number;
   rating?: number;

@@ -253,12 +253,16 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
     }
   };
 
+
   const generateSlug = (name: string): string => {
+    if (!name) return '';
     return name
       .toLowerCase()
       .trim()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
+      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters except spaces and hyphens
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+      .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
   };
 
   const generateVariantKey = (attributes: VariantAttribute[]): string => {
@@ -531,9 +535,12 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                   placeholder="e.g., Premium Wireless Headphones"
                   value={formData.name}
                   onChange={(e) => {
-                    setFormData({ ...formData, name: e.target.value });
+                    const newName = e.target.value;
+                    setFormData({ ...formData, name: newName });
+                    // Auto-generate slug only if slug is empty or was auto-generated
                     if (!formData.slug || (!isEditing && !formData.slug)) {
-                      setFormData(prev => ({ ...prev, name: e.target.value, slug: generateSlug(e.target.value) }));
+                      const newSlug = generateSlug(newName);
+                      setFormData(prev => ({ ...prev, name: newName, slug: newSlug }));
                     }
                   }}
                   className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.name ? 'border-red-500' : ''}`}

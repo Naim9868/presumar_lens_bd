@@ -162,8 +162,6 @@ export async function GET(request: NextRequest) {
       productId: { $in: productIds },
     }).lean();
 
-    console.log(variants);
-
 
     const variantsMap = new Map<string, any[]>();
 
@@ -178,7 +176,6 @@ export async function GET(request: NextRequest) {
       const productVariants = variantsMap.get(product._id.toString()) || [];
 
       const prices = productVariants.map((v) => v.price);
-      console.log(prices);
 
       return {
         ...product,

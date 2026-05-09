@@ -2,9 +2,9 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Plus, Copy, Sparkles } from 'lucide-react';
+import { X, Plus, Copy, Sparkles, ChevronDown, ChevronRight, Image as ImageIcon } from 'lucide-react';
 import { VariantAttribute, ProductVariant } from '@/types';
-
+import VariantImageUploader from './VariantImageUploader';
 
 interface ProductVariantManagerProps {
   variants: ProductVariant[];
@@ -21,11 +21,12 @@ export function ProductVariantManager({
 }: ProductVariantManagerProps) {
   const [showGenerator, setShowGenerator] = useState(false);
   const [attributeCombinations, setAttributeCombinations] = useState<Record<string, string[]>>({});
+  const [expandedVariants, setExpandedVariants] = useState<Set<number>>(new Set());
 
   // Generate a unique SKU based on attributes
   const generateSKU = (attributes: VariantAttribute[], index: number): string => {
     const attrString = attributes
-      .filter(attr => attr.value)
+      .filter(attr => attr.value && attr.value.trim())
       .map(attr => attr.value.substring(0, 3).toUpperCase())
       .join('-');
     
@@ -42,10 +43,13 @@ export function ProductVariantManager({
       attributes: newAttributes,
       price: 0,
       inventory: 0,
+      images: [],
       isDefault: variants.length === 0 ? true : false,
       status: 'in_stock'
     };
     onChange([...variants, newVariant]);
+    // Auto-expand the new variant
+    setExpandedVariants(prev => new Set(prev).add(variants.length));
   };
 
   const removeVariant = (index: number) => {
@@ -54,6 +58,12 @@ export function ProductVariantManager({
       newVariants[0].isDefault = true;
     }
     onChange(newVariants);
+    // Remove from expanded set
+    setExpandedVariants(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(index);
+      return newSet;
+    });
   };
 
   const updateVariant = (index: number, updates: Partial<ProductVariant>) => {
@@ -71,8 +81,13 @@ export function ProductVariantManager({
     onChange(newVariants);
   };
 
+  const updateVariantImages = (index: number, images: string[]) => {
+    const newVariants = [...variants];
+    newVariants[index] = { ...newVariants[index], images };
+    onChange(newVariants);
+  };
+
   const generateVariants = () => {
-    // Generate all combinations of attributes
     const attributeKeys = Object.keys(attributeCombinations);
     const combinations = attributeKeys.reduce((acc, key) => {
       const values = attributeCombinations[key];
@@ -89,6 +104,7 @@ export function ProductVariantManager({
         attributes: attributes,
         price: 0,
         inventory: 0,
+        images: [],
         isDefault: idx === 0 && variants.length === 0,
         status: 'in_stock' as const
       };
@@ -111,12 +127,24 @@ export function ProductVariantManager({
     const newVariant = {
       ...variantToCopy,
       sku: `${variantToCopy.sku}-COPY`,
+      images: [...(variantToCopy.images || [])],
       isDefault: false
     };
     onChange([...variants, newVariant]);
   };
 
-  // Validate if all variants have SKU
+  const toggleVariantExpand = (index: number) => {
+    setExpandedVariants(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
+
   const hasValidSKUs = variants.every(variant => variant.sku && variant.sku.trim().length > 0);
   const hasValidPrices = variants.every(variant => variant.price > 0);
 
@@ -214,160 +242,242 @@ export function ProductVariantManager({
         </div>
       )}
 
-      {/* Variants Table */}
+      {/* Variants List */}
       {variants.length > 0 ? (
-        <div className="overflow-x-auto border rounded-lg">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Default</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU *</th>
-                {variantAttributes.map((attr, idx) => (
-                  <th key={`header-${attr}-${idx}`} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {attr}
-                  </th>
-                ))}
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price *</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Compare At</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Inventory</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                {!readOnly && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>}
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {variants.map((variant, idx) => {
-                const isSkuInvalid = !variant.sku || variant.sku.trim().length === 0;
-                const isPriceInvalid = variant.price <= 0;
-                
-                return (
-                  <tr key={`variant-row-${idx}`} className={variant.isDefault ? 'bg-blue-50' : ''}>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <input
-                        type="radio"
-                        checked={variant.isDefault}
-                        onChange={() => {
-                          const newVariants = variants.map((v, i) => ({
-                            ...v,
-                            isDefault: i === idx
-                          }));
-                          onChange(newVariants);
-                        }}
-                        disabled={readOnly}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                      />
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <input
-                        type="text"
-                        value={variant.sku || ''}
-                        onChange={(e) => updateVariant(idx, { sku: e.target.value.toUpperCase() })}
-                        placeholder="Enter unique SKU"
-                        disabled={readOnly}
-                        className={`w-32 text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
-                          isSkuInvalid && !readOnly ? 'border-red-300 bg-red-50' : ''
-                        }`}
-                      />
-                      {isSkuInvalid && !readOnly && (
-                        <p className="text-xs text-red-500 mt-1">SKU is required</p>
+        <div className="space-y-3">
+          {variants.map((variant, idx) => {
+            const isSkuInvalid = !variant.sku || variant.sku.trim().length === 0;
+            const isPriceInvalid = variant.price <= 0;
+            const isExpanded = expandedVariants.has(idx);
+            
+            return (
+              <div key={`variant-row-${idx}`} className={`border rounded-lg overflow-hidden ${variant.isDefault ? 'border-blue-300 bg-blue-50/30' : 'border-gray-200'}`}>
+                {/* Variant Header */}
+                <div className={`px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-gray-50 ${variant.isDefault ? 'hover:bg-blue-50/50' : ''}`}
+                     onClick={() => toggleVariantExpand(idx)}>
+                  <div className="flex items-center gap-4 flex-1">
+                    <button className="text-gray-500">
+                      {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    </button>
+                    
+                    <div className="flex items-center gap-2">
+                      {variant.isDefault && (
+                        <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-0.5 rounded">Default</span>
                       )}
-                    </td>
-                    {variantAttributes.map((attr, attrIdx) => {
-                      const attrValue = variant.attributes.find(a => a.key === attr)?.value || '';
-                      return (
-                        <td key={`${idx}-${attr}-${attrIdx}`} className="px-4 py-3 whitespace-nowrap">
+                      <span className="text-sm font-mono text-gray-600">{variant.sku || 'No SKU'}</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {variant.attributes.map((attr, i) => (
+                        attr.value && (
+                          <span key={i} className="text-xs bg-gray-100 px-2 py-0.5 rounded">
+                            {attr.key}: {attr.value}
+                          </span>
+                        )
+                      ))}
+                    </div>
+                    
+                    <div className="flex items-center gap-2 ml-auto">
+                      {variant.images && variant.images.length > 0 && (
+                        <div className="flex items-center gap-1 text-gray-500">
+                          <ImageIcon className="h-3 w-3" />
+                          <span className="text-xs">{variant.images.length}</span>
+                        </div>
+                      )}
+                      <span className={`text-sm font-medium ${isPriceInvalid ? 'text-red-500' : 'text-gray-900'}`}>
+                        ${variant.price.toFixed(2)}
+                      </span>
+                      <span className="text-sm text-gray-500">
+                        Stock: {variant.inventory}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {!readOnly && (
+                    <div className="flex gap-1 ml-2" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => copyVariant(idx)}
+                        className="text-gray-600 hover:text-gray-900 p-1"
+                        title="Copy variant"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeVariant(idx)}
+                        className="text-red-600 hover:text-red-900 p-1"
+                        title="Remove variant"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Variant Expanded Content */}
+                {isExpanded && (
+                  <div className="px-4 py-4 border-t border-gray-200 bg-white">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Left Column - Attributes */}
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-medium text-gray-700">Variant Details</h4>
+                        
+                        {/* SKU */}
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">
+                            SKU <span className="text-red-500">*</span>
+                          </label>
                           <input
                             type="text"
-                            value={attrValue}
-                            onChange={(e) => {
-                              const updatedAttributes = variant.attributes.map(a =>
-                                a.key === attr ? { ...a, value: e.target.value } : a
-                              );
-                              updateVariant(idx, { attributes: updatedAttributes });
-                            }}
-                            placeholder={attr}
+                            value={variant.sku || ''}
+                            onChange={(e) => updateVariant(idx, { sku: e.target.value.toUpperCase() })}
+                            placeholder="Enter unique SKU"
                             disabled={readOnly}
-                            className="w-28 text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            className={`w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                              isSkuInvalid && !readOnly ? 'border-red-300 bg-red-50' : ''
+                            }`}
                           />
-                        </td>
-                      );
-                    })}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0.01"
-                        value={variant.price || ''}
-                        onChange={(e) => updateVariant(idx, { price: parseFloat(e.target.value) || 0 })}
-                        placeholder="0.00"
-                        disabled={readOnly}
-                        className={`w-24 text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
-                          isPriceInvalid && !readOnly ? 'border-red-300 bg-red-50' : ''
-                        }`}
-                      />
-                      {isPriceInvalid && !readOnly && (
-                        <p className="text-xs text-red-500 mt-1">Price must be &gt; 0</p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={variant.compareAtPrice || ''}
-                        onChange={(e) => updateVariant(idx, { compareAtPrice: e.target.value ? parseFloat(e.target.value) : undefined })}
-                        placeholder="0.00"
-                        disabled={readOnly}
-                        className="w-24 text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                      />
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <input
-                        type="number"
-                        value={variant.inventory || ''}
-                        onChange={(e) => updateVariant(idx, { inventory: parseInt(e.target.value) || 0 })}
-                        placeholder="0"
-                        disabled={readOnly}
-                        className="w-20 text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                      />
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <select
-                        value={variant.status}
-                        onChange={(e) => updateVariant(idx, { status: e.target.value as any })}
-                        disabled={readOnly}
-                        className="text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                      >
-                        <option value="in_stock">In Stock</option>
-                        <option value="out_of_stock">Out of Stock</option>
-                        <option value="discontinued">Discontinued</option>
-                      </select>
-                    </td>
-                    {!readOnly && (
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex gap-1">
-                          <button
-                            type="button"
-                            onClick={() => copyVariant(idx)}
-                            className="text-gray-600 hover:text-gray-900"
-                            title="Copy variant"
-                          >
-                            <Copy className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => removeVariant(idx)}
-                            className="text-red-600 hover:text-red-900"
-                            title="Remove variant"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
+                          {isSkuInvalid && !readOnly && (
+                            <p className="text-xs text-red-500 mt-1">SKU is required</p>
+                          )}
                         </div>
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                        
+                        {/* Dynamic Attributes */}
+                        {variantAttributes.map((attr) => {
+                          const attrValue = variant.attributes.find(a => a.key === attr)?.value || '';
+                          return (
+                            <div key={attr}>
+                              <label className="block text-xs font-medium text-gray-500 mb-1">
+                                {attr} {variantAttributes.indexOf(attr) === 0 && <span className="text-red-500">*</span>}
+                              </label>
+                              <input
+                                type="text"
+                                value={attrValue}
+                                onChange={(e) => {
+                                  const updatedAttributes = variant.attributes.map(a =>
+                                    a.key === attr ? { ...a, value: e.target.value } : a
+                                  );
+                                  updateVariant(idx, { attributes: updatedAttributes });
+                                }}
+                                placeholder={`Enter ${attr.toLowerCase()}`}
+                                disabled={readOnly}
+                                className="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                              />
+                            </div>
+                          );
+                        })}
+                        
+                        {/* Price and Inventory Row */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">
+                              Price <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0.01"
+                              value={variant.price || ''}
+                              onChange={(e) => updateVariant(idx, { price: parseFloat(e.target.value) || 0 })}
+                              placeholder="0.00"
+                              disabled={readOnly}
+                              className={`w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                                isPriceInvalid && !readOnly ? 'border-red-300 bg-red-50' : ''
+                              }`}
+                            />
+                            {isPriceInvalid && !readOnly && (
+                              <p className="text-xs text-red-500 mt-1">Price must be &gt; 0</p>
+                            )}
+                          </div>
+                          
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">
+                              Compare at Price
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={variant.compareAtPrice || ''}
+                              onChange={(e) => updateVariant(idx, { compareAtPrice: e.target.value ? parseFloat(e.target.value) : undefined })}
+                              placeholder="0.00"
+                              disabled={readOnly}
+                              className="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                        
+                        {/* Inventory and Status Row */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">
+                              Inventory
+                            </label>
+                            <input
+                              type="number"
+                              value={variant.inventory || ''}
+                              onChange={(e) => updateVariant(idx, { inventory: parseInt(e.target.value) || 0 })}
+                              placeholder="0"
+                              disabled={readOnly}
+                              className="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">
+                              Status
+                            </label>
+                            <select
+                              value={variant.status}
+                              onChange={(e) => updateVariant(idx, { status: e.target.value as any })}
+                              disabled={readOnly}
+                              className="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            >
+                              <option value="in_stock">In Stock</option>
+                              <option value="out_of_stock">Out of Stock</option>
+                              <option value="discontinued">Discontinued</option>
+                            </select>
+                          </div>
+                        </div>
+                        
+                        {/* Default Variant Toggle */}
+                        <div className="flex items-center gap-2 pt-2">
+                          <input
+                            type="radio"
+                            checked={variant.isDefault}
+                            onChange={() => {
+                              const newVariants = variants.map((v, i) => ({
+                                ...v,
+                                isDefault: i === idx
+                              }));
+                              onChange(newVariants);
+                            }}
+                            disabled={readOnly}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                          />
+                          <label className="text-sm text-gray-700">Set as default variant</label>
+                        </div>
+                      </div>
+                      
+                      {/* Right Column - Images */}
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">Variant Images</h4>
+                        <p className="text-xs text-gray-500 mb-3">
+                          Add specific images for this variant (e.g., different colors)
+                        </p>
+                        <VariantImageUploader
+                          images={variant.images || []}
+                          onUpload={(images) => updateVariantImages(idx, images)}
+                          variantSku={variant.sku || `variant-${idx}`}
+                          maxImages={5}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       ) : (
         !readOnly && (

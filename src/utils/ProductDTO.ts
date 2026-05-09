@@ -116,7 +116,7 @@ export function toProductDTO(p: ProductSource): IProduct{
 
     totalInventory,
     isAvailable: totalInventory > 0,
-
+    status: p.status ?? 'draft',
     createdAt: toISODate(p.createdAt),
     updatedAt: toISODate(p.updatedAt), // ✅ added
   };

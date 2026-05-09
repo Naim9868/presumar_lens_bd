@@ -332,7 +332,7 @@ export async function getProductBySlug(slug: string) {
     }
 
     const serializedProduct = serializeDocument(product);
-    console.log(serializedProduct);
+    // console.log(serializedProduct);
 
     return {
       success: true,
@@ -364,7 +364,7 @@ export async function getProductById(productId: string) {
     }
 
     const serializedProduct = serializeDocument(product);
-    console.log(serializedProduct);
+    // console.log(serializedProduct);
 
     return {
       success: true,
