@@ -8,23 +8,23 @@ import { CreateCategorySchema } from '@/lib/validations/product.validation';
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
-    
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
-    
+
     const filter: any = {};
     if (status && status !== 'all') {
       filter.status = status;
     }
-    
+
     const categories = await Category.find(filter)
       .sort({ name: 1 })
       .lean();
-    
+
     // Build hierarchy
     const buildTree = (items: any[], parentId: string | null = null): any[] => {
       return items
-        .filter(item => 
+        .filter(item =>
           parentId === null ? !item.parentId : item.parentId?.toString() === parentId
         )
         .map(item => ({
@@ -34,9 +34,9 @@ export async function GET(request: NextRequest) {
           children: buildTree(items, item._id.toString())
         }));
     };
-    
+
     const categoryTree = buildTree(categories);
-    
+
     return NextResponse.json(categoryTree);
   } catch (error: any) {
     console.error('Error fetching categories:', error);
@@ -50,11 +50,11 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
-    
+
     const body = await request.json();
-    
+
     console.log('Received category data:', body);
-    
+
     // Generate slug if not provided
     if (!body.slug && body.name) {
       body.slug = body.name
@@ -64,19 +64,19 @@ export async function POST(request: NextRequest) {
         .replace(/^-+|-+$/g, '');
     }
 
-     // Ensure slug always exists
+    // Ensure slug always exists
     if (!body.slug) {
       return NextResponse.json(
         { error: 'Slug is required' },
         { status: 400 }
       );
     }
-    
+
     // Handle parentId - convert empty string to null
     if (body.parentId === '' || body.parentId === null || body.parentId === undefined) {
       delete body.parentId;
     }
-    
+
     // Validate parentId exists if provided
     if (body.parentId && !mongoose.Types.ObjectId.isValid(body.parentId)) {
       return NextResponse.json(
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    
+
     // Check if parent category exists
     if (body.parentId) {
       const parentExists = await Category.findById(body.parentId);
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
         );
       }
     }
-    
+
     // Check if slug already exists
     const existingCategory = await Category.findOne({ slug: body.slug });
     if (existingCategory) {
@@ -104,17 +104,21 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    
+
     // Create the category
     const category = new Category(body);
+    await Category.updateMany(
+      { image: { $exists: false } },
+      { $set: { image: '' } }
+    );
     await category.save();
-    
-    console.log('Category created:', category);
-    
+
+    // console.log('Category created:', category);
+
     return NextResponse.json(category, { status: 201 });
   } catch (error: any) {
     console.error('Error creating category:', error);
-    
+
     // Handle validation errors
     if (error.name === 'ZodError') {
       return NextResponse.json(
@@ -122,7 +126,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    
+
     // Handle duplicate slug error
     if (error.code === 11000 && error.keyPattern?.slug) {
       return NextResponse.json(
@@ -130,7 +134,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    
+
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }

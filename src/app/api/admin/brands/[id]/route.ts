@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/dbConnect';
 import { Brand } from '@/models/Brand';
+import { deleteImage, extractPublicIdFromUrl } from '@/lib/cloudinary';
 import mongoose from 'mongoose';
 
 export async function GET(
@@ -121,7 +122,7 @@ export async function DELETE(
     //   }, { status: 400 });
     // }
     
-    const brand = await Brand.findByIdAndDelete(id);
+    const brand = await Brand.findById(id);
     
     if (!brand) {
       return NextResponse.json({
@@ -129,6 +130,21 @@ export async function DELETE(
         error: 'Brand not found'
       }, { status: 404 });
     }
+
+    // Delete brnd logo from Cloudinary if exists
+        if (brand.logo) {
+          const publicId = extractPublicIdFromUrl(brand.logo);
+          if (publicId) {
+            try {
+              await deleteImage(publicId);
+              console.log(`Deleted category image: ${publicId}`);
+            } catch (error) {
+              console.error('Failed to delete category image:', error);
+            }
+          }
+        }
+
+        await Brand.findByIdAndDelete(id);
     
     return NextResponse.json({
       success: true,

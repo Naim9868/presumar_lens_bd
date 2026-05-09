@@ -4,6 +4,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/dbConnect';
 import { Product } from '@/models/Product';
+import { ProductVariant } from '@/types/product';
+import { deleteImage, extractPublicIdFromUrl } from '@/lib/cloudinary'
 import mongoose from 'mongoose';
 
 type Variant = {
@@ -120,6 +122,55 @@ export async function PUT(
   }
 }
 
+// Helper function to delete all images from Cloudinary
+async function deleteProductImages(product: any): Promise<{ success: number; failed: number }> {
+  const imagesToDelete: string[] = [];
+  
+  // Add thumbnail
+  if (product.thumbnail) {
+    imagesToDelete.push(product.thumbnail);
+  }
+  
+  // Add all product images
+  if (product.images && product.images.length > 0) {
+    imagesToDelete.push(...product.images);
+  }
+  
+  // Add all variant images
+  if (product.variants && product.variants.length > 0) {
+    product.variants.forEach((variant: ProductVariant) => {
+      if (variant.images && variant.images.length > 0) {
+        imagesToDelete.push(...variant.images);
+      }
+    });
+  }
+  
+  // Remove duplicates
+  const uniqueImages = [...new Set(imagesToDelete)];
+  
+  let successCount = 0;
+  let failedCount = 0;
+  
+  // Delete each image from Cloudinary
+  for (const imageUrl of uniqueImages) {
+    const publicId = extractPublicIdFromUrl(imageUrl);
+    if (publicId) {
+      try {
+        await deleteImage(publicId);
+        successCount++;
+        console.log(`[Delete] Deleted image: ${publicId}`);
+      } catch (error) {
+        failedCount++;
+        console.error(`[Delete] Failed to delete image ${publicId}:`, error);
+      }
+    }
+  }
+  
+  return { success: successCount, failed: failedCount };
+}
+
+
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -128,6 +179,7 @@ export async function DELETE(
     await dbConnect();
     const { id } = await params;
     
+    // Validate product ID
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json({
         success: false,
@@ -135,7 +187,8 @@ export async function DELETE(
       }, { status: 400 });
     }
     
-    const product = await Product.findByIdAndDelete(id);
+    // Find the product first to get all image URLs
+    const product = await Product.findById(id);
     
     if (!product) {
       return NextResponse.json({
@@ -144,9 +197,22 @@ export async function DELETE(
       }, { status: 404 });
     }
     
+    // Delete all associated images from Cloudinary
+    // console.log(`[Delete] Deleting images for product: ${product.name} (ID: ${id})`);
+    const { success: deletedCount, failed: failedCount } = await deleteProductImages(product);
+    
+    // console.log(`[Delete] Images deleted: ${deletedCount} successful, ${failedCount} failed`);
+    
+    // Delete the product from database
+    await Product.findByIdAndDelete(id);
+    
     return NextResponse.json({
       success: true,
-      message: 'Product deleted successfully'
+      message: 'Product deleted successfully',
+      deletedImages: {
+        success: deletedCount,
+        failed: failedCount
+      }
     });
   } catch (error: any) {
     console.error('Error deleting product:', error);

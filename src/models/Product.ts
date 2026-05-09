@@ -40,7 +40,7 @@ const ProductSpecSchema = new Schema({
 
 const ProductSchema = new Schema({
   name: { type: String, required: true },
-  slug: { type: String, sparse: true },
+  slug: { type: String, sparse: true, unique: true, index: true },
   description: { type: String, required: true },
   shortDescription: { type: String, required: true },
   brandId: { type: Schema.Types.ObjectId, ref: 'Brand', required: true },
@@ -67,9 +67,10 @@ ProductSchema.index({
   status: 1
 });
 ProductSchema.index({ 'specsFlat.key': 1, 'specsFlat.value': 1 });
-ProductSchema.index({ slug: 1 }, { unique: true });
+// ProductSchema.index({ slug: 1 }, { unique: true });
 ProductSchema.index({ tags: 1 });
 ProductSchema.index({ brandId: 1 });
+ProductSchema.index({ 'variants.sku': 1 });
 
 // ================= PRE SAVE =================
 ProductSchema.pre('save', async function () {
@@ -119,6 +120,17 @@ ProductSchema.pre('save', async function () {
       .replace(/^-+|-+$/g, '');
     
     doc.slug = await generateUniqueSlug(baseSlug, doc._id?.toString());
+  }
+});
+
+// Add post-save hook to ensure variant keys are unique
+ProductSchema.post('save', async function(doc) {
+  // Check for duplicate variant keys within the same product
+  const variantKeys = doc.variants.map((v: any) => v.variantKey);
+  const hasDuplicates = variantKeys.length !== new Set(variantKeys).size;
+  
+  if (hasDuplicates) {
+    throw new Error('Duplicate variant keys found. Please ensure all variants have unique attribute combinations.');
   }
 });
 

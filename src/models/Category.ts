@@ -22,6 +22,8 @@ const CategorySpecGroupSchema = new Schema({
 const CategorySchema = new Schema({
   name: { type: String, required: true },
   slug: { type: String, unique: true, sparse: true },
+  image: { type: String },
+  description: { type: String },
   parentId: { type: Schema.Types.ObjectId, ref: 'Category', default: null },
   specificationTemplate: { type: [CategorySpecGroupSchema], default: [] },
   status: { type: String, enum: ['active', 'inactive'], default: 'active' }

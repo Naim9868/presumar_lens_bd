@@ -82,6 +82,8 @@ export interface ICategory {
   _id: string;
   name: string;
   slug: string;
+  image: string;
+  description: string;
   parentId?: string | ICategory;
   specificationTemplate: CategorySpecGroup[];
   status: 'active' | 'inactive';

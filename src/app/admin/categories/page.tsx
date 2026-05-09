@@ -4,7 +4,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Plus, Edit, Trash2, ChevronRight, ChevronDown, Eye, RefreshCw, Search, FolderTree, FileText } from 'lucide-react';
+import Image from 'next/image';
+import { Plus, Edit, Trash2, ChevronRight, ChevronDown, Eye, RefreshCw, Search, FolderTree, FileText, ImageIcon } from 'lucide-react';
 
 interface CategoryField {
   key: string;
@@ -25,6 +26,7 @@ interface Category {
   _id: string;
   name: string;
   slug: string;
+  image?: string;
   parentId: string | null;
   status: string;
   specificationTemplate: CategoryGroup[];
@@ -41,7 +43,7 @@ export default function AdminCategoriesPage() {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  const [stats, setStats] = useState({ total: 0, active: 0, inactive: 0, withTemplate: 0 });
+  const [stats, setStats] = useState({ total: 0, active: 0, inactive: 0, withTemplate: 0, withImage: 0 });
 
   useEffect(() => {
     fetchCategories();
@@ -56,16 +58,18 @@ export default function AdminCategoriesPage() {
       setLoading(true);
       const res = await fetch('/api/categories');
       const data = await res.json();
+      // console.log('Categories data:', data); // Debug log to check if images are coming through
       setCategories(data);
       // Auto-expand first level
       setExpandedIds(new Set(data.map((c: Category) => c._id)));
       
       // Calculate stats
-      const calculateStats = (items: Category[]): { total: number; active: number; inactive: number; withTemplate: number } => {
+      const calculateStats = (items: Category[]): { total: number; active: number; inactive: number; withTemplate: number; withImage: number } => {
         let total = 0;
         let active = 0;
         let inactive = 0;
         let withTemplate = 0;
+        let withImage = 0;
         
         const count = (cats: Category[]) => {
           cats.forEach(cat => {
@@ -73,12 +77,13 @@ export default function AdminCategoriesPage() {
             if (cat.status === 'active') active++;
             else inactive++;
             if (cat.specificationTemplate?.length > 0) withTemplate++;
+            if (cat.image && cat.image.trim() !== '') withImage++;
             if (cat.children) count(cat.children);
           });
         };
         
         count(items);
-        return { total, active, inactive, withTemplate };
+        return { total, active, inactive, withTemplate, withImage };
       };
       
       setStats(calculateStats(data));
@@ -162,35 +167,8 @@ export default function AdminCategoriesPage() {
     setExpandedIds(new Set());
   };
 
-  const getCategoryPath = (category: Category, allCategories: Category[]): string => {
-    const path: string[] = [category.name];
-    let current = category;
-    
-    const findParent = (cat: Category, parents: Category[]): Category | null => {
-      for (const parent of parents) {
-        if (parent._id === cat.parentId) return parent;
-        if (parent.children) {
-          const found = findParent(cat, parent.children);
-          if (found) return found;
-        }
-      }
-      return null;
-    };
-    
-    while (current.parentId) {
-      const parent = findParent(current, allCategories);
-      if (parent) {
-        path.unshift(parent.name);
-        current = parent;
-      } else {
-        break;
-      }
-    }
-    
-    return path.join(' / ');
-  };
-
   const renderCategoryTree = (items: Category[], level = 0) => {
+    
     if (items.length === 0 && level === 0 && searchTerm) {
       return (
         <div className="text-center py-12">
@@ -230,6 +208,38 @@ export default function AdminCategoriesPage() {
               <div className="w-7" />
             )}
             
+            {/* Category Image - Fixed to show properly for all categories */}
+            <div className="mr-3 flex-shrink-0">
+              <div className="relative h-10 w-10 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center border border-gray-200">
+                {category.image && category.image.trim() !== '' ? (
+                  <Image
+                    src={category.image}
+                    alt={category.name}
+                    fill
+                    sizes="40px"
+                    className="object-cover"
+                    onError={(e) => {
+                      console.error(`Failed to load image for ${category.name}:`, category.image);
+                      e.currentTarget.style.display = 'none';
+                      // Show fallback icon
+                      const parent = e.currentTarget.parentElement;
+                      if (parent) {
+                        const icon = document.createElement('div');
+                        icon.className = 'flex items-center justify-center h-full w-full';
+                        icon.innerHTML = '<svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>';
+                        parent.appendChild(icon);
+                        e.currentTarget.remove();
+                      }
+                    }}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full w-full">
+                    <ImageIcon className="h-5 w-5 text-gray-400" />
+                  </div>
+                )}
+              </div>
+            </div>
+            
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-medium text-gray-900 truncate">
@@ -268,16 +278,16 @@ export default function AdminCategoriesPage() {
           
           <div className="flex items-center gap-1 ml-4">
             <Link
-              href={`/admin/categories/${category._id}`}
+              href={`/admin/categories/${category._id}/edit`}
               className="p-2 text-gray-500 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
               title="Edit Category"
             >
               <Edit className="h-4 w-4" />
             </Link>
             <button
-              onClick={() => router.push(`/admin/products?categoryId=${category._id}`)}
+              onClick={() => router.push(`/admin/categories/${category._id}`)}
               className="p-2 text-gray-500 hover:text-green-600 rounded-lg hover:bg-green-50 transition-colors"
-              title="View Products in this Category"
+              title="View Category Details"
             >
               <Eye className="h-4 w-4" />
             </button>
@@ -319,7 +329,7 @@ export default function AdminCategoriesPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow-sm p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -360,6 +370,15 @@ export default function AdminCategoriesPage() {
               <FileText className="h-8 w-8 text-purple-400" />
             </div>
           </div>
+          <div className="bg-white rounded-lg shadow-sm p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">With Images</p>
+                <p className="text-2xl font-bold text-amber-600">{stats.withImage}</p>
+              </div>
+              <ImageIcon className="h-8 w-8 text-amber-400" />
+            </div>
+          </div>
         </div>
 
         {/* Info Card */}
@@ -372,6 +391,7 @@ export default function AdminCategoriesPage() {
             Categories help organize your products. Each category can have a specification template that defines 
             what product specifications are available. Categories can have subcategories for better organization.
             Specifications marked as "variant attributes" will be used to generate product variants.
+            Categories can also have an optional image for visual representation.
           </p>
         </div>
 

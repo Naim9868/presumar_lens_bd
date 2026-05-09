@@ -66,7 +66,6 @@ export interface ICategory {
   name: string;
   slug?: string;
   parentId?: Types.ObjectId | null;
-
   specificationTemplate: ICategorySpecGroup[];
 
   status: 'active' | 'inactive';

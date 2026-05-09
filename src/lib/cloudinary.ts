@@ -1,4 +1,5 @@
 // lib/cloudinary.ts
+
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 
 // Configure Cloudinary
@@ -128,5 +129,23 @@ export function getOptimizedImageUrl(
     transformation: transformationString,
   });
 }
+
+
+// Helper function to extract public ID from Cloudinary URL
+export function extractPublicIdFromUrl(url: string): string | null {
+  try {
+    // Pattern: /upload/v1234567890/folder/product/image.jpg
+    // Extract everything between /upload/ and the file extension
+    const matches = url.match(/\/upload\/(?:v\d+\/)?(.+?)\./);
+    if (matches && matches[1]) {
+      return matches[1];
+    }
+    return null;
+  } catch (error) {
+    console.error('Error extracting public ID:', error);
+    return null;
+  }
+}
+
 
 export default cloudinary;

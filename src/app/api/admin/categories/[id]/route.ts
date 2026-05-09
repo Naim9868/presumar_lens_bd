@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/dbConnect';
 import { Category } from '@/models/Category';
+import { deleteImage, extractPublicIdFromUrl } from '@/lib/cloudinary';
 import mongoose from 'mongoose';
 
 // Helper function to update child paths
@@ -70,25 +71,34 @@ export async function PUT(
     }
     
     // Update category
-    const category = await Category.findByIdAndUpdate(
+    const updatedCategory = await Category.findByIdAndUpdate(
       id,
-      { 
-        ...body, 
-        level, 
-        path,
-        updatedAt: new Date() 
+      {
+        name: body.name,
+        slug: body.slug,
+        image: body.image,
+        description: body.description,
+        parentId: body.parentId,
+        status: body.status,
+        specificationTemplate: body.specificationTemplate,
+        level,
+        path 
       },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     );
+    
+    if (!updatedCategory) {
+      return NextResponse.json({ error: 'Category not found' }, { status: 404 });
+    }
     
     // If parent changed, update all children's paths
     if (body.parentId !== currentCategory.parentId?.toString()) {
-      await updateChildPaths(category._id, path);
+      await updateChildPaths(updatedCategory._id, path);
     }
     
     return NextResponse.json({
       success: true,
-      data: category,
+      data: updatedCategory,
       message: 'Category updated successfully'
     });
   } catch (error: any) {
@@ -116,7 +126,9 @@ export async function DELETE(
         error: 'Invalid category ID'
       }, { status: 400 });
     }
-    
+     // Find category first to get image URL
+    const category = await Category.findById(id);
+
     // Check if category has children
     const childCount = await Category.countDocuments({ parentId: id });
     if (childCount > 0) {
@@ -125,8 +137,8 @@ export async function DELETE(
         error: 'Cannot delete category with subcategories. Delete subcategories first.'
       }, { status: 400 });
     }
-    
-    const category = await Category.findByIdAndDelete(id);
+
+   
     
     if (!category) {
       return NextResponse.json({
@@ -134,6 +146,22 @@ export async function DELETE(
         error: 'Category not found'
       }, { status: 404 });
     }
+    
+    // Delete category image from Cloudinary if exists
+    if (category.image) {
+      const publicId = extractPublicIdFromUrl(category.image);
+      if (publicId) {
+        try {
+          await deleteImage(publicId);
+          console.log(`Deleted category image: ${publicId}`);
+        } catch (error) {
+          console.error('Failed to delete category image:', error);
+        }
+      }
+    }
+    
+   await Category.findByIdAndDelete(id);
+    
     
     return NextResponse.json({
       success: true,
