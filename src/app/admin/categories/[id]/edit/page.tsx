@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/useToast';
 interface CategoryField {
   key: string;
   label: string;
-  type: 'text' | 'number' | 'select' | 'boolean' | 'multiselect';
+  type: 'text' | 'textarea' | 'number' | 'select' | 'boolean' | 'multiselect';
   unit?: string;
   options?: string[];
   required: boolean;
@@ -87,7 +87,7 @@ const OptionsInput = ({
           e.currentTarget.blur();
         }
       }}
-      className="col-span-2 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+      className="col-span-2 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
     />
   );
 };
@@ -641,7 +641,7 @@ export default function EditCategoryPage() {
                       setFormData(prev => ({ ...prev, name: e.target.value, slug: generateSlug(e.target.value) }));
                     }
                   }}
-                  className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.name ? 'border-red-500' : ''}`}
+                  className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 ${errors.name ? 'border-red-500' : ''}`}
                 />
                 {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
               </div>
@@ -653,7 +653,7 @@ export default function EditCategoryPage() {
                   placeholder="auto-generated from name"
                   value={formData.slug}
                   onChange={(e) => setFormData({ ...formData, slug: generateSlug(e.target.value) })}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
                 />
                 <p className="mt-1 text-xs text-gray-500">URL-friendly identifier. Leave empty to auto-generate.</p>
               </div>
@@ -664,7 +664,7 @@ export default function EditCategoryPage() {
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={3}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
                   placeholder="Brief description of the category"
                 />
               </div>
@@ -674,7 +674,7 @@ export default function EditCategoryPage() {
                 <select
                   value={formData.parentId}
                   onChange={(e) => setFormData({ ...formData, parentId: e.target.value })}
-                  className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.parentId ? 'border-red-500' : ''}`}
+                  className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 ${errors.parentId ? 'border-red-500' : ''}`}
                 >
                   <option value="">None (Top Level Category)</option>
                   {categories.map(cat => (
@@ -691,7 +691,7 @@ export default function EditCategoryPage() {
                 <select
                   value={formData.status}
                   onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
                 >
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
@@ -752,7 +752,7 @@ export default function EditCategoryPage() {
                             placeholder="Group Name (e.g., Technical Specs)"
                             value={group.groupName}
                             onChange={(e) => updateSpecGroup(groupIndex, { groupName: e.target.value })}
-                            className="text-md font-medium rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 w-64"
+                            className="text-md font-medium rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 w-64 text-gray-900"
                           />
                           <span className="text-xs text-gray-500">
                             ({group.fields.length} field{group.fields.length !== 1 ? 's' : ''})
@@ -777,21 +777,22 @@ export default function EditCategoryPage() {
                                   placeholder="Key (e.g., processor)"
                                   value={field.key}
                                   onChange={(e) => updateSpecField(groupIndex, fieldIndex, { key: e.target.value })}
-                                  className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                                  className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
                                 />
                                 <input
                                   type="text"
                                   placeholder="Label (e.g., Processor)"
                                   value={field.label}
                                   onChange={(e) => updateSpecField(groupIndex, fieldIndex, { label: e.target.value })}
-                                  className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                                  className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
                                 />
                                 <select
                                   value={field.type}
                                   onChange={(e) => updateSpecField(groupIndex, fieldIndex, { type: e.target.value as any })}
-                                  className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                                  className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
                                 >
                                   <option value="text">Text</option>
+                                  <option value="textarea">Textarea (Large Text)</option>
                                   <option value="number">Number</option>
                                   <option value="select">Select</option>
                                   <option value="multiselect">Multi-Select</option>
@@ -805,7 +806,7 @@ export default function EditCategoryPage() {
                                   placeholder="Unit (e.g., GHz, mm)"
                                   value={field.unit || ''}
                                   onChange={(e) => updateSpecField(groupIndex, fieldIndex, { unit: e.target.value })}
-                                  className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                                  className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
                                 />
 
                                 {(field.type === 'select' || field.type === 'multiselect') && (
@@ -820,7 +821,7 @@ export default function EditCategoryPage() {
                                 )}
 
                                 <div className="flex items-center gap-3 flex-wrap">
-                                  <label className="flex items-center gap-1 text-sm">
+                                  <label className="flex items-center gap-1 text-sm text-gray-700">
                                     <input
                                       type="checkbox"
                                       checked={field.required}
@@ -829,7 +830,7 @@ export default function EditCategoryPage() {
                                     />
                                     Required
                                   </label>
-                                  <label className="flex items-center gap-1 text-sm">
+                                  <label className="flex items-center gap-1 text-sm text-gray-700">
                                     <input
                                       type="checkbox"
                                       checked={field.filterable}
@@ -838,7 +839,7 @@ export default function EditCategoryPage() {
                                     />
                                     Filterable
                                   </label>
-                                  <label className="flex items-center gap-1 text-sm">
+                                  <label className="flex items-center gap-1 text-sm text-gray-700">
                                     <input
                                       type="checkbox"
                                       checked={field.isVariantAttribute}
@@ -849,6 +850,12 @@ export default function EditCategoryPage() {
                                   </label>
                                 </div>
                               </div>
+
+                              {field.type === 'textarea' && (
+                                <div className="mt-2 text-xs text-blue-600">
+                                  <p>💡 This field will display as a multi-line text input in the product form.</p>
+                                </div>
+                              )}
 
                               <button
                                 type="button"

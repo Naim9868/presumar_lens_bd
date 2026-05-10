@@ -256,23 +256,62 @@ export async function getAllProducts(
 
     /* ---------- Batch Fetch Relations ---------- */
 
-    const variants = products.map((p, i) => {
-      // console.log(`product[${i}] variant:`, p.variants);
-      // console.log(p.variants.map(v => v.price));
-      return p.variants;
-    })
+    // const variants = products.map((p, i) => {
+    //   // console.log(`product[${i}] variant:`, p.variants);
+    //   // console.log(p.variants.map(v => v.price));
+    //   return p.variants;
+    // })
 
 
     /* ---------- Attach Computed Fields ---------- */
-    const finalProducts = products.map((product, i) => {
+    const finalProducts = products.map((product) => {
 
-      const prices = product.variants.map((v: ProductVariant) => v.price);
+      const prices = product.variants.map(
+        (v: ProductVariant) => v.price
+      );
+
+      /* ================= FILTER EMPTY SPECS ================= */
+
+      const filteredSpecsFlat = (product.specsFlat || []).filter((spec: any) => {
+
+        // remove null / undefined
+        if (spec.value === null || spec.value === undefined) {
+          return false;
+        }
+
+        // remove empty string
+        if (
+          typeof spec.value === 'string' &&
+          spec.value.trim() === ''
+        ) {
+          return false;
+        }
+
+        // remove empty array
+        if (
+          Array.isArray(spec.value) &&
+          spec.value.length === 0
+        ) {
+          return false;
+        }
+
+        return true;
+      });
 
       return {
         ...product,
-        lowestPrice: prices.length ? Math.min(...prices) : 0,
-        heighestPrice: prices.length ? Math.max(...prices) : 0,
-        variantCount: variants.length,
+
+        specsFlat: filteredSpecsFlat,
+
+        lowestPrice: prices.length
+          ? Math.min(...prices)
+          : 0,
+
+        highestPrice: prices.length
+          ? Math.max(...prices)
+          : 0,
+
+        variantCount: product.variants.length,
       };
     });
 

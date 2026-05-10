@@ -222,7 +222,7 @@ export interface SpecField {
   group: string;
   unit?: string;
   filterable?: boolean;
-  type?: string;
+  type?: 'text' | 'textarea' | 'number' | 'select' | 'multiselect' | 'boolean';
   options?: string[];
   required?: boolean;
   isVariantAttribute?: boolean;

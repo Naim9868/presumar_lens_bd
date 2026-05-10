@@ -4,7 +4,7 @@ import mongoose, { Schema } from 'mongoose';
 const CategorySpecFieldSchema = new Schema({
   key: { type: String, required: true },
   label: { type: String, required: true },
-  type: { type: String, enum: ['text', 'number', 'select', 'boolean', 'multiselect'], required: true },
+  type: { type: String, enum: ['text','textarea', 'number', 'select', 'boolean', 'multiselect'], required: true },
   unit: { type: String },
   options: { type: [String], default: [] },
   required: { type: Boolean, default: false },

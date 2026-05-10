@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/useToast';
 interface CategoryField {
   key: string;
   label: string;
-  type: 'text' | 'number' | 'select' | 'boolean' | 'multiselect';
+  type: 'text' | 'textarea' | 'number' | 'select' | 'boolean' | 'multiselect';  // Added 'textarea'
   unit?: string;
   options?: string[];
   required: boolean;
@@ -748,6 +748,7 @@ export default function CategoryForm({ categoryId, isEditing = false, onSuccess 
                               className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
                             >
                               <option value="text">Text</option>
+                              <option value="textarea">Textarea (Large Text)</option>
                               <option value="number">Number</option>
                               <option value="select">Select</option>
                               <option value="multiselect">Multi-Select</option>

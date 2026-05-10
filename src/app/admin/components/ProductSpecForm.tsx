@@ -201,16 +201,21 @@ export function ProductSpecForm({
       // ---------------- TEXTAREA ----------------
       case 'textarea':
         return (
-          <textarea
-            placeholder={`Enter ${field.label.toLowerCase()}`}
-            value={safeStringValue(raw)}
-            onChange={(e) =>
-              updateSpecValue(field.key, e.target.value)
-            }
-            disabled={readOnly}
-            rows={3}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-900"
-          />
+          <div className="mt-1">
+            <textarea
+              placeholder={`Enter ${field.label.toLowerCase()}`}
+              value={safeStringValue(raw)}
+              onChange={(e) =>
+                updateSpecValue(field.key, e.target.value)
+              }
+              disabled={readOnly}
+              rows={4}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-900 resize-y"
+            />
+            {field.unit && (
+              <p className="mt-1 text-xs text-gray-500">Unit: {field.unit}</p>
+            )}
+          </div>
         );
 
       // ---------------- TEXT DEFAULT ----------------
