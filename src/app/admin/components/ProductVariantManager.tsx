@@ -217,7 +217,7 @@ export function ProductVariantManager({
                 <input
                   type="text"
                   placeholder="e.g., Red, Blue, Green"
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
                   onChange={(e) => updateAttributeCombination(attr, e.target.value)}
                 />
               </div>
@@ -264,13 +264,13 @@ export function ProductVariantManager({
                       {variant.isDefault && (
                         <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-0.5 rounded">Default</span>
                       )}
-                      <span className="text-sm font-mono text-gray-600">{variant.sku || 'No SKU'}</span>
+                      <span className="text-sm font-mono text-gray-900">{variant.sku || 'No SKU'}</span>
                     </div>
                     
                     <div className="flex items-center gap-2 flex-wrap">
                       {variant.attributes.map((attr, i) => (
                         attr.value && (
-                          <span key={i} className="text-xs bg-gray-100 px-2 py-0.5 rounded">
+                          <span key={i} className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-700">
                             {attr.key}: {attr.value}
                           </span>
                         )
@@ -287,7 +287,7 @@ export function ProductVariantManager({
                       <span className={`text-sm font-medium ${isPriceInvalid ? 'text-red-500' : 'text-gray-900'}`}>
                         ${variant.price.toFixed(2)}
                       </span>
-                      <span className="text-sm text-gray-500">
+                      <span className="text-sm text-gray-600">
                         Stock: {variant.inventory}
                       </span>
                     </div>
@@ -334,7 +334,7 @@ export function ProductVariantManager({
                             onChange={(e) => updateVariant(idx, { sku: e.target.value.toUpperCase() })}
                             placeholder="Enter unique SKU"
                             disabled={readOnly}
-                            className={`w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                            className={`w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 ${
                               isSkuInvalid && !readOnly ? 'border-red-300 bg-red-50' : ''
                             }`}
                           />
@@ -362,7 +362,7 @@ export function ProductVariantManager({
                                 }}
                                 placeholder={`Enter ${attr.toLowerCase()}`}
                                 disabled={readOnly}
-                                className="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                className="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
                               />
                             </div>
                           );
@@ -382,7 +382,7 @@ export function ProductVariantManager({
                               onChange={(e) => updateVariant(idx, { price: parseFloat(e.target.value) || 0 })}
                               placeholder="0.00"
                               disabled={readOnly}
-                              className={`w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                              className={`w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 ${
                                 isPriceInvalid && !readOnly ? 'border-red-300 bg-red-50' : ''
                               }`}
                             />
@@ -402,7 +402,7 @@ export function ProductVariantManager({
                               onChange={(e) => updateVariant(idx, { compareAtPrice: e.target.value ? parseFloat(e.target.value) : undefined })}
                               placeholder="0.00"
                               disabled={readOnly}
-                              className="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                              className="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
                             />
                           </div>
                         </div>
@@ -419,7 +419,7 @@ export function ProductVariantManager({
                               onChange={(e) => updateVariant(idx, { inventory: parseInt(e.target.value) || 0 })}
                               placeholder="0"
                               disabled={readOnly}
-                              className="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                              className="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
                             />
                           </div>
                           
@@ -431,7 +431,7 @@ export function ProductVariantManager({
                               value={variant.status}
                               onChange={(e) => updateVariant(idx, { status: e.target.value as any })}
                               disabled={readOnly}
-                              className="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                              className="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
                             >
                               <option value="in_stock">In Stock</option>
                               <option value="out_of_stock">Out of Stock</option>

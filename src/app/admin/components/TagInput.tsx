@@ -69,7 +69,7 @@ export function TagInput({ tags, onChange, placeholder = "Add tags...", readOnly
           onKeyDown={handleKeyDown}
           onBlur={addTag}
           placeholder={tags.length === 0 ? placeholder : ''}
-          className="flex-1 outline-none text-sm min-w-[100px]"
+          className="flex-1 outline-none text-sm min-w-[100px] text-gray-900"
         />
       </div>
       <p className="text-xs text-gray-500">Press Enter or comma to add tags. Helps with search and filtering.</p>

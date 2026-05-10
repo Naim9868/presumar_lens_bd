@@ -46,7 +46,7 @@ export default function EditProductPage() {
     }
   }, [productId]);
 
-  const fetchProduct = async () => {
+  async function fetchProduct() {
     try {
       setLoading(true);
       setError(null);

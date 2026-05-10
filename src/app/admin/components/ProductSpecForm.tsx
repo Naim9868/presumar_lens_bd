@@ -129,7 +129,7 @@ export function ProductSpecForm({
               )
             }
             disabled={readOnly}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-900"
           />
         );
 
@@ -142,7 +142,7 @@ export function ProductSpecForm({
               updateSpecValue(field.key, e.target.value)
             }
             disabled={readOnly}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-900"
           >
             <option value="">
               Select {field.label.toLowerCase()}...
@@ -172,7 +172,7 @@ export function ProductSpecForm({
                 updateSpecValue(field.key, selected);
               }}
               disabled={readOnly}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-900"
               size={Math.min(field.options?.length || 3, 5)}
             >
               {field.options?.map((opt) => (
@@ -209,7 +209,7 @@ export function ProductSpecForm({
             }
             disabled={readOnly}
             rows={3}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-900"
           />
         );
 
@@ -224,7 +224,7 @@ export function ProductSpecForm({
               updateSpecValue(field.key, e.target.value)
             }
             disabled={readOnly}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-900"
           />
         );
     }

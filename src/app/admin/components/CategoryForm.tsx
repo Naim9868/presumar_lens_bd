@@ -92,7 +92,7 @@ const OptionsInput = ({
           e.currentTarget.blur();
         }
       }}
-      className="col-span-2 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+      className="col-span-2 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
     />
   );
 };
@@ -614,7 +614,7 @@ export default function CategoryForm({ categoryId, isEditing = false, onSuccess 
             <select
               value={formData.parentId}
               onChange={(e) => setFormData({ ...formData, parentId: e.target.value })}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
             >
               <option value="">None (Top Level Category)</option>
               {categories
@@ -635,7 +635,7 @@ export default function CategoryForm({ categoryId, isEditing = false, onSuccess 
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={4}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
               placeholder="Brief description of the category"
             />
           </div>
@@ -647,7 +647,7 @@ export default function CategoryForm({ categoryId, isEditing = false, onSuccess 
             <select
               value={formData.status}
               onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
             >
               <option value="active">Active (Visible)</option>
               <option value="inactive">Inactive (Hidden)</option>
@@ -708,7 +708,7 @@ export default function CategoryForm({ categoryId, isEditing = false, onSuccess 
                         placeholder="Group Name (e.g., Technical Specs)"
                         value={group.groupName}
                         onChange={(e) => updateSpecGroup(groupIndex, { groupName: e.target.value })}
-                        className="text-md font-medium rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 w-64"
+                        className="text-md font-medium rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 w-64 text-gray-900"
                       />
                       <span className="text-xs text-gray-500">
                         ({group.fields.length} field{group.fields.length !== 1 ? 's' : ''})
@@ -733,19 +733,19 @@ export default function CategoryForm({ categoryId, isEditing = false, onSuccess 
                               placeholder="Key (e.g., processor)"
                               value={field.key}
                               onChange={(e) => updateSpecField(groupIndex, fieldIndex, { key: e.target.value })}
-                              className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                              className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
                             />
                             <input
                               type="text"
                               placeholder="Label (e.g., Processor)"
                               value={field.label}
                               onChange={(e) => updateSpecField(groupIndex, fieldIndex, { label: e.target.value })}
-                              className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                              className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
                             />
                             <select
                               value={field.type}
                               onChange={(e) => updateSpecField(groupIndex, fieldIndex, { type: e.target.value as any })}
-                              className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                              className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
                             >
                               <option value="text">Text</option>
                               <option value="number">Number</option>
@@ -761,7 +761,7 @@ export default function CategoryForm({ categoryId, isEditing = false, onSuccess 
                               placeholder="Unit (e.g., GHz, mm)"
                               value={field.unit || ''}
                               onChange={(e) => updateSpecField(groupIndex, fieldIndex, { unit: e.target.value })}
-                              className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                              className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
                             />
 
                             {(field.type === 'select' || field.type === 'multiselect') && (
@@ -776,7 +776,7 @@ export default function CategoryForm({ categoryId, isEditing = false, onSuccess 
                             )}
 
                             <div className="flex items-center gap-3 flex-wrap">
-                              <label className="flex items-center gap-1 text-sm">
+                              <label className="flex items-center gap-1 text-sm text-gray-700">
                                 <input
                                   type="checkbox"
                                   checked={field.required}
@@ -785,7 +785,7 @@ export default function CategoryForm({ categoryId, isEditing = false, onSuccess 
                                 />
                                 Required
                               </label>
-                              <label className="flex items-center gap-1 text-sm">
+                              <label className="flex items-center gap-1 text-sm text-gray-700">
                                 <input
                                   type="checkbox"
                                   checked={field.filterable}
@@ -794,7 +794,7 @@ export default function CategoryForm({ categoryId, isEditing = false, onSuccess 
                                 />
                                 Filterable
                               </label>
-                              <label className="flex items-center gap-1 text-sm">
+                              <label className="flex items-center gap-1 text-sm text-gray-700">
                                 <input
                                   type="checkbox"
                                   checked={field.isVariantAttribute}

@@ -1,4 +1,3 @@
-
 // app/admin/components/ProductForm.tsx
 'use client';
 
@@ -11,7 +10,7 @@ import { ProductSpecForm } from './ProductSpecForm';
 import { ProductVariantManager } from './ProductVariantManager';
 import ImageUploader from './ImageUploader';
 import { TagInput } from './TagInput';
-import { Category, Brand, SpecGroup, SpecField } from '@/types';
+import { Category, Brand, SpecGroup } from '@/types';
 import { VariantAttribute, ProductVariant, ProductSpec } from '@/types/product';
 
 
@@ -543,7 +542,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                       setFormData(prev => ({ ...prev, name: newName, slug: newSlug }));
                     }
                   }}
-                  className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.name ? 'border-red-500' : ''}`}
+                  className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 ${errors.name ? 'border-red-500' : ''}`}
                 />
                 {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
               </div>
@@ -557,7 +556,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                   placeholder="auto-generated from name"
                   value={formData.slug}
                   onChange={(e) => setFormData({ ...formData, slug: generateSlug(e.target.value) })}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
                 />
                 <p className="mt-1 text-xs text-gray-500">
                   {isEditing ? 'URL-friendly identifier.' : 'URL-friendly identifier. Leave empty to auto-generate.'}
@@ -573,7 +572,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                     required
                     value={formData.categoryId}
                     onChange={(e) => handleCategoryChange(e.target.value)}
-                    className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.categoryId ? 'border-red-500' : ''}`}
+                    className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 ${errors.categoryId ? 'border-red-500' : ''}`}
                   >
                     <option value="">Select a category...</option>
                     {categories.map(cat => (
@@ -594,7 +593,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                     required
                     value={formData.brandId}
                     onChange={(e) => setFormData({ ...formData, brandId: e.target.value })}
-                    className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.brandId ? 'border-red-500' : ''}`}
+                    className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 ${errors.brandId ? 'border-red-500' : ''}`}
                   >
                     <option value="">Select a brand...</option>
                     {brands.map(brand => (
@@ -620,7 +619,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                   placeholder="Brief description (10-500 characters)"
                   value={formData.shortDescription}
                   onChange={(e) => setFormData({ ...formData, shortDescription: e.target.value })}
-                  className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.shortDescription ? 'border-red-500' : ''}`}
+                  className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 ${errors.shortDescription ? 'border-red-500' : ''}`}
                 />
                 {errors.shortDescription && <p className="mt-1 text-xs text-red-500">{errors.shortDescription}</p>}
                 <p className="mt-1 text-xs text-gray-500">
@@ -638,7 +637,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                   placeholder="Detailed product description (50-5000 characters)"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.description ? 'border-red-500' : ''}`}
+                  className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 ${errors.description ? 'border-red-500' : ''}`}
                 />
                 {errors.description && <p className="mt-1 text-xs text-red-500">{errors.description}</p>}
                 <p className="mt-1 text-xs text-gray-500">Minimum 50 characters. Provide detailed information about the product.</p>
@@ -766,7 +765,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                 <select
                   value={formData.status}
                   onChange={(e) => setFormData({ ...formData, status: e.target.value as 'draft' | 'active' | 'archived' })}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
                 >
                   <option value="draft">Draft (Not visible to customers)</option>
                   <option value="active">Active (Visible to customers)</option>
