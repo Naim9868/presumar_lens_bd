@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { dbConnect as connectDB } from '@/lib/dbConnect';
 import { Category } from '@/models/Category';
+import { deleteImage,extractPublicIdFromUrl,} from '@/lib/cloudinary';
 
 // ==================== GET ====================
 
@@ -41,13 +42,13 @@ export async function GET(
 }
 
 // ==================== PUT ====================
-
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
+
     const { id } = await params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -58,61 +59,147 @@ export async function PUT(
     }
 
     const body = await request.json();
-    
-    // Create update object with proper handling of parentId
-    const updateData: any = {};
-    
-    if (body.name !== undefined) updateData.name = body.name;
-    if (body.slug !== undefined) updateData.slug = body.slug;
-    if (body.status !== undefined) updateData.status = body.status;
-    if (body.specificationTemplate !== undefined) updateData.specificationTemplate = body.specificationTemplate;
-    
-    // Handle parentId specially - convert empty string to null
-    if (body.parentId !== undefined) {
-      // If parentId is empty string or null or undefined, set to null
-      if (!body.parentId || body.parentId === '') {
-        updateData.parentId = null;
-      } 
-      // If it's a valid ObjectId, use it
-      else if (mongoose.Types.ObjectId.isValid(body.parentId)) {
-        updateData.parentId = body.parentId;
-      }
-      // Otherwise, it's invalid
-      else {
-        return NextResponse.json(
-          { error: 'Invalid parentId format' },
-          { status: 400 }
-        );
-      }
-    }
-    
-    // Update the category
-    const category = await Category.findByIdAndUpdate(
-      id,
-      { $set: updateData },
-      { new: true, runValidators: true, returnDocument: 'after' }
-    );
 
-    if (!category) {
+    const existingCategory = await Category.findById(id);
+
+    if (!existingCategory) {
       return NextResponse.json(
         { error: 'Category not found' },
         { status: 404 }
       );
     }
 
+    /**
+     * DELETE OLD IMAGE
+     * when image changed
+     */
+    if (
+      body.image &&
+      existingCategory.image &&
+      body.image !== existingCategory.image
+    ) {
+      const publicId = extractPublicIdFromUrl(
+        existingCategory.image
+      );
+
+      if (publicId) {
+        try {
+          await deleteImage(publicId);
+
+          console.log(
+            'Deleted old category image:',
+            publicId
+          );
+        } catch (error) {
+          console.error(
+            'Failed to delete old category image:',
+            error
+          );
+        }
+      }
+    }
+
+    /**
+     * REMOVE IMAGE
+     * when image removed completely
+     */
+    if (
+      body.image === '' &&
+      existingCategory.image
+    ) {
+      const publicId = extractPublicIdFromUrl(
+        existingCategory.image
+      );
+
+      if (publicId) {
+        try {
+          await deleteImage(publicId);
+
+          console.log(
+            'Removed category image:',
+            publicId
+          );
+        } catch (error) {
+          console.error(
+            'Failed to remove category image:',
+            error
+          );
+        }
+      }
+    }
+
+    const updateData: any = {};
+
+    if (body.name !== undefined)
+      updateData.name = body.name;
+
+    if (body.slug !== undefined)
+      updateData.slug = body.slug;
+
+    if (body.image !== undefined)
+      updateData.image = body.image;
+
+    if (body.description !== undefined)
+      updateData.description = body.description;
+
+    if (body.status !== undefined)
+      updateData.status = body.status;
+
+    if (body.specificationTemplate !== undefined) {
+      updateData.specificationTemplate =
+        body.specificationTemplate;
+    }
+
+    /**
+     * Handle parentId
+     */
+    if (body.parentId !== undefined) {
+      if (!body.parentId || body.parentId === '') {
+        updateData.parentId = null;
+      } else if (
+        mongoose.Types.ObjectId.isValid(body.parentId)
+      ) {
+        updateData.parentId = body.parentId;
+      } else {
+        return NextResponse.json(
+          { error: 'Invalid parentId format' },
+          { status: 400 }
+        );
+      }
+    }
+
+    const category = await Category.findByIdAndUpdate(
+      id,
+      {
+        $set: updateData,
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
     return NextResponse.json(category);
+
   } catch (error: any) {
-    console.error('Error updating category:', error);
-    
-    // Handle duplicate slug error
-    if (error.code === 11000 && error.keyPattern?.slug) {
+    console.error(
+      'Error updating category:',
+      error
+    );
+
+    if (
+      error.code === 11000 &&
+      error.keyPattern?.slug
+    ) {
       return NextResponse.json(
-        { error: 'Category with this slug already exists' },
+        {
+          error:
+            'Category with this slug already exists',
+        },
         { status: 400 }
       );
     }
 
-    // Handle validation errors
     if (error.name === 'ValidationError') {
       return NextResponse.json(
         { error: error.message },
@@ -121,7 +208,10 @@ export async function PUT(
     }
 
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      {
+        error:
+          error.message || 'Internal server error',
+      },
       { status: 500 }
     );
   }
@@ -135,6 +225,7 @@ export async function DELETE(
 ) {
   try {
     await connectDB();
+
     const { id } = await params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -144,27 +235,69 @@ export async function DELETE(
       );
     }
 
-    // Check if category has children
-    const hasChildren = await Category.findOne({ parentId: id });
+    /**
+     * Check children
+     */
+    const hasChildren = await Category.findOne({
+      parentId: id,
+    });
+
     if (hasChildren) {
       return NextResponse.json(
-        { error: 'Cannot delete category with subcategories. Please delete or reassign subcategories first.' },
+        {
+          error:
+            'Cannot delete category with subcategories. Please delete or reassign subcategories first.',
+        },
         { status: 400 }
       );
     }
 
-    const deleted = await Category.findByIdAndDelete(id);
+    const category = await Category.findById(id);
 
-    if (!deleted) {
+    if (!category) {
       return NextResponse.json(
         { error: 'Category not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json({ success: true });
+    /**
+     * Delete category image
+     */
+    if (category.image) {
+      const publicId = extractPublicIdFromUrl(
+        category.image
+      );
+
+      if (publicId) {
+        try {
+          await deleteImage(publicId);
+
+          console.log(
+            'Deleted category image:',
+            publicId
+          );
+        } catch (error) {
+          console.error(
+            'Failed to delete category image:',
+            error
+          );
+        }
+      }
+    }
+
+    await Category.findByIdAndDelete(id);
+
+    return NextResponse.json({
+      success: true,
+    });
+
   } catch (error) {
-    console.error('Error deleting category:', error);
+    console.error(
+      'Error deleting category:',
+      error
+    );
+
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

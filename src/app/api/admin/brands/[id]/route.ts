@@ -48,53 +48,115 @@ export async function PUT(
 ) {
   try {
     await dbConnect();
+
     const { id } = await params;
     const body = await request.json();
-    
+
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return NextResponse.json({
-        success: false,
-        error: 'Invalid brand ID'
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Invalid brand ID',
+        },
+        { status: 400 }
+      );
     }
-    
-    // Check for duplicate slug
-    const existingBrand = await Brand.findOne({
+
+    // Find existing brand
+    const existingBrand = await Brand.findById(id);
+
+    if (!existingBrand) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Brand not found',
+        },
+        { status: 404 }
+      );
+    }
+
+    // Check duplicate slug
+    const duplicateBrand = await Brand.findOne({
       slug: body.slug,
-      _id: { $ne: id }
+      _id: { $ne: id },
     });
-    
-    if (existingBrand) {
-      return NextResponse.json({
-        success: false,
-        error: 'Brand with this slug already exists'
-      }, { status: 409 });
+
+    if (duplicateBrand) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Brand with this slug already exists',
+        },
+        { status: 409 }
+      );
     }
-    
-    const brand = await Brand.findByIdAndUpdate(
+
+    /**
+     * DELETE OLD LOGO
+     * if new logo is different
+     */
+    if (
+      body.logo &&
+      existingBrand.logo &&
+      body.logo !== existingBrand.logo
+    ) {
+      const publicId = extractPublicIdFromUrl(existingBrand.logo);
+
+      if (publicId) {
+        try {
+          await deleteImage(publicId);
+          console.log('Deleted old brand logo:', publicId);
+        } catch (error) {
+          console.error('Failed to delete old logo:', error);
+        }
+      }
+    }
+
+    /**
+     * REMOVE OLD LOGO
+     * if logo removed completely
+     */
+    if (!body.logo && existingBrand.logo) {
+      const publicId = extractPublicIdFromUrl(existingBrand.logo);
+
+      if (publicId) {
+        try {
+          await deleteImage(publicId);
+          console.log('Removed old brand logo:', publicId);
+        } catch (error) {
+          console.error('Failed to remove old logo:', error);
+        }
+      }
+    }
+
+    // Update brand
+    const updatedBrand = await Brand.findByIdAndUpdate(
       id,
-      { ...body, updatedAt: new Date() },
-      { returnDocument: 'after', runValidators: true }
+      {
+        ...body,
+        updatedAt: new Date(),
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
     );
-    
-    if (!brand) {
-      return NextResponse.json({
-        success: false,
-        error: 'Brand not found'
-      }, { status: 404 });
-    }
-    
+
     return NextResponse.json({
       success: true,
-      data: brand,
-      message: 'Brand updated successfully'
+      data: updatedBrand,
+      message: 'Brand updated successfully',
     });
   } catch (error: any) {
     console.error('Error updating brand:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Failed to update brand'
-    }, { status: 500 });
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.message || 'Failed to update brand',
+      },
+      { status: 500 }
+    );
   }
 }
 

@@ -1,17 +1,40 @@
 // app/admin/categories/[id]/edit/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowLeft, Save, Plus, X, Trash2, Upload, Loader2, Image as ImageIcon, ChevronDown, ChevronRight } from 'lucide-react';
+
+import {
+  ArrowLeft,
+  Save,
+  Plus,
+  X,
+  Trash2,
+  Upload,
+  Loader2,
+  Image as ImageIcon,
+  ChevronDown,
+  ChevronRight,
+} from 'lucide-react';
+
 import { useToast } from '@/hooks/useToast';
+
+/* =========================================================
+   TYPES
+========================================================= */
 
 interface CategoryField {
   key: string;
   label: string;
-  type: 'text' | 'textarea' | 'number' | 'select' | 'boolean' | 'multiselect';
+  type:
+  | 'text'
+  | 'textarea'
+  | 'number'
+  | 'select'
+  | 'boolean'
+  | 'multiselect';
   unit?: string;
   options?: string[];
   required: boolean;
@@ -35,6 +58,7 @@ interface Category {
   parentId: string | null;
   status: 'active' | 'inactive';
   specificationTemplate: CategoryGroup[];
+  children?: Category[];
 }
 
 interface UploadProgress {
@@ -43,43 +67,63 @@ interface UploadProgress {
   status: 'uploading' | 'success' | 'error';
 }
 
-// Options Input Component
-const OptionsInput = ({ 
-  field, 
-  groupIndex, 
-  fieldIndex, 
-  optionsTempValues, 
-  setOptionsTempValues, 
-  updateSpecField 
-}: any) => {
+interface FormDataState {
+  name: string;
+  slug: string;
+  image: string;
+  description: string;
+  parentId: string;
+  status: 'active' | 'inactive';
+}
+
+/* =========================================================
+   OPTIONS INPUT
+========================================================= */
+
+function OptionsInput({
+  field,
+  groupIndex,
+  fieldIndex,
+  optionsTempValues,
+  setOptionsTempValues,
+  updateSpecField,
+}: any) {
   const tempKey = `${groupIndex}-${fieldIndex}`;
-  const tempValue = optionsTempValues[tempKey];
-  const displayValue = tempValue !== undefined ? tempValue : (field.options?.join(', ') || '');
-  
+
+  const tempValue =
+    optionsTempValues[tempKey] ??
+    field.options?.join(', ') ??
+    '';
+
   return (
     <input
       type="text"
       placeholder="Options (comma separated)"
-      value={displayValue}
+      value={tempValue}
       onChange={(e) => {
-        const newValue = e.target.value;
         setOptionsTempValues((prev: any) => ({
           ...prev,
-          [tempKey]: newValue
+          [tempKey]: e.target.value,
         }));
       }}
       onBlur={(e) => {
-        const value = e.target.value;
-        if (value.trim()) {
-          const options = value.split(',').map((o: string) => o.trim()).filter((o: string) => o);
-          updateSpecField(groupIndex, fieldIndex, { options });
-        } else {
-          updateSpecField(groupIndex, fieldIndex, { options: [] });
-        }
+        const value = e.target.value.trim();
+
+        const options = value
+          ? value
+            .split(',')
+            .map((item: string) => item.trim())
+            .filter(Boolean)
+          : [];
+
+        updateSpecField(groupIndex, fieldIndex, {
+          options,
+        });
+
         setOptionsTempValues((prev: any) => {
-          const newState = { ...prev };
-          delete newState[tempKey];
-          return newState;
+          const cloned = { ...prev };
+          delete cloned[tempKey];
+          return cloned;
         });
       }}
       onKeyDown={(e) => {
@@ -90,31 +134,122 @@ const OptionsInput = ({
       className="col-span-2 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
     />
   );
-};
+}
+
+/* =========================================================
+   PAGE
+========================================================= */
 
 export default function EditCategoryPage() {
   const router = useRouter();
   const params = useParams();
-  const { showToast } = useToast();
+
   const categoryId = params.id as string;
+
+  const { showToast } = useToast();
+
+  /* =========================================================
+     STATE
+  ========================================================= */
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
-  const [optionsTempValues, setOptionsTempValues] = useState<Record<string, string>>({});
-  const [formData, setFormData] = useState({
-    name: '',
-    slug: '',
-    image: '',
-    description: '',
-    parentId: '',
-    status: 'active' as 'active' | 'inactive'
-  });
-  const [specGroups, setSpecGroups] = useState<CategoryGroup[]>([]);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const [uploadingImage, setUploadingImage] =
+    useState(false);
+
+  const [uploadProgress, setUploadProgress] =
+    useState<UploadProgress | null>(null);
+
+  const [categories, setCategories] = useState<
+    Category[]
+  >([]);
+
+  const [specGroups, setSpecGroups] = useState<
+    CategoryGroup[]
+  >([]);
+
+  const [expandedGroups, setExpandedGroups] =
+    useState<Set<number>>(new Set());
+
+  const [optionsTempValues, setOptionsTempValues] =
+    useState<Record<string, string>>({});
+
+  const [errors, setErrors] = useState<
+    Record<string, string>
+  >({});
+
+  const [formData, setFormData] =
+    useState<FormDataState>({
+      name: '',
+      slug: '',
+      image: '',
+      description: '',
+      parentId: '',
+      status: 'active',
+    });
+
+  /* =========================================================
+     HELPERS
+  ========================================================= */
+
+  const generateSlug = (value: string) => {
+    return value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  };
+
+  const flattenCategories = (
+    nested: Category[]
+  ): Category[] => {
+    const flat: Category[] = [];
+
+    const walk = (items: Category[]) => {
+      items.forEach((item) => {
+        flat.push(item);
+
+        if (item.children?.length) {
+          walk(item.children);
+        }
+      });
+    };
+
+    walk(nested);
+
+    return flat;
+  };
+
+  const isDescendant = (
+    potentialChildId: string,
+    potentialParentId: string,
+    categoriesList: Category[]
+  ): boolean => {
+    let currentId: string | null = potentialChildId;
+
+    while (currentId) {
+      const category = categoriesList.find(
+        (c) => c._id === currentId
+      );
+
+      if (!category || !category.parentId) {
+        break;
+      }
+
+      if (category.parentId === potentialParentId) {
+        return true;
+      }
+
+      currentId = category.parentId;
+    }
+
+    return false;
+  };
+
+  /* =========================================================
+     FETCH DATA
+  ========================================================= */
 
   useEffect(() => {
     fetchData();
@@ -122,229 +257,364 @@ export default function EditCategoryPage() {
 
   const fetchData = async () => {
     try {
-      const [categoryRes, categoriesRes] = await Promise.all([
-        fetch(`/api/categories/${categoryId}`),
-        fetch('/api/categories')
-      ]);
+      setLoading(true);
 
-      const category = await categoryRes.json();
-      const allCategories = await categoriesRes.json();
+      const [categoryRes, categoriesRes] =
+        await Promise.all([
+          fetch(`/api/categories/${categoryId}`, {
+            cache: 'no-store',
+          }),
+          fetch('/api/categories', {
+            cache: 'no-store',
+          }),
+        ]);
 
-      const flatCategories = flattenCategories(allCategories);
-      const filteredCategories = flatCategories.filter(cat => {
-        if (cat._id === categoryId) return false;
-        if (isDescendant(cat._id, categoryId, flatCategories)) return false;
-        return true;
-      });
+      if (!categoryRes.ok) {
+        throw new Error('Failed to fetch category');
+      }
+
+      if (!categoriesRes.ok) {
+        throw new Error(
+          'Failed to fetch categories'
+        );
+      }
+
+      const category: Category =
+        await categoryRes.json();
+
+      const allCategories =
+        await categoriesRes.json();
+
+      const flatCategories =
+        flattenCategories(allCategories);
+
+      const filteredCategories =
+        flatCategories.filter((cat) => {
+          if (cat._id === categoryId) {
+            return false;
+          }
+
+          if (
+            isDescendant(
+              cat._id,
+              categoryId,
+              flatCategories
+            )
+          ) {
+            return false;
+          }
+
+          return true;
+        });
 
       setCategories(filteredCategories);
+
       setFormData({
-        name: category.name,
-        slug: category.slug,
+        name: category.name || '',
+        slug: category.slug || '',
         image: category.image || '',
         description: category.description || '',
         parentId: category.parentId || '',
-        status: category.status
+        status: category.status || 'active',
       });
-      setSpecGroups(category.specificationTemplate || []);
-      setExpandedGroups(new Set((category.specificationTemplate || []).map((_: any, index: number) => index)));
+
+      setSpecGroups(
+        category.specificationTemplate || []
+      );
+
+      setExpandedGroups(
+        new Set(
+          (category.specificationTemplate || []).map(
+            (_, index) => index
+          )
+        )
+      );
     } catch (error) {
-      console.error('Error fetching data:', error);
-      showToast('Failed to load category data', 'error');
+      console.error(error);
+
+      showToast(
+        'Failed to load category data',
+        'error'
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const flattenCategories = (categories: any[]): Category[] => {
-    const flat: Category[] = [];
-    const flatten = (items: any[]) => {
-      items.forEach(item => {
-        flat.push({
-          _id: item._id,
-          name: item.name,
-          slug: item.slug,
-          image: item.image,
-          description: item.description,
-          parentId: item.parentId,
-          status: item.status,
-          specificationTemplate: item.specificationTemplate || []
-        });
-        if (item.children && item.children.length > 0) {
-          flatten(item.children);
-        }
-      });
-    };
-    flatten(categories);
-    return flat;
-  };
+  /* =========================================================
+     IMAGE
+  ========================================================= */
 
-  const isDescendant = (potentialChildId: string, potentialParentId: string, categoriesList: Category[]): boolean => {
-    let currentId = potentialChildId;
-    while (currentId) {
-      const category = categoriesList.find(c => c._id === currentId);
-      if (!category || !category.parentId) break;
-      if (category.parentId === potentialParentId) return true;
-      currentId = category.parentId;
-    }
-    return false;
-  };
-
-  const generateSlug = (name: string) => {
-    return name
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-  };
-
-  const compressImage = async (file: File): Promise<File> => {
-    if (file.size < 500 * 1024) {
+  const compressImage = async (
+    file: File
+  ): Promise<File> => {
+    if (file.size <= 500 * 1024) {
       return file;
     }
 
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
+
       reader.readAsDataURL(file);
+
       reader.onload = (event) => {
-        const img = new (window as any).Image();
+        const img = new window.Image();
+
         img.src = event.target?.result as string;
+
         img.onload = () => {
-          const canvas = document.createElement('canvas');
+          const canvas =
+            document.createElement('canvas');
+
           let width = img.width;
           let height = img.height;
-          
-          const MAX_WIDTH = 800;
-          const MAX_HEIGHT = 800;
-          
+
+          const MAX_WIDTH = 1200;
+          const MAX_HEIGHT = 1200;
+
           if (width > height) {
             if (width > MAX_WIDTH) {
-              height = Math.round((height * MAX_WIDTH) / width);
+              height = Math.round(
+                (height * MAX_WIDTH) / width
+              );
+
               width = MAX_WIDTH;
             }
           } else {
             if (height > MAX_HEIGHT) {
-              width = Math.round((width * MAX_HEIGHT) / height);
+              width = Math.round(
+                (width * MAX_HEIGHT) / height
+              );
+
               height = MAX_HEIGHT;
             }
           }
-          
+
           canvas.width = width;
           canvas.height = height;
-          
+
           const ctx = canvas.getContext('2d');
+
           ctx?.drawImage(img, 0, 0, width, height);
-          
+
           canvas.toBlob(
             (blob) => {
-              if (blob) {
-                const compressedFile = new File(
-                  [blob],
-                  file.name.replace(/\.[^/.]+$/, '.jpg'),
-                  { type: 'image/jpeg' }
+              if (!blob) {
+                reject(
+                  new Error('Compression failed')
                 );
-                resolve(compressedFile);
-              } else {
-                reject(new Error('Compression failed'));
+                return;
               }
+
+              resolve(
+                new File(
+                  [blob],
+                  file.name.replace(
+                    /\.[^/.]+$/,
+                    '.jpg'
+                  ),
+                  {
+                    type: 'image/jpeg',
+                  }
+                )
+              );
             },
             'image/jpeg',
-            0.8
+            0.82
           );
         };
-        img.onerror = () => reject(new Error('Failed to load image'));
+
+        img.onerror = () =>
+          reject(new Error('Image load failed'));
       };
-      reader.onerror = () => reject(new Error('Failed to read file'));
+
+      reader.onerror = () =>
+        reject(new Error('File read failed'));
     });
   };
 
-  const uploadToCloudinary = async (file: File): Promise<string> => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('folder', 'categories');
+  const uploadToCloudinary = async (
+    file: File
+  ): Promise<string> => {
+    const data = new FormData();
+
+    data.append('file', file);
+    data.append('folder', 'categories');
 
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      
-      xhr.upload.addEventListener('progress', (event) => {
-        if (event.lengthComputable) {
-          const percent = (event.loaded / event.total) * 100;
-          setUploadProgress({
-            fileName: file.name,
-            progress: percent,
-            status: 'uploading'
-          });
+
+      xhr.upload.addEventListener(
+        'progress',
+        (event) => {
+          if (event.lengthComputable) {
+            const percent =
+              (event.loaded / event.total) * 100;
+
+            setUploadProgress({
+              fileName: file.name,
+              progress: percent,
+              status: 'uploading',
+            });
+          }
         }
-      });
-      
+      );
+
       xhr.addEventListener('load', () => {
-        if (xhr.status === 200) {
-          try {
-            const response = JSON.parse(xhr.responseText);
+        try {
+          const response = JSON.parse(
+            xhr.responseText
+          );
+
+          if (xhr.status >= 200 && xhr.status < 300) {
             resolve(response.url);
-          } catch (error) {
-            reject(new Error('Invalid response format'));
+          } else {
+            reject(
+              new Error(
+                response.error || 'Upload failed'
+              )
+            );
           }
-        } else {
-          try {
-            const error = JSON.parse(xhr.responseText);
-            reject(new Error(error.error || 'Upload failed'));
-          } catch {
-            reject(new Error(`Upload failed with status ${xhr.status}`));
-          }
+        } catch {
+          reject(
+            new Error('Invalid upload response')
+          );
         }
       });
-      
-      xhr.addEventListener('error', () => reject(new Error('Network error')));
-      xhr.addEventListener('timeout', () => reject(new Error('Upload timeout')));
-      
-      xhr.open('POST', '/api/upload');
+
+      xhr.addEventListener('error', () => {
+        reject(new Error('Upload failed'));
+      });
+
       xhr.timeout = 60000;
-      xhr.send(formData);
+
+      xhr.ontimeout = () => {
+        reject(new Error('Upload timeout'));
+      };
+
+      xhr.open('POST', '/api/upload');
+
+      xhr.send(data);
     });
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = e.target.files?.[0];
+
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      showToast('Please upload an image file', 'error');
+      showToast(
+        'Please upload a valid image',
+        'error'
+      );
       return;
     }
 
     if (file.size > 2 * 1024 * 1024) {
-      showToast('Image size should be less than 2MB', 'error');
+      showToast(
+        'Image size should be less than 2MB',
+        'error'
+      );
       return;
     }
 
-    setUploadingImage(true);
-    setUploadProgress(null);
-
     try {
+      setUploadingImage(true);
+
       let fileToUpload = file;
+
       if (file.size > 500 * 1024) {
         fileToUpload = await compressImage(file);
       }
 
-      const imageUrl = await uploadToCloudinary(fileToUpload);
-      setFormData({ ...formData, image: imageUrl });
-      showToast('Image uploaded successfully', 'success');
-      
+      const imageUrl =
+        await uploadToCloudinary(fileToUpload);
+
+      setFormData((prev) => ({
+        ...prev,
+        image: imageUrl,
+      }));
+
+      setUploadProgress({
+        fileName: file.name,
+        progress: 100,
+        status: 'success',
+      });
+
+      showToast(
+        'Image uploaded successfully',
+        'success'
+      );
+
       setTimeout(() => {
         setUploadProgress(null);
       }, 2000);
-      
     } catch (error) {
-      console.error('Upload error:', error);
-      showToast('Failed to upload image. Please try again.', 'error');
+      console.error(error);
+
+      showToast(
+        'Failed to upload image',
+        'error'
+      );
+
       setUploadProgress(null);
     } finally {
       setUploadingImage(false);
     }
   };
 
-  const extractPublicIdFromUrl = (url: string): string | null => {
+  const handleRemoveImage = async () => {
+    if (!formData.image) return;
+
+    try {
+      setSaving(true);
+
+      const response = await fetch(
+        `/api/categories/${categoryId}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            image: '',
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || 'Failed to remove image'
+        );
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        image: '',
+      }));
+
+      showToast(
+        'Image removed successfully',
+        'success'
+      );
+    } catch (error: any) {
+      console.error(error);
+
+      showToast(
+        error.message || 'Failed to remove image',
+        'error'
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+   const extractPublicIdFromUrl = (url: string): string | null => {
     try {
       const matches = url.match(/\/upload\/(?:v\d+\/)?(.+?)\./);
       return matches ? matches[1] : null;
@@ -353,57 +623,69 @@ export default function EditCategoryPage() {
     }
   };
 
-  const handleRemoveImage = async () => {
-    if (!formData.image) return;
 
-    const publicId = extractPublicIdFromUrl(formData.image);
-    
-    if (publicId) {
-      try {
-        const response = await fetch('/api/upload', {
+  const handleCancel = async () => {
+    if (formData.image) {
+      const publicId = extractPublicIdFromUrl(formData.image);
+
+      if (publicId) {
+        await fetch('/api/upload', {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ publicId }),
         });
-
-        if (!response.ok) {
-          throw new Error('Failed to delete from Cloudinary');
-        }
-      } catch (error) {
-        console.error('Delete error:', error);
-        showToast('Failed to delete old image', 'error');
       }
     }
-    
-    setFormData({ ...formData, image: '' });
-    showToast('Image removed', 'success');
+
+    router.push('/admin/categories');
   };
+
+  /* =========================================================
+     SPEC GROUPS
+  ========================================================= */
 
   const addSpecGroup = () => {
     const newGroup: CategoryGroup = {
-      groupName: `New Group ${specGroups.length + 1}`,
+      groupName: `New Group ${specGroups.length + 1
+        }`,
       fields: [],
-      displayOrder: specGroups.length
+      displayOrder: specGroups.length,
     };
-    setSpecGroups([...specGroups, newGroup]);
-    setExpandedGroups(prev => new Set(prev).add(specGroups.length));
+
+    setSpecGroups((prev) => [...prev, newGroup]);
+
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      next.add(specGroups.length);
+      return next;
+    });
   };
 
   const removeSpecGroup = (index: number) => {
-    if (confirm('Remove this specification group? All fields in this group will be deleted.')) {
-      setSpecGroups(specGroups.filter((_, i) => i !== index));
-      setExpandedGroups(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(index);
-        return newSet;
-      });
-    }
+    const confirmed = window.confirm(
+      'Remove this specification group?'
+    );
+
+    if (!confirmed) return;
+
+    setSpecGroups((prev) =>
+      prev.filter((_, i) => i !== index)
+    );
   };
 
-  const updateSpecGroup = (index: number, updates: Partial<CategoryGroup>) => {
-    const newGroups = [...specGroups];
-    newGroups[index] = { ...newGroups[index], ...updates };
-    setSpecGroups(newGroups);
+  const updateSpecGroup = (
+    index: number,
+    updates: Partial<CategoryGroup>
+  ) => {
+    setSpecGroups((prev) =>
+      prev.map((group, i) =>
+        i === index
+          ? {
+            ...group,
+            ...updates,
+          }
+          : group
+      )
+    );
   };
 
   const addSpecField = (groupIndex: number) => {
@@ -413,116 +695,281 @@ export default function EditCategoryPage() {
       type: 'text',
       required: false,
       filterable: false,
-      isVariantAttribute: false
+      isVariantAttribute: false,
     };
-    const newGroups = [...specGroups];
-    newGroups[groupIndex].fields.push(newField);
-    setSpecGroups(newGroups);
+
+    setSpecGroups((prev) =>
+      prev.map((group, i) =>
+        i === groupIndex
+          ? {
+            ...group,
+            fields: [
+              ...group.fields,
+              newField,
+            ],
+          }
+          : group
+      )
+    );
   };
 
-  const removeSpecField = (groupIndex: number, fieldIndex: number) => {
-    const newGroups = [...specGroups];
-    newGroups[groupIndex].fields.splice(fieldIndex, 1);
-    setSpecGroups(newGroups);
+  const removeSpecField = (
+    groupIndex: number,
+    fieldIndex: number
+  ) => {
+    setSpecGroups((prev) =>
+      prev.map((group, i) =>
+        i === groupIndex
+          ? {
+            ...group,
+            fields: group.fields.filter(
+              (_, idx) => idx !== fieldIndex
+            ),
+          }
+          : group
+      )
+    );
   };
 
-  const updateSpecField = (groupIndex: number, fieldIndex: number, updates: Partial<CategoryField>) => {
-    const newGroups = [...specGroups];
-    newGroups[groupIndex].fields[fieldIndex] = { ...newGroups[groupIndex].fields[fieldIndex], ...updates };
-    setSpecGroups(newGroups);
+  const updateSpecField = (
+    groupIndex: number,
+    fieldIndex: number,
+    updates: Partial<CategoryField>
+  ) => {
+    setSpecGroups((prev) =>
+      prev.map((group, i) => {
+        if (i !== groupIndex) return group;
+
+        return {
+          ...group,
+          fields: group.fields.map((field, idx) =>
+            idx === fieldIndex
+              ? {
+                ...field,
+                ...updates,
+              }
+              : field
+          ),
+        };
+      })
+    );
   };
 
   const toggleGroup = (index: number) => {
-    setExpandedGroups(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(index)) {
-        newSet.delete(index);
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+
+      if (next.has(index)) {
+        next.delete(index);
       } else {
-        newSet.add(index);
+        next.add(index);
       }
-      return newSet;
+
+      return next;
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  /* =========================================================
+     VALIDATION
+  ========================================================= */
+
+  const validateForm = () => {
+    const validationErrors: Record<
+      string,
+      string
+    > = {};
+
+    if (!formData.name.trim()) {
+      validationErrors.name =
+        'Category name is required';
+    }
+
+    if (
+      formData.parentId &&
+      formData.parentId === categoryId
+    ) {
+      validationErrors.parentId =
+        'Category cannot be its own parent';
+    }
+
+    specGroups.forEach((group, groupIndex) => {
+      if (!group.groupName.trim()) {
+        validationErrors[
+          `group-${groupIndex}`
+        ] = 'Group name is required';
+      }
+
+      group.fields.forEach((field, fieldIndex) => {
+        if (!field.key.trim()) {
+          validationErrors[
+            `field-key-${groupIndex}-${fieldIndex}`
+          ] = 'Field key is required';
+        }
+
+        if (!field.label.trim()) {
+          validationErrors[
+            `field-label-${groupIndex}-${fieldIndex}`
+          ] = 'Field label is required';
+        }
+      });
+    });
+
+    setErrors(validationErrors);
+
+    return Object.keys(validationErrors).length === 0;
+  };
+
+  /* =========================================================
+     SUBMIT
+  ========================================================= */
+
+  const cleanedSpecGroups = useMemo(() => {
+    return specGroups.map((group, index) => ({
+      ...group,
+      displayOrder: index,
+      fields: group.fields.map((field) => ({
+        ...field,
+        key: field.key.trim(),
+        label: field.label.trim(),
+        unit: field.unit?.trim() || '',
+        options:
+          field.options?.filter(Boolean) || [],
+      })),
+    }));
+  }, [specGroups]);
+
+  const handleSubmit = async (
+    e: React.FormEvent
+  ) => {
     e.preventDefault();
-    setSaving(true);
-    setErrors({});
 
-    if (!formData.name) {
-      setErrors({ name: 'Category name is required' });
-      setSaving(false);
+    if (!validateForm()) {
+      showToast(
+        'Please fix validation errors',
+        'error'
+      );
       return;
     }
-
-    if (formData.parentId === categoryId) {
-      setErrors({ parentId: 'A category cannot be its own parent' });
-      setSaving(false);
-      return;
-    }
-
-    const categoryData = {
-      name: formData.name,
-      slug: formData.slug || generateSlug(formData.name),
-      image: formData.image,
-      description: formData.description,
-      status: formData.status,
-      specificationTemplate: specGroups,
-      parentId: formData.parentId && formData.parentId !== '' ? formData.parentId : undefined
-    };
 
     try {
-      const res = await fetch(`/api/categories/${categoryId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(categoryData)
+      setSaving(true);
+
+      const payload = {
+        name: formData.name.trim(),
+        slug:
+          formData.slug.trim() ||
+          generateSlug(formData.name),
+        image: formData.image,
+        description:
+          formData.description.trim(),
+        status: formData.status,
+        specificationTemplate:
+          cleanedSpecGroups,
+        parentId:
+          formData.parentId || '',
+      };
+
+      const response = await fetch(
+        `/api/categories/${categoryId}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type':
+              'application/json',
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || 'Update failed'
+        );
+      }
+
+      showToast(
+        'Category updated successfully',
+        'success'
+      );
+
+      router.push('/admin/categories');
+
+      router.refresh();
+    } catch (error: any) {
+      console.error(error);
+
+      setErrors({
+        submit:
+          error.message ||
+          'Failed to update category',
       });
 
-      if (res.ok) {
-        showToast('Category updated successfully', 'success');
-        router.push('/admin/categories');
-        router.refresh();
-      } else {
-        const data = await res.json();
-        setErrors({ submit: data.error || 'Failed to update category' });
-        showToast(data.error || 'Failed to update category', 'error');
-      }
-    } catch (error) {
-      setErrors({ submit: 'An error occurred. Please try again.' });
-      showToast('An error occurred. Please try again.', 'error');
+      showToast(
+        error.message ||
+        'Failed to update category',
+        'error'
+      );
     } finally {
       setSaving(false);
     }
   };
 
+  /* =========================================================
+     LOADING
+  ========================================================= */
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="mt-2 text-gray-500">Loading category...</p>
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto" />
+          <p className="mt-3 text-sm text-gray-500">
+            Loading category...
+          </p>
         </div>
       </div>
     );
   }
 
+  /* =========================================================
+     UI
+  ========================================================= */
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* HEADER */}
         <div className="mb-6">
-          <Link href="/admin/categories" className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4">
+          <Link
+            href="/admin/categories"
+            className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4"
+          >
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back to Categories
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Edit Category</h1>
-          <p className="text-sm text-gray-500 mt-1">Update category information and specification template</p>
+
+          <h1 className="text-2xl font-bold text-gray-900">
+            Edit Category
+          </h1>
+
+          <p className="text-sm text-gray-500 mt-1">
+            Update category information and
+            specification template
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Image Upload Section */}
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-6"
+        >
+          {/* IMAGE */}
           <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Category Image</h2>
-            
+            <h2 className="text-lg font-medium text-gray-900 mb-4">
+              Category Image
+            </h2>
+
             <div className="flex items-start space-x-6">
               <div className="flex-shrink-0">
                 <div className="relative w-32 h-32 rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-50">
@@ -530,14 +977,17 @@ export default function EditCategoryPage() {
                     <>
                       <Image
                         src={formData.image}
-                        alt="Category preview"
+                        alt="Category"
                         fill
+                        unoptimized
+                        sizes="128px"
                         className="object-cover"
                       />
+
                       <button
                         type="button"
                         onClick={handleRemoveImage}
-                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -554,16 +1004,18 @@ export default function EditCategoryPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Category Image
                 </label>
+
                 <div className="flex items-center gap-3">
                   <label className="cursor-pointer">
                     <input
                       type="file"
-                      accept="image/jpeg,image/png,image/webp,image/gif"
-                      onChange={handleImageUpload}
+                      accept="image/*"
                       className="hidden"
                       disabled={uploadingImage}
+                      onChange={handleImageUpload}
                     />
-                    <div className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+
+                    <div className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
                       {uploadingImage ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -577,12 +1029,12 @@ export default function EditCategoryPage() {
                       )}
                     </div>
                   </label>
-                  
+
                   {formData.image && (
                     <button
                       type="button"
                       onClick={handleRemoveImage}
-                      className="inline-flex items-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50 transition-colors"
+                      className="inline-flex items-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50"
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
                       Remove
@@ -591,125 +1043,201 @@ export default function EditCategoryPage() {
                 </div>
 
                 {uploadProgress && (
-                  <div className="mt-2 p-2 bg-blue-50 rounded-lg">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-blue-600 truncate flex-1">
+                  <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                    <div className="flex justify-between text-sm mb-2">
+                      <span className="truncate text-blue-700">
                         {uploadProgress.fileName}
                       </span>
-                      <span className="text-blue-600 ml-2">
-                        {uploadProgress.status === 'uploading'
-                          ? `${Math.round(uploadProgress.progress)}%`
-                          : uploadProgress.status === 'success'
-                            ? '✓ Complete'
-                            : '✗ Failed'}
+
+                      <span className="text-blue-700">
+                        {uploadProgress.status ===
+                          'uploading'
+                          ? `${Math.round(
+                            uploadProgress.progress
+                          )}%`
+                          : '✓ Complete'}
                       </span>
                     </div>
-                    {uploadProgress.status === 'uploading' && (
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${uploadProgress.progress}%` }}
-                        />
-                      </div>
-                    )}
+
+                    {uploadProgress.status ===
+                      'uploading' && (
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                            style={{
+                              width: `${uploadProgress.progress}%`,
+                            }}
+                          />
+                        </div>
+                      )}
                   </div>
                 )}
 
                 <p className="mt-2 text-xs text-gray-500">
-                  Recommended: Square image, 800x800px, max 2MB. Supports JPG, PNG, WebP, GIF
+                  Recommended: 800x800px,
+                  max 2MB
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Basic Information */}
+          {/* BASIC INFO */}
           <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h2>
+            <h2 className="text-lg font-medium text-gray-900 mb-4">
+              Basic Information
+            </h2>
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category Name <span className="text-red-500">*</span>
+                  Category Name{' '}
+                  <span className="text-red-500">
+                    *
+                  </span>
                 </label>
+
                 <input
                   type="text"
                   required
-                  placeholder="e.g., Electronics, Clothing, Books"
                   value={formData.name}
                   onChange={(e) => {
-                    setFormData({ ...formData, name: e.target.value });
-                    if (!formData.slug) {
-                      setFormData(prev => ({ ...prev, name: e.target.value, slug: generateSlug(e.target.value) }));
-                    }
+                    const value =
+                      e.target.value;
+
+                    setFormData((prev) => ({
+                      ...prev,
+                      name: value,
+                      slug:
+                        prev.slug ||
+                        generateSlug(value),
+                    }));
                   }}
-                  className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 ${errors.name ? 'border-red-500' : ''}`}
+                  className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 ${errors.name
+                      ? 'border-red-500'
+                      : ''
+                    }`}
                 />
-                {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
+
+                {errors.name && (
+                  <p className="mt-1 text-xs text-red-500">
+                    {errors.name}
+                  </p>
+                )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Slug</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Slug
+                </label>
+
                 <input
                   type="text"
-                  placeholder="auto-generated from name"
                   value={formData.slug}
-                  onChange={(e) => setFormData({ ...formData, slug: generateSlug(e.target.value) })}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      slug: generateSlug(
+                        e.target.value
+                      ),
+                    }))
+                  }
                   className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
                 />
-                <p className="mt-1 text-xs text-gray-500">URL-friendly identifier. Leave empty to auto-generate.</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
+
                 <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={3}
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      description:
+                        e.target.value,
+                    }))
+                  }
                   className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
-                  placeholder="Brief description of the category"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Parent Category</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Parent Category
+                </label>
+
                 <select
                   value={formData.parentId}
-                  onChange={(e) => setFormData({ ...formData, parentId: e.target.value })}
-                  className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 ${errors.parentId ? 'border-red-500' : ''}`}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      parentId:
+                        e.target.value,
+                    }))
+                  }
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
                 >
-                  <option value="">None (Top Level Category)</option>
-                  {categories.map(cat => (
-                    <option key={cat._id} value={cat._id}>
+                  <option value="">
+                    None (Top Level)
+                  </option>
+
+                  {categories.map((cat) => (
+                    <option
+                      key={cat._id}
+                      value={cat._id}
+                    >
                       {cat.name}
                     </option>
                   ))}
                 </select>
-                {errors.parentId && <p className="mt-1 text-xs text-red-500">{errors.parentId}</p>}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Status
+                </label>
+
                 <select
                   value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      status:
+                        e.target
+                          .value as any,
+                    }))
+                  }
                   className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
                 >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="active">
+                    Active
+                  </option>
+
+                  <option value="inactive">
+                    Inactive
+                  </option>
                 </select>
               </div>
             </div>
           </div>
 
-          {/* Specification Template */}
+          {/* SPEC TEMPLATE */}
           <div className="bg-white rounded-lg shadow-sm p-6">
             <div className="flex justify-between items-center mb-4">
               <div>
-                <h2 className="text-lg font-medium text-gray-900">Specification Template</h2>
+                <h2 className="text-lg font-medium text-gray-900">
+                  Specification Template
+                </h2>
+
                 <p className="text-sm text-gray-500 mt-1">
-                  Define what specifications products in this category can have.
-                  Specifications marked as "variant attributes" will be used to generate product variants.
+                  Define specifications for
+                  products in this category.
                 </p>
               </div>
+
               <button
                 type="button"
                 onClick={addSpecGroup}
@@ -722,7 +1250,10 @@ export default function EditCategoryPage() {
 
             {specGroups.length === 0 ? (
               <div className="text-center py-8 border-2 border-dashed rounded-lg">
-                <p className="text-gray-500">No specification groups defined yet.</p>
+                <p className="text-gray-500">
+                  No specification groups yet.
+                </p>
+
                 <button
                   type="button"
                   onClick={addSpecGroup}
@@ -733,183 +1264,374 @@ export default function EditCategoryPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {specGroups.map((group, groupIndex) => {
-                  const isExpanded = expandedGroups.has(groupIndex);
-                  
-                  return (
-                    <div key={groupIndex} className="border rounded-lg overflow-hidden">
-                      <div className="flex justify-between items-center p-4 bg-gray-50">
-                        <div className="flex items-center gap-2 flex-1">
-                          <button
-                            type="button"
-                            onClick={() => toggleGroup(groupIndex)}
-                            className="text-gray-500 hover:text-gray-700"
-                          >
-                            {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                          </button>
-                          <input
-                            type="text"
-                            placeholder="Group Name (e.g., Technical Specs)"
-                            value={group.groupName}
-                            onChange={(e) => updateSpecGroup(groupIndex, { groupName: e.target.value })}
-                            className="text-md font-medium rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 w-64 text-gray-900"
-                          />
-                          <span className="text-xs text-gray-500">
-                            ({group.fields.length} field{group.fields.length !== 1 ? 's' : ''})
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeSpecGroup(groupIndex)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
+                {specGroups.map(
+                  (group, groupIndex) => {
+                    const isExpanded =
+                      expandedGroups.has(
+                        groupIndex
+                      );
 
-                      {isExpanded && (
-                        <div className="p-4 space-y-4">
-                          {group.fields.map((field, fieldIndex) => (
-                            <div key={fieldIndex} className="border-l-2 border-gray-200 pl-4 py-2">
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-2">
-                                <input
-                                  type="text"
-                                  placeholder="Key (e.g., processor)"
-                                  value={field.key}
-                                  onChange={(e) => updateSpecField(groupIndex, fieldIndex, { key: e.target.value })}
-                                  className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
-                                />
-                                <input
-                                  type="text"
-                                  placeholder="Label (e.g., Processor)"
-                                  value={field.label}
-                                  onChange={(e) => updateSpecField(groupIndex, fieldIndex, { label: e.target.value })}
-                                  className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
-                                />
-                                <select
-                                  value={field.type}
-                                  onChange={(e) => updateSpecField(groupIndex, fieldIndex, { type: e.target.value as any })}
-                                  className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
-                                >
-                                  <option value="text">Text</option>
-                                  <option value="textarea">Textarea (Large Text)</option>
-                                  <option value="number">Number</option>
-                                  <option value="select">Select</option>
-                                  <option value="multiselect">Multi-Select</option>
-                                  <option value="boolean">Boolean</option>
-                                </select>
-                              </div>
-
-                              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-2">
-                                <input
-                                  type="text"
-                                  placeholder="Unit (e.g., GHz, mm)"
-                                  value={field.unit || ''}
-                                  onChange={(e) => updateSpecField(groupIndex, fieldIndex, { unit: e.target.value })}
-                                  className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
-                                />
-
-                                {(field.type === 'select' || field.type === 'multiselect') && (
-                                  <OptionsInput
-                                    field={field}
-                                    groupIndex={groupIndex}
-                                    fieldIndex={fieldIndex}
-                                    optionsTempValues={optionsTempValues}
-                                    setOptionsTempValues={setOptionsTempValues}
-                                    updateSpecField={updateSpecField}
-                                  />
-                                )}
-
-                                <div className="flex items-center gap-3 flex-wrap">
-                                  <label className="flex items-center gap-1 text-sm text-gray-700">
-                                    <input
-                                      type="checkbox"
-                                      checked={field.required}
-                                      onChange={(e) => updateSpecField(groupIndex, fieldIndex, { required: e.target.checked })}
-                                      className="rounded border-gray-300"
-                                    />
-                                    Required
-                                  </label>
-                                  <label className="flex items-center gap-1 text-sm text-gray-700">
-                                    <input
-                                      type="checkbox"
-                                      checked={field.filterable}
-                                      onChange={(e) => updateSpecField(groupIndex, fieldIndex, { filterable: e.target.checked })}
-                                      className="rounded border-gray-300"
-                                    />
-                                    Filterable
-                                  </label>
-                                  <label className="flex items-center gap-1 text-sm text-gray-700">
-                                    <input
-                                      type="checkbox"
-                                      checked={field.isVariantAttribute}
-                                      onChange={(e) => updateSpecField(groupIndex, fieldIndex, { isVariantAttribute: e.target.checked })}
-                                      className="rounded border-gray-300"
-                                    />
-                                    Variant
-                                  </label>
-                                </div>
-                              </div>
-
-                              {field.type === 'textarea' && (
-                                <div className="mt-2 text-xs text-blue-600">
-                                  <p>💡 This field will display as a multi-line text input in the product form.</p>
-                                </div>
+                    return (
+                      <div
+                        key={groupIndex}
+                        className="border rounded-lg overflow-hidden"
+                      >
+                        <div className="flex justify-between items-center p-4 bg-gray-50">
+                          <div className="flex items-center gap-2 flex-1">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                toggleGroup(
+                                  groupIndex
+                                )
+                              }
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
                               )}
+                            </button>
 
-                              <button
-                                type="button"
-                                onClick={() => removeSpecField(groupIndex, fieldIndex)}
-                                className="text-xs text-red-600 hover:text-red-800 mt-1 inline-flex items-center gap-1"
-                              >
-                                <X className="h-3 w-3" />
-                                Remove field
-                              </button>
-                            </div>
-                          ))}
+                            <input
+                              type="text"
+                              value={
+                                group.groupName
+                              }
+                              onChange={(e) =>
+                                updateSpecGroup(
+                                  groupIndex,
+                                  {
+                                    groupName:
+                                      e.target
+                                        .value,
+                                  }
+                                )
+                              }
+                              className="text-md font-medium rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 w-64 text-gray-900"
+                            />
+                          </div>
 
                           <button
                             type="button"
-                            onClick={() => addSpecField(groupIndex)}
-                            className="mt-2 inline-flex items-center text-sm text-blue-600 hover:text-blue-700"
+                            onClick={() =>
+                              removeSpecGroup(
+                                groupIndex
+                              )
+                            }
+                            className="text-red-600 hover:text-red-900"
                           >
-                            <Plus className="h-3 w-3 mr-1" />
-                            Add Field
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
+
+                        {isExpanded && (
+                          <div className="p-4 space-y-4">
+                            {group.fields.map(
+                              (
+                                field,
+                                fieldIndex
+                              ) => (
+                                <div
+                                  key={
+                                    fieldIndex
+                                  }
+                                  className="border-l-2 border-gray-200 pl-4 py-2"
+                                >
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-2">
+                                    <input
+                                      type="text"
+                                      placeholder="Key"
+                                      value={
+                                        field.key
+                                      }
+                                      onChange={(
+                                        e
+                                      ) =>
+                                        updateSpecField(
+                                          groupIndex,
+                                          fieldIndex,
+                                          {
+                                            key: e
+                                              .target
+                                              .value,
+                                          }
+                                        )
+                                      }
+                                      className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
+                                    />
+
+                                    <input
+                                      type="text"
+                                      placeholder="Label"
+                                      value={
+                                        field.label
+                                      }
+                                      onChange={(
+                                        e
+                                      ) =>
+                                        updateSpecField(
+                                          groupIndex,
+                                          fieldIndex,
+                                          {
+                                            label:
+                                              e
+                                                .target
+                                                .value,
+                                          }
+                                        )
+                                      }
+                                      className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
+                                    />
+
+                                    <select
+                                      value={
+                                        field.type
+                                      }
+                                      onChange={(
+                                        e
+                                      ) =>
+                                        updateSpecField(
+                                          groupIndex,
+                                          fieldIndex,
+                                          {
+                                            type: e
+                                              .target
+                                              .value as any,
+                                          }
+                                        )
+                                      }
+                                      className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
+                                    >
+                                      <option value="text">
+                                        Text
+                                      </option>
+
+                                      <option value="textarea">
+                                        Textarea
+                                      </option>
+
+                                      <option value="number">
+                                        Number
+                                      </option>
+
+                                      <option value="select">
+                                        Select
+                                      </option>
+
+                                      <option value="multiselect">
+                                        Multi Select
+                                      </option>
+
+                                      <option value="boolean">
+                                        Boolean
+                                      </option>
+                                    </select>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-2">
+                                    <input
+                                      type="text"
+                                      placeholder="Unit"
+                                      value={
+                                        field.unit ||
+                                        ''
+                                      }
+                                      onChange={(
+                                        e
+                                      ) =>
+                                        updateSpecField(
+                                          groupIndex,
+                                          fieldIndex,
+                                          {
+                                            unit: e
+                                              .target
+                                              .value,
+                                          }
+                                        )
+                                      }
+                                      className="rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm text-gray-900"
+                                    />
+
+                                    {(field.type ===
+                                      'select' ||
+                                      field.type ===
+                                      'multiselect') && (
+                                        <OptionsInput
+                                          field={
+                                            field
+                                          }
+                                          groupIndex={
+                                            groupIndex
+                                          }
+                                          fieldIndex={
+                                            fieldIndex
+                                          }
+                                          optionsTempValues={
+                                            optionsTempValues
+                                          }
+                                          setOptionsTempValues={
+                                            setOptionsTempValues
+                                          }
+                                          updateSpecField={
+                                            updateSpecField
+                                          }
+                                        />
+                                      )}
+
+                                    <div className="flex items-center gap-3 flex-wrap">
+                                      <label className="flex items-center gap-1 text-sm text-gray-700">
+                                        <input
+                                          type="checkbox"
+                                          checked={
+                                            field.required
+                                          }
+                                          onChange={(
+                                            e
+                                          ) =>
+                                            updateSpecField(
+                                              groupIndex,
+                                              fieldIndex,
+                                              {
+                                                required:
+                                                  e
+                                                    .target
+                                                    .checked,
+                                              }
+                                            )
+                                          }
+                                        />
+                                        Required
+                                      </label>
+
+                                      <label className="flex items-center gap-1 text-sm text-gray-700">
+                                        <input
+                                          type="checkbox"
+                                          checked={
+                                            field.filterable
+                                          }
+                                          onChange={(
+                                            e
+                                          ) =>
+                                            updateSpecField(
+                                              groupIndex,
+                                              fieldIndex,
+                                              {
+                                                filterable:
+                                                  e
+                                                    .target
+                                                    .checked,
+                                              }
+                                            )
+                                          }
+                                        />
+                                        Filterable
+                                      </label>
+
+                                      <label className="flex items-center gap-1 text-sm text-gray-700">
+                                        <input
+                                          type="checkbox"
+                                          checked={
+                                            field.isVariantAttribute
+                                          }
+                                          onChange={(
+                                            e
+                                          ) =>
+                                            updateSpecField(
+                                              groupIndex,
+                                              fieldIndex,
+                                              {
+                                                isVariantAttribute:
+                                                  e
+                                                    .target
+                                                    .checked,
+                                              }
+                                            )
+                                          }
+                                        />
+                                        Variant
+                                      </label>
+                                    </div>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      removeSpecField(
+                                        groupIndex,
+                                        fieldIndex
+                                      )
+                                    }
+                                    className="text-xs text-red-600 hover:text-red-800 mt-1 inline-flex items-center gap-1"
+                                  >
+                                    <X className="h-3 w-3" />
+                                    Remove field
+                                  </button>
+                                </div>
+                              )
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                addSpecField(
+                                  groupIndex
+                                )
+                              }
+                              className="inline-flex items-center text-sm text-blue-600 hover:text-blue-700"
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              Add Field
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                )}
               </div>
             )}
           </div>
 
+          {/* ERRORS */}
           {Object.keys(errors).length > 0 && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <h3 className="text-sm font-medium text-red-800 mb-2">Please fix the following errors:</h3>
+              <h3 className="text-sm font-medium text-red-800 mb-2">
+                Please fix the following errors:
+              </h3>
+
               <ul className="list-disc list-inside text-sm text-red-700">
-                {Object.entries(errors).map(([key, error]) => (
-                  <li key={key}>{error}</li>
-                ))}
+                {Object.entries(errors).map(
+                  ([key, error]) => (
+                    <li key={key}>{error}</li>
+                  )
+                )}
               </ul>
             </div>
           )}
 
+          {/* ACTIONS */}
           <div className="flex justify-end gap-3">
             <Link
               href="/admin/categories"
+              onClick={handleCancel}
               className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
             >
               Cancel
             </Link>
+
             <button
               type="submit"
-              disabled={saving || uploadingImage}
+              disabled={
+                saving || uploadingImage
+              }
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
             >
               <Save className="h-4 w-4 mr-2" />
-              {saving ? 'Saving...' : 'Save Changes'}
+
+              {saving
+                ? 'Saving...'
+                : 'Save Changes'}
             </button>
           </div>
         </form>

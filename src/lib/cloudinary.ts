@@ -138,6 +138,7 @@ export function extractPublicIdFromUrl(url: string): string | null {
     // Extract everything between /upload/ and the file extension
     const matches = url.match(/\/upload\/(?:v\d+\/)?(.+?)\./);
     if (matches && matches[1]) {
+      console.log('Extracted public ID:', matches[1]);
       return matches[1];
     }
     return null;

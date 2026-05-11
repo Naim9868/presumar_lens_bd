@@ -2,11 +2,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  Plus, 
-  Edit2, 
-  Trash2, 
-  Search, 
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  Search,
   RefreshCw,
   Image as ImageIcon,
   Globe,
@@ -59,6 +59,7 @@ export default function BrandsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
+  const [tempUploadedLogo, setTempUploadedLogo] = useState<string | null>(null);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -70,7 +71,7 @@ export default function BrandsPage() {
       setLoading(true);
       const response = await fetch('/api/admin/brands');
       const data = await response.json();
-      
+
       if (data.success) {
         setBrands(data.data);
       } else {
@@ -99,10 +100,10 @@ export default function BrandsPage() {
           const canvas = document.createElement('canvas');
           let width = img.width;
           let height = img.height;
-          
+
           const MAX_WIDTH = 500;
           const MAX_HEIGHT = 500;
-          
+
           if (width > height) {
             if (width > MAX_WIDTH) {
               height = Math.round((height * MAX_WIDTH) / width);
@@ -114,13 +115,13 @@ export default function BrandsPage() {
               height = MAX_HEIGHT;
             }
           }
-          
+
           canvas.width = width;
           canvas.height = height;
-          
+
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(img, 0, 0, width, height);
-          
+
           canvas.toBlob(
             (blob) => {
               if (blob) {
@@ -151,7 +152,7 @@ export default function BrandsPage() {
 
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      
+
       xhr.upload.addEventListener('progress', (event) => {
         if (event.lengthComputable) {
           const percent = (event.loaded / event.total) * 100;
@@ -162,7 +163,7 @@ export default function BrandsPage() {
           });
         }
       });
-      
+
       xhr.addEventListener('load', () => {
         if (xhr.status === 200) {
           try {
@@ -180,10 +181,10 @@ export default function BrandsPage() {
           }
         }
       });
-      
+
       xhr.addEventListener('error', () => reject(new Error('Network error')));
       xhr.addEventListener('timeout', () => reject(new Error('Upload timeout')));
-      
+
       xhr.open('POST', '/api/upload');
       xhr.timeout = 60000;
       xhr.send(formData);
@@ -218,21 +219,34 @@ export default function BrandsPage() {
 
       // Upload to Cloudinary
       const imageUrl = await uploadToCloudinary(fileToUpload);
-      
+
       setUploadProgress({
         fileName: file.name,
         progress: 100,
         status: 'success'
       });
-      
-      setFormData({ ...formData, logo: imageUrl });
+
+      // delete previous temp upload
+      if (
+        tempUploadedLogo &&
+        tempUploadedLogo !== editingBrand?.logo
+      ) {
+        await deleteCloudinaryImage(tempUploadedLogo);
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        logo: imageUrl,
+      }));
+
+      setTempUploadedLogo(imageUrl);
       showToast('Logo uploaded successfully', 'success');
-      
+
       // Clear progress after 2 seconds
       setTimeout(() => {
         setUploadProgress(null);
       }, 2000);
-      
+
     } catch (error) {
       console.error('Upload error:', error);
       showToast('Failed to upload logo. Please try again.', 'error');
@@ -251,37 +265,80 @@ export default function BrandsPage() {
     }
   };
 
+  const deleteCloudinaryImage = async (imageUrl: string) => {
+    try {
+      const publicId = extractPublicIdFromUrl(imageUrl);
+
+      if (!publicId) return;
+
+      const response = await fetch('/api/upload', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ publicId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete image');
+      }
+    } catch (error) {
+      console.error('Cloudinary delete error:', error);
+    }
+  };
+
   const handleRemoveLogo = async () => {
     if (!formData.logo) return;
 
-    const publicId = extractPublicIdFromUrl(formData.logo);
-    
-    if (publicId) {
-      try {
-        const response = await fetch('/api/upload', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ publicId }),
-        });
+    try {
+      await deleteCloudinaryImage(formData.logo);
 
-        if (!response.ok) {
-          throw new Error('Failed to delete from Cloudinary');
-        }
-      } catch (error) {
-        console.error('Delete error:', error);
-        showToast('Failed to delete old logo', 'error');
+      setFormData((prev) => ({
+        ...prev,
+        logo: '',
+      }));
+
+      if (tempUploadedLogo === formData.logo) {
+        setTempUploadedLogo(null);
       }
+
+      showToast('Logo removed', 'success');
+    } catch (error) {
+      console.error(error);
+      showToast('Failed to remove logo', 'error');
     }
-    
-    setFormData({ ...formData, logo: '' });
-    showToast('Logo removed', 'success');
+  };
+
+  const handleCloseModal = async () => {
+    try {
+      /**
+       * If user uploaded a new temp image
+       * but did NOT save the form,
+       * delete that temp image
+       */
+      if (
+        tempUploadedLogo &&
+        tempUploadedLogo !== editingBrand?.logo
+      ) {
+        await deleteCloudinaryImage(tempUploadedLogo);
+      }
+    } catch (error) {
+      console.error('Failed cleaning temp image:', error);
+    } finally {
+      setTempUploadedLogo(null);
+      setUploadProgress(null);
+      setIsModalOpen(false);
+      setEditingBrand(null);
+
+      resetForm();
+    }
   };
 
   const submitBrand = async () => {
     setSubmitting(true);
 
     try {
-      const url = editingBrand 
+      const url = editingBrand
         ? `/api/admin/brands/${editingBrand._id}`
         : '/api/admin/brands';
 
@@ -300,6 +357,7 @@ export default function BrandsPage() {
           `Brand ${editingBrand ? 'updated' : 'created'} successfully`,
           'success'
         );
+        setTempUploadedLogo(null);
         setIsModalOpen(false);
         resetForm();
         fetchBrands();
@@ -321,15 +379,15 @@ export default function BrandsPage() {
 
   const handleDelete = async () => {
     if (!deletingBrand) return;
-    
+
     setSubmitting(true);
     try {
       const response = await fetch(`/api/admin/brands/${deletingBrand._id}`, {
         method: 'DELETE'
       });
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         showToast('Brand deleted successfully', 'success');
         setDeletingBrand(null);
@@ -448,11 +506,10 @@ export default function BrandsPage() {
             {filteredBrands.map((brand) => (
               <div
                 key={brand._id}
-                className={`group relative rounded-lg border bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-all duration-200 ${
-                  brand.isActive 
-                    ? 'border-gray-200 dark:border-gray-700' 
+                className={`group relative rounded-lg border bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-all duration-200 ${brand.isActive
+                    ? 'border-gray-200 dark:border-gray-700'
                     : 'border-gray-200 dark:border-gray-700 opacity-60'
-                }`}
+                  }`}
               >
                 {/* Brand Logo */}
                 <div className="p-4">
@@ -482,7 +539,7 @@ export default function BrandsPage() {
                         </div>
                       </div>
                     </div>
-                    
+
                     {/* Status Badge */}
                     <div className="ml-2">
                       {brand.isActive ? (
@@ -498,14 +555,14 @@ export default function BrandsPage() {
                       )}
                     </div>
                   </div>
-                  
+
                   {/* Description */}
                   {brand.description && (
                     <p className="mt-3 text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
                       {brand.description}
                     </p>
                   )}
-                  
+
                   {/* Website */}
                   {brand.website && (
                     <div className="mt-2 flex items-center text-xs text-gray-500 dark:text-gray-400">
@@ -521,7 +578,7 @@ export default function BrandsPage() {
                       </a>
                     </div>
                   )}
-                  
+
                   {/* Product Count */}
                   {brand.productCount !== undefined && brand.productCount > 0 && (
                     <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
@@ -529,7 +586,7 @@ export default function BrandsPage() {
                     </div>
                   )}
                 </div>
-                
+
                 {/* Action Buttons */}
                 <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <div className="flex space-x-1">
@@ -565,7 +622,7 @@ export default function BrandsPage() {
       {/* Create/Edit Modal */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={handleCloseModal}
         title={editingBrand ? 'Edit Brand' : 'Create New Brand'}
         size="lg"
         showConfirm
@@ -617,7 +674,7 @@ export default function BrandsPage() {
                       )}
                     </div>
                   </label>
-                  
+
                   {formData.logo && (
                     <button
                       type="button"
@@ -629,7 +686,7 @@ export default function BrandsPage() {
                     </button>
                   )}
                 </div>
-                
+
                 {/* Upload Progress */}
                 {uploadProgress && (
                   <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
@@ -638,16 +695,16 @@ export default function BrandsPage() {
                         {uploadProgress.fileName}
                       </span>
                       <span className="text-blue-600 dark:text-blue-400 ml-2">
-                        {uploadProgress.status === 'uploading' 
-                          ? `${Math.round(uploadProgress.progress)}%` 
-                          : uploadProgress.status === 'success' 
-                            ? '✓ Complete' 
+                        {uploadProgress.status === 'uploading'
+                          ? `${Math.round(uploadProgress.progress)}%`
+                          : uploadProgress.status === 'success'
+                            ? '✓ Complete'
                             : '✗ Failed'}
                       </span>
                     </div>
                     {uploadProgress.status === 'uploading' && (
                       <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
+                        <div
                           className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                           style={{ width: `${uploadProgress.progress}%` }}
                         />
@@ -655,7 +712,7 @@ export default function BrandsPage() {
                     )}
                   </div>
                 )}
-                
+
                 <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                   Recommended: Square image, max 2MB. JPG, PNG, GIF, WebP
                 </p>
@@ -675,7 +732,7 @@ export default function BrandsPage() {
             placeholder="e.g., Canon"
             autoFocus
           />
-          
+
           <Input
             label="Slug"
             value={formData.slug}
@@ -684,7 +741,7 @@ export default function BrandsPage() {
             placeholder="auto-generated-from-name"
             helpText="URL-friendly version of the brand name"
           />
-          
+
           <Input
             label="Website"
             value={formData.website}
@@ -692,7 +749,7 @@ export default function BrandsPage() {
             placeholder="https://www.canon.com"
             helpText="Official brand website"
           />
-          
+
           <Input
             label="Description"
             value={formData.description}
@@ -701,7 +758,7 @@ export default function BrandsPage() {
             rows={3}
             placeholder="Brief description of the brand"
           />
-          
+
           <label className="flex items-center space-x-2">
             <input
               type="checkbox"
@@ -740,7 +797,7 @@ export default function BrandsPage() {
           </p>
           {deletingBrand?.productCount && deletingBrand.productCount > 0 && (
             <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
-              Warning: This brand has {deletingBrand.productCount} product(s). 
+              Warning: This brand has {deletingBrand.productCount} product(s).
               They will need to be reassigned.
             </p>
           )}
