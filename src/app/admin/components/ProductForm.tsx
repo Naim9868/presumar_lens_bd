@@ -128,32 +128,72 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
   }, [variants]);
 
   // Auto-scroll to error function
-  const scrollToError = useCallback(() => {
-    const firstErrorKey = Object.keys(errors)[0];
-    if (firstErrorKey && errorRefs.current[firstErrorKey]) {
-      errorRefs.current[firstErrorKey]?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center'
-      });
+// Auto-scroll to error function - WITH INTERSECTION OBSERVER
+const scrollToError = useCallback(() => {
+  const firstErrorKey = Object.keys(errors)[0];
+  
+  if (firstErrorKey && errorRefs.current[firstErrorKey]) {
+    const element = errorRefs.current[firstErrorKey];
+    
+    if (element) {
+      // Check if element is already visible
+      const rect = element.getBoundingClientRect();
+      const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
       
-      const element = errorRefs.current[firstErrorKey];
-      if (element) {
-        element.classList.add('ring-2', 'ring-red-500', 'ring-offset-2');
-        setTimeout(() => {
-          element.classList.remove('ring-2', 'ring-red-500', 'ring-offset-2');
-        }, 2000);
+      if (!isVisible) {
+        // Scroll to element with offset
+        const elementPosition = element.getBoundingClientRect().top + window.pageYOffset;
+        const offsetPosition = elementPosition - 100;
+        
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: 'smooth'
+        });
       }
-    } else if (formRef.current) {
-      formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      
+      // Add highlight effect
+      element.classList.add('ring-2', 'ring-red-500', 'ring-offset-2', 'transition-all', 'duration-300', 'bg-red-50');
+      
+      // Also highlight the label
+      const label = element.querySelector('label');
+      if (label) {
+        label.classList.add('text-red-600', 'font-semibold');
+      }
+      
+      // Remove highlights
+      setTimeout(() => {
+        element.classList.remove('ring-2', 'ring-red-500', 'ring-offset-2', 'transition-all', 'duration-300', 'bg-red-50');
+        if (label) {
+          label.classList.remove('text-red-600', 'font-semibold');
+        }
+      }, 2500);
+      
+      // Focus on the input
+      const input = element.querySelector('input, select, textarea');
+      if (input && input instanceof HTMLElement && !input.ariaDisabled) {
+        setTimeout(() => {
+          input.focus();
+          input.classList.add('ring-2', 'ring-red-500', 'border-red-500');
+          setTimeout(() => {
+            input.classList.remove('ring-2', 'ring-red-500', 'border-red-500');
+          }, 2000);
+        }, 300);
+      }
     }
-  }, [errors]);
+  }
+}, [errors]);
 
-  // Trigger scroll when errors change
-  useEffect(() => {
-    if (Object.keys(errors).length > 0) {
+// Trigger scroll when errors change with better timing
+useEffect(() => {
+  if (Object.keys(errors).length > 0) {
+    // Wait for DOM to update
+    const timer = setTimeout(() => {
       scrollToError();
-    }
-  }, [errors, scrollToError]);
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }
+}, [errors, scrollToError]);
 
   // Toast auto-dismiss
   useEffect(() => {

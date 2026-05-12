@@ -70,7 +70,7 @@ ProductSchema.index({ 'specsFlat.key': 1, 'specsFlat.value': 1 });
 // ProductSchema.index({ slug: 1 }, { unique: true });
 ProductSchema.index({ tags: 1 });
 ProductSchema.index({ brandId: 1 });
-ProductSchema.index({ 'variants.sku': 1 });
+// ProductSchema.index({ 'variants.sku': 1 });
 
 // ================= PRE SAVE =================
 ProductSchema.pre('save', async function () {

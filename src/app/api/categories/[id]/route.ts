@@ -1,4 +1,6 @@
 // app/api/categories/[id]/route.ts
+import '@/models/Brand';
+import '@/models/Category';
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { dbConnect as connectDB } from '@/lib/dbConnect';
