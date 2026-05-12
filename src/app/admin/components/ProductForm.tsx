@@ -1,22 +1,17 @@
 // app/admin/components/ProductForm.tsx
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import NextImage from 'next/image';
-import { ArrowLeft, Save, Info, Trash2, Star } from 'lucide-react';
+import { ArrowLeft, Save, Info, Trash2, Star, AlertCircle } from 'lucide-react';
 import { ProductSpecForm } from './ProductSpecForm';
 import { ProductVariantManager } from './ProductVariantManager';
 import ImageUploader from './ImageUploader';
 import { TagInput } from './TagInput';
 import { Category, Brand, SpecGroup } from '@/types';
 import { VariantAttribute, ProductVariant, ProductSpec } from '@/types/product';
-
-
-
-// Types - reuse from ProductSpecForm when possible
-
 
 interface ProductFormData {
   name: string;
@@ -68,6 +63,11 @@ const normalizeDefaultValue = (value: unknown, type: string): string | number | 
   }
 };
 
+// Helper function to normalize keys for matching
+function normalizeKey(key: string): string {
+  return key.toLowerCase().trim().replace(/\s+/g, ' ');
+}
+
 export function ProductForm({ initialData, productId, isEditing = false, onSuccess }: ProductFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -78,6 +78,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
   const [isInitializing, setIsInitializing] = useState(true);
   const [isChangingCategory, setIsChangingCategory] = useState(false);
   const [categoryVersion, setCategoryVersion] = useState(0);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
 
   const [formData, setFormData] = useState<ProductFormData>(() =>
     initialData?.formData || {
@@ -99,6 +100,14 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
   const [variants, setVariants] = useState<ProductVariant[]>(() => initialData?.variants || []);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showCategoryWarning, setShowCategoryWarning] = useState(false);
+  const [pendingCategoryId, setPendingCategoryId] = useState<string>('');
+  const [specValidation, setSpecValidation] = useState({ isValid: true, missingRequired: [] as string[] });
+  const [isSpecsInitialized, setIsSpecsInitialized] = useState(false);
+
+  // Refs for scrolling to errors
+  const errorRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const formRef = useRef<HTMLFormElement>(null);
 
   // Cache refs
   const formDataCache = useRef(formData);
@@ -118,6 +127,42 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
     variantsCache.current = variants;
   }, [variants]);
 
+  // Auto-scroll to error function
+  const scrollToError = useCallback(() => {
+    const firstErrorKey = Object.keys(errors)[0];
+    if (firstErrorKey && errorRefs.current[firstErrorKey]) {
+      errorRefs.current[firstErrorKey]?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+      
+      const element = errorRefs.current[firstErrorKey];
+      if (element) {
+        element.classList.add('ring-2', 'ring-red-500', 'ring-offset-2');
+        setTimeout(() => {
+          element.classList.remove('ring-2', 'ring-red-500', 'ring-offset-2');
+        }, 2000);
+      }
+    } else if (formRef.current) {
+      formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [errors]);
+
+  // Trigger scroll when errors change
+  useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      scrollToError();
+    }
+  }, [errors, scrollToError]);
+
+  // Toast auto-dismiss
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
   // Fetch categories and brands
   useEffect(() => {
     fetchCategories();
@@ -136,27 +181,29 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
       const template = category.specificationTemplate || [];
       setCategoryTemplate(template);
 
-      // Initialize specs from template with proper value conversion
-      const initialSpecs: ProductSpec[] = template.flatMap(group =>
-        group.fields.map(field => ({
-          key: field.key,
-          label: field.label,
-          value: normalizeDefaultValue(field.defaultValue, field.type || 'text') as string | number | boolean,
-          group: group.groupName,
-          unit: field.unit,
-          filterable: field.filterable ?? false
-        }))
-      );
+      // For editing mode with existing specs, don't overwrite them
+      if (!isEditing || !initialData?.specs || initialData.specs.length === 0) {
+        // Initialize specs from template with proper value conversion
+        const initialSpecs: ProductSpec[] = template.flatMap(group =>
+          group.fields.map(field => ({
+            key: field.key,
+            label: field.label,
+            value: normalizeDefaultValue(field.defaultValue, field.type || 'text') as string | number | boolean,
+            group: group.groupName,
+            unit: field.unit,
+            filterable: field.filterable ?? false
+          }))
+        );
+        setSpecs(initialSpecs);
+        specsCache.current = initialSpecs;
+      }
 
-      setSpecs(initialSpecs);
-      specsCache.current = initialSpecs;
-
-      // Initialize variants based on variant attributes
+      // Initialize variants based on variant attributes (only if no existing variants)
       const variantAttrs = template.flatMap(group =>
         group.fields.filter(f => f.isVariantAttribute).map(f => f.key)
       );
 
-      if (variantAttrs.length > 0) {
+      if (variantAttrs.length > 0 && (!isEditing || !initialData?.variants || initialData.variants.length === 0)) {
         const initialVariants: ProductVariant[] = [{
           sku: '',
           attributes: variantAttrs.map(attr => ({ key: attr, value: '' })),
@@ -168,9 +215,6 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
         }];
         setVariants(initialVariants);
         variantsCache.current = initialVariants;
-      } else {
-        setVariants([]);
-        variantsCache.current = [];
       }
 
       // Force remount of spec and variant components
@@ -178,28 +222,73 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
     }
 
     setTimeout(() => setIsChangingCategory(false), 100);
-  }, [categories]);
+  }, [categories, isEditing, initialData]);
 
-  // Initialize for editing mode
+  // Handle spec validation change
+  const handleSpecValidationChange = useCallback((isValid: boolean, missingRequired: string[]) => {
+    setSpecValidation({ isValid, missingRequired });
+  }, []);
+
+  // Compute merged specs using useMemo instead of useEffect + setState
+  const mergedSpecs = useMemo(() => {
+    // Only merge if editing, have initial specs, have category template, and not yet initialized
+    if (isEditing && initialData?.specs && initialData.specs.length > 0 && categoryTemplate.length > 0 && !isSpecsInitialized) {
+      // console.log('Merging specs with template...');
+      
+      // Create a map of existing specs for quick lookup (case-insensitive)
+      const existingSpecsMap = new Map();
+      initialData.specs.forEach(spec => {
+        if (spec.key) {
+          existingSpecsMap.set(normalizeKey(spec.key), spec);
+        }
+      });
+      
+      // Build specs from template, preserving existing values
+      const merged: ProductSpec[] = [];
+      
+      for (const group of categoryTemplate) {
+        for (const field of group.fields) {
+          const normalizedKey = normalizeKey(field.key);
+          const existingSpec = existingSpecsMap.get(normalizedKey);
+          
+          merged.push({
+            key: field.key,
+            label: field.label,
+            value: existingSpec?.value !== undefined && existingSpec?.value !== null && existingSpec?.value !== ''
+              ? existingSpec.value
+              : normalizeDefaultValue(field.defaultValue, field.type || 'text'),
+            group: group.groupName,
+            unit: field.unit,
+            filterable: field.filterable || false
+          });
+        }
+      }
+      
+      return merged;
+    }
+    return null;
+  }, [isEditing, initialData, categoryTemplate, isSpecsInitialized]);
+
+  // Apply merged specs when they change - only once
+  useEffect(() => {
+    if (mergedSpecs && mergedSpecs.length > 0 && !isSpecsInitialized) {
+      // console.log('Applying merged specs:', mergedSpecs);
+      setSpecs(mergedSpecs);
+      specsCache.current = mergedSpecs;
+      setIsSpecsInitialized(true);
+    }
+  }, [mergedSpecs, isSpecsInitialized]);
+
+  // Initialize for editing mode - set template only
   useEffect(() => {
     if (selectedCategory && categories.length > 0 && !isChangingCategory) {
       const category = categories.find(c => c._id === selectedCategory);
       if (category) {
         setCategoryTemplate(category.specificationTemplate || []);
-
-        if (isEditing && initialData) {
-          // Use existing data for editing
-          if (specsCache.current.length === 0 && initialData.specs && initialData.specs.length > 0) {
-            setSpecs(initialData.specs);
-          }
-          if (variantsCache.current.length === 0 && initialData.variants && initialData.variants.length > 0) {
-            setVariants(initialData.variants);
-          }
-        }
       }
     }
     setIsInitializing(false);
-  }, [selectedCategory, categories, isEditing, initialData, isChangingCategory]);
+  }, [selectedCategory, categories, isChangingCategory]);
 
   const fetchCategories = async () => {
     try {
@@ -233,6 +322,15 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
     return flat;
   };
 
+  const handleCategoryChangeWithWarning = (categoryId: string) => {
+    if (isEditing && specs.length > 0) {
+      setPendingCategoryId(categoryId);
+      setShowCategoryWarning(true);
+    } else {
+      handleCategoryChange(categoryId);
+    }
+  };
+
   const fetchBrands = async () => {
     try {
       const res = await fetch('/api/admin/brands');
@@ -252,16 +350,15 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
     }
   };
 
-
   const generateSlug = (name: string): string => {
     if (!name) return '';
     return name
       .toLowerCase()
       .trim()
-      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters except spaces and hyphens
-      .replace(/\s+/g, '-') // Replace spaces with hyphens
-      .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
-      .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
   };
 
   const generateVariantKey = (attributes: VariantAttribute[]): string => {
@@ -301,17 +398,9 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
       newErrors.description = 'Full description must be at least 50 characters';
     }
 
-    // Validate required specs
-    const requiredSpecs = categoryTemplate.flatMap(group =>
-      group.fields.filter(f => f.required).map(f => f.key)
-    );
-
-    const missingSpecs = requiredSpecs.filter(key =>
-      !specs.some((spec: ProductSpec) => spec.key === key && spec.value && spec.value !== '')
-    );
-
-    if (missingSpecs.length > 0) {
-      newErrors.specs = `Missing required specifications: ${missingSpecs.join(', ')}`;
+    // Use spec validation from component
+    if (!specValidation.isValid && specValidation.missingRequired.length > 0) {
+      newErrors.specs = `Missing required specifications: ${specValidation.missingRequired.join(', ')}`;
     }
 
     // Validate variants
@@ -328,7 +417,6 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
         newErrors.variants = `All variants must have a price greater than 0. ${invalidPriceVariants.length} variant(s) have invalid price.`;
       }
 
-      // Check for duplicate SKUs
       const skus = variants.map(v => v.sku);
       const duplicateSKUs = skus.filter((sku, index) => skus.indexOf(sku) !== index);
       if (duplicateSKUs.length > 0) {
@@ -344,13 +432,11 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
     e.preventDefault();
 
     if (!validateForm()) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
     setLoading(true);
 
-    // Process variants to ensure variantKey exists
     const processedVariants = variants.map((variant) => ({
       ...variant,
       variantKey: variant.variantKey && variant.variantKey !== ''
@@ -378,15 +464,35 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
       const data = await res.json();
 
       if (res.ok) {
+        if (data.warnings && data.warnings.length > 0) {
+          setToast({
+            message: `Product saved with warnings:\n${data.warnings.join('\n')}`,
+            type: 'warning'
+          });
+        } else {
+          setToast({
+            message: `Product ${isEditing ? 'updated' : 'created'} successfully!`,
+            type: 'success'
+          });
+        }
+
         onSuccess?.();
         router.push('/admin/products');
         router.refresh();
       } else {
         setErrors({ submit: data.error || `Failed to ${isEditing ? 'update' : 'create'} product` });
+        setToast({
+          message: data.error || `Failed to ${isEditing ? 'update' : 'create'} product`,
+          type: 'error'
+        });
       }
     } catch (error) {
       console.error(`Error ${isEditing ? 'updating' : 'creating'} product:`, error);
       setErrors({ submit: 'An error occurred. Please try again.' });
+      setToast({
+        message: 'An error occurred. Please try again.',
+        type: 'error'
+      });
     } finally {
       setLoading(false);
     }
@@ -402,15 +508,18 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
       });
 
       if (res.ok) {
+        setToast({ message: 'Product deleted successfully!', type: 'success' });
         router.push('/admin/products');
         router.refresh();
       } else {
         const data = await res.json();
         setErrors({ delete: data.error || 'Failed to delete product' });
+        setToast({ message: data.error || 'Failed to delete product', type: 'error' });
       }
     } catch (error) {
       console.error('Error deleting product:', error);
       setErrors({ delete: 'An error occurred. Please try again.' });
+      setToast({ message: 'An error occurred. Please try again.', type: 'error' });
     } finally {
       setLoading(false);
       setShowDeleteConfirm(false);
@@ -429,7 +538,14 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
       ...prev,
       thumbnail: thumbnailUrl
     }));
-  }, []);
+    if (errors.thumbnail) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.thumbnail;
+        return newErrors;
+      });
+    }
+  }, [errors.thumbnail]);
 
   const variantAttributes = categoryTemplate.flatMap(group =>
     group.fields.filter(f => f.isVariantAttribute).map(f => f.key)
@@ -449,8 +565,32 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-bottom-2 fade-in duration-300">
+          <div className={`rounded-lg border p-4 shadow-lg max-w-md ${
+            toast.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' :
+            toast.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' :
+            'bg-yellow-50 border-yellow-200 text-yellow-800'
+          }`}>
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium whitespace-pre-line">{toast.message}</p>
+              </div>
+              <button
+                onClick={() => setToast(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header - keep same */}
+        {/* Header */}
         <div className="mb-6">
           <Link href="/admin/products" className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4">
             <ArrowLeft className="h-4 w-4 mr-1" />
@@ -480,9 +620,12 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
 
         {/* Error Display */}
         {Object.keys(errors).length > 0 && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-            <h3 className="text-sm font-medium text-red-800 mb-2">Please fix the following errors:</h3>
-            <ul className="list-disc list-inside text-sm text-red-700">
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4" ref={(el) => { errorRefs.current['error-summary'] = el; }}>
+            <h3 className="text-sm font-medium text-red-800 mb-2 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" />
+              Please fix the following errors:
+            </h3>
+            <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
               {Object.entries(errors).map(([key, error]) => (
                 <li key={key}>{error}</li>
               ))}
@@ -519,12 +662,48 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Information Section - keep same */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
+        {/* Category Change Warning Modal */}
+        {showCategoryWarning && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-yellow-500" />
+                Warning: Category Change
+              </h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Changing the category will reset all product specifications to match the new category template.
+                Any existing specification data will be lost. Are you sure you want to continue?
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowCategoryWarning(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleCategoryChange(pendingCategoryId);
+                    setShowCategoryWarning(false);
+                  }}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                >
+                  Yes, Change Category
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-6" ref={formRef}>
+          {/* Basic Information Section */}
+          <div className="bg-white rounded-lg shadow-sm p-6" ref={(el) => { errorRefs.current['basic-info'] = el; }}>
             <h2 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h2>
             <div className="grid grid-cols-1 gap-6">
-              <div>
+              {/* Product Name */}
+              <div ref={(el) => { errorRefs.current['name'] = el; }}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Product Name <span className="text-red-500">*</span>
                 </label>
@@ -536,10 +715,16 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                   onChange={(e) => {
                     const newName = e.target.value;
                     setFormData({ ...formData, name: newName });
-                    // Auto-generate slug only if slug is empty or was auto-generated
                     if (!formData.slug || (!isEditing && !formData.slug)) {
                       const newSlug = generateSlug(newName);
                       setFormData(prev => ({ ...prev, name: newName, slug: newSlug }));
+                    }
+                    if (errors.name) {
+                      setErrors(prev => {
+                        const newErrors = { ...prev };
+                        delete newErrors.name;
+                        return newErrors;
+                      });
                     }
                   }}
                   className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 ${errors.name ? 'border-red-500' : ''}`}
@@ -547,10 +732,9 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                 {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
               </div>
 
+              {/* Slug */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Slug
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Slug</label>
                 <input
                   type="text"
                   placeholder="auto-generated from name"
@@ -563,15 +747,16 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                 </p>
               </div>
 
+              {/* Category & Brand */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
+                <div ref={(el) => { errorRefs.current['categoryId'] = el; }}>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Category <span className="text-red-500">*</span>
                   </label>
                   <select
                     required
                     value={formData.categoryId}
-                    onChange={(e) => handleCategoryChange(e.target.value)}
+                    onChange={(e) => handleCategoryChangeWithWarning(e.target.value)}
                     className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 ${errors.categoryId ? 'border-red-500' : ''}`}
                   >
                     <option value="">Select a category...</option>
@@ -585,7 +770,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                   )}
                 </div>
 
-                <div>
+                <div ref={(el) => { errorRefs.current['brandId'] = el; }}>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Brand <span className="text-red-500">*</span>
                   </label>
@@ -601,15 +786,11 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                     ))}
                   </select>
                   {errors.brandId && <p className="mt-1 text-xs text-red-500">{errors.brandId}</p>}
-                  {brands.length === 0 && (
-                    <p className="mt-1 text-xs text-yellow-600">
-                      {isEditing ? 'No brands found.' : 'No brands found. Please create a brand first.'}
-                    </p>
-                  )}
                 </div>
               </div>
 
-              <div>
+              {/* Short Description */}
+              <div ref={(el) => { errorRefs.current['shortDescription'] = el; }}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Short Description <span className="text-red-500">*</span>
                 </label>
@@ -627,7 +808,8 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                 </p>
               </div>
 
-              <div>
+              {/* Full Description */}
+              <div ref={(el) => { errorRefs.current['description'] = el; }}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Full Description <span className="text-red-500">*</span>
                 </label>
@@ -647,7 +829,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
 
           {/* Product Specifications Section */}
           {selectedCategory && categoryTemplate.length > 0 && (
-            <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="bg-white rounded-lg shadow-sm p-6" ref={(el) => { errorRefs.current['specs'] = el; }}>
               <div className="flex items-start gap-2 mb-4">
                 <Info className="h-5 w-5 text-blue-500 mt-0.5" />
                 <div>
@@ -664,6 +846,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                 groups={categoryTemplate}
                 specs={specs as any}
                 onChange={setSpecs as any}
+                onValidationChange={handleSpecValidationChange}
               />
               {errors.specs && <p className="mt-2 text-sm text-red-500">{errors.specs}</p>}
             </div>
@@ -671,7 +854,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
 
           {/* Product Variants Section */}
           {selectedCategory && variantAttributes.length > 0 && (
-            <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="bg-white rounded-lg shadow-sm p-6" ref={(el) => { errorRefs.current['variants'] = el; }}>
               <div className="flex items-start gap-2 mb-4">
                 <Info className="h-5 w-5 text-blue-500 mt-0.5" />
                 <div>
@@ -694,7 +877,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
           )}
 
           {/* Media Section */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-lg shadow-sm p-6" ref={(el) => { errorRefs.current['thumbnail'] = el; }}>
             <h2 className="text-lg font-medium text-gray-900 mb-4">Media</h2>
 
             <div className="mb-6">
@@ -711,6 +894,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
                     src={formData.thumbnail}
                     alt="Thumbnail"
                     fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     className="object-cover"
                   />
                   <div className="absolute top-2 left-2 rounded bg-amber-500 px-2 py-1 text-xs font-semibold text-white shadow-md flex items-center gap-1">
@@ -731,9 +915,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Additional Images
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Additional Images</label>
               <ImageUploader
                 images={formData.images}
                 onUpload={handleImagesUpdate}
@@ -748,9 +930,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
           <div className="bg-white rounded-lg shadow-sm p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tags
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
                 <TagInput
                   tags={formData.tags}
                   onChange={(tags) => setFormData({ ...formData, tags })}
@@ -759,9 +939,7 @@ export function ProductForm({ initialData, productId, isEditing = false, onSucce
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Status
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                 <select
                   value={formData.status}
                   onChange={(e) => setFormData({ ...formData, status: e.target.value as 'draft' | 'active' | 'archived' })}

@@ -1,159 +1,127 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { ProductForm } from '@/app/admin/components/ProductForm';
-import type { ProductSpec, ProductVariant, ProductFormData } from '@/app/admin/components/ProductForm';
+import type {
+  ProductSpec,
+  ProductVariant,
+  ProductFormData,
+} from '@/app/admin/components/ProductForm';
 
 interface ApiResponse {
   success: boolean;
-  data?: {
-    _id: string;
-    name: string;
-    slug: string;
-    description: string;
-    shortDescription: string;
-    brandId: string | { _id: string; name: string; slug: string };
-    categoryId: string | { _id: string; name: string; slug: string };
-    subcategoryId?: string | { _id: string; name: string; slug: string };
-    thumbnail: string;
-    images: string[];
-    tags: string[];
-    status: 'draft' | 'active' | 'archived';
-    specsFlat: ProductSpec[];
-    variants: ProductVariant[];
-    lowestPrice?: number;
-    highestPrice?: number;
-    totalInventory?: number;
-  };
+  data?: any;
   error?: string;
 }
 
 export default function EditProductPage() {
-  const params = useParams();
-  const productId = params.id as string;
-  const [productData, setProductData] = useState<{
+  const { id: productId } = useParams<{ id: string }>();
+
+  const [initialData, setInitialData] = useState<{
     formData: ProductFormData;
     specs: ProductSpec[];
     variants: ProductVariant[];
   } | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (productId) {
-      fetchProduct();
-    }
+    if (!productId) return;
+    fetchProduct();
   }, [productId]);
 
-  async function fetchProduct() {
+  const fetchProduct = async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      const response = await fetch(`/api/admin/products/${productId}`);
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch product');
+
+      const res = await fetch(`/api/admin/products/${productId}`);
+      const result: ApiResponse = await res.json();
+
+      if (!res.ok || !result.success || !result.data) {
+        throw new Error(result.error || 'Failed to fetch product');
       }
 
-      const result: ApiResponse = await response.json();
-      
-      if (!result.success || !result.data) {
-        throw new Error('Product not found');
-      }
+      const p = result.data;
+      // console.log('Fetched product:', p);
 
-      const product = result.data;
-      
-      console.log('Product data from API:', product);
-      
-      // Extract IDs from populated fields
-      const brandId = typeof product.brandId === 'object' && product.brandId !== null
-        ? product.brandId._id
-        : product.brandId;
+      const extractId = (field: any) =>
+        typeof field === 'object' && field !== null ? field._id : field;
 
-      const categoryId = typeof product.categoryId === 'object' && product.categoryId !== null
-        ? product.categoryId._id
-        : product.categoryId;
-
-      const subcategoryId = product.subcategoryId && typeof product.subcategoryId === 'object'
-        ? product.subcategoryId._id
-        : product.subcategoryId;
-
-      // Prepare form data
-      const formData: ProductFormData = {
-        name: product.name || '',
-        slug: product.slug || '',
-        description: product.description || '',
-        shortDescription: product.shortDescription || '',
-        brandId: brandId as string || '',
-        categoryId: categoryId as string || '',
-        subcategoryId: subcategoryId as string || '',
-        thumbnail: product.thumbnail || '',
-        images: product.images || [],
-        tags: product.tags || [],
-        status: product.status || 'draft'
-      };
-      
-      
-      setProductData({
-        formData,
-        specs: product.specsFlat || [],
-        variants: product.variants || []
+      setInitialData({
+        formData: {
+          name: p.name || '',
+          slug: p.slug || '',
+          description: p.description || '',
+          shortDescription: p.shortDescription || '',
+          brandId: extractId(p.brandId) || '',
+          categoryId: extractId(p.categoryId) || '',
+          subcategoryId: extractId(p.subcategoryId) || '',
+          thumbnail: p.thumbnail || '',
+          images: p.images || [],
+          tags: p.tags || [],
+          status: p.status || 'draft',
+        },
+        specs: p.specsFlat || [],
+        variants: p.variants || [],
       });
-      
-    } catch (error) {
-      console.error('Error fetching product:', error);
-      setError(error instanceof Error ? error.message : 'Failed to load product');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
       setLoading(false);
     }
   };
 
+  // Loading UI
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600 mx-auto" />
           <p className="mt-2 text-gray-500">Loading product...</p>
         </div>
       </div>
     );
   }
 
+  // Error UI
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto p-6">
-          <div className="text-red-600 text-xl mb-4">⚠️ Error</div>
-          <p className="text-gray-600 mb-4">{error}</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center max-w-md">
+          <p className="text-red-600 mb-4">{error}</p>
           <button
             onClick={fetchProduct}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg"
           >
-            Try Again
+            Retry
           </button>
         </div>
       </div>
     );
   }
 
-  if (!productData) {
+  // Not found
+  if (!initialData) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600">Product not found</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-gray-600">Product not found</p>
       </div>
     );
   }
 
+  // Main form
   return (
     <ProductForm
-      initialData={productData}
+      initialData={initialData}
       productId={productId}
       isEditing={true}
+      onSuccess={() => {
+        // optional: toast or analytics hook
+        console.log('Product updated successfully');
+      }}
     />
   );
 }
