@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import '@/models/index';
 import { dbConnect } from '@/lib/dbConnect';
 import { Product } from '@/models/Product';
 import { Category } from '@/models/Category';

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import '@/models/index';
 import mongoose, { Types } from 'mongoose';
 import { dbConnect } from '@/lib/dbConnect';
 import { Product, ProductVariant, ProductSpecification } from '@/models/Product';

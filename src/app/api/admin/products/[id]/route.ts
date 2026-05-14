@@ -3,6 +3,7 @@
 import '@/models/Brand';
 import '@/models/Category';
 import '@/models/Product';
+import '@/models';
 import { NextRequest, NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/dbConnect';
 import { Product } from '@/models/Product';

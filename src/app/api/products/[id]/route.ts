@@ -1,10 +1,12 @@
-// app/api/admin/products/[id]/route.ts
+// app/api/products/[id]/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
+import '@/models/index';
 import mongoose from 'mongoose';
 import { dbConnect } from '@/lib/dbConnect';
 import { Product } from '@/models/Product';
-import { Brand } from '@/models/Brand'; // Import Brand to ensure it's registered
-import { Category } from '@/models/Category'; // Import Category to ensure it's registered
+import { Category } from '@/models/Category';
+import { Brand } from '@/models/Brand';
 import { deleteImage, extractPublicIdFromUrl } from '@/lib/cloudinary';
 
 /* ===============================
@@ -15,6 +17,11 @@ type Variant = {
   inventory?: number;
   images?: string[];
 };
+
+interface SpecValidationResult {
+  validSpecs: any[];
+  errors: string[];
+}
 
 // Helper function to normalize keys
 function normalizeKey(key: string): string {
@@ -73,20 +80,23 @@ async function validateAndCleanSpecs(
   const processedKeys = new Set();
 
   for (const spec of specs || []) {
+    // FIX: Normalize the spec key for lookup
     const normalizedKey = normalizeKey(spec.key || '');
     const templateField = validSpecsMap.get(normalizedKey);
     
     if (templateField) {
+      // Spec exists in template - keep it with template's key format
       validSpecs.push({
-        key: templateField.originalKey,
+        key: templateField.originalKey, // Use template's key format
         label: templateField.label,
-        value: spec.value,
+        value: spec.value, // Preserve the value
         group: templateField.group,
         unit: templateField.unit,
         filterable: templateField.filterable
       });
       processedKeys.add(normalizedKey);
     } else if (spec.key && spec.value !== undefined && spec.value !== '') {
+      // Spec not in template - warn but don't include
       errors.push(`Spec "${spec.key}" is not defined in category template and will be removed`);
     }
   }
@@ -113,14 +123,17 @@ async function validateAndCleanSpecs(
 async function deleteProductImages(product: any): Promise<{ success: number; failed: number }> {
   const imagesToDelete: string[] = [];
   
+  // Add thumbnail
   if (product.thumbnail) {
     imagesToDelete.push(product.thumbnail);
   }
   
+  // Add all product images
   if (product.images && product.images.length > 0) {
     imagesToDelete.push(...product.images);
   }
   
+  // Add all variant images
   if (product.variants && product.variants.length > 0) {
     product.variants.forEach((variant: Variant) => {
       if (variant.images && variant.images.length > 0) {
@@ -129,11 +142,13 @@ async function deleteProductImages(product: any): Promise<{ success: number; fai
     });
   }
   
+  // Remove duplicates
   const uniqueImages = [...new Set(imagesToDelete)];
   
   let successCount = 0;
   let failedCount = 0;
   
+  // Delete each image from Cloudinary
   for (const imageUrl of uniqueImages) {
     const publicId = extractPublicIdFromUrl(imageUrl);
     if (publicId) {
@@ -169,12 +184,9 @@ export async function GET(
       );
     }
 
-    // Ensure models are registered before populating
-    // The imports at the top ensure Brand and Category are registered
-    
     const product = await Product.findById(id)
       .populate('categoryId', 'name slug specificationTemplate')
-      .populate('brandId', 'name slug logo') // Added logo field
+      .populate('brandId', 'name')
       .lean();
 
     if (!product) {
@@ -280,8 +292,9 @@ export async function PUT(
 
     // Validate and clean specifications against category template
     const targetCategoryId = body.categoryId || existingProduct.categoryId;
-    let specValidation: { validSpecs: any[]; errors: string[] } = { validSpecs: [], errors: [] };
+    let specValidation: SpecValidationResult = { validSpecs: [], errors: [] };
     
+    // Always validate specs if they exist or category changed
     if (body.specsFlat || categoryChanged) {
       specValidation = await validateAndCleanSpecs(
         body.specsFlat || existingProduct.specsFlat || [],
@@ -291,6 +304,7 @@ export async function PUT(
       
       cleanBody.specsFlat = specValidation.validSpecs;
     } else {
+      // Keep existing specs
       cleanBody.specsFlat = existingProduct.specsFlat;
     }
 
@@ -300,7 +314,7 @@ export async function PUT(
       if (oldPublicId) {
         try {
           await deleteImage(oldPublicId);
-          console.log(`Deleted old thumbnail: ${oldPublicId}`);
+          // console.log(`Deleted old thumbnail: ${oldPublicId}`);
         } catch (error) {
           console.error('Failed to delete old thumbnail:', error);
         }
@@ -317,7 +331,7 @@ export async function PUT(
         if (publicId) {
           try {
             await deleteImage(publicId);
-            console.log(`Deleted removed image: ${publicId}`);
+            // console.log(`Deleted removed image: ${publicId}`);
           } catch (error) {
             console.error('Failed to delete image:', error);
           }
@@ -333,7 +347,7 @@ export async function PUT(
         runValidators: true,
       }
     ).populate('categoryId', 'name slug specificationTemplate')
-     .populate('brandId', 'name slug logo');
+     .populate('brandId', 'name');
 
     if (!product) {
       return NextResponse.json(
@@ -342,6 +356,7 @@ export async function PUT(
       );
     }
 
+    // Return warnings if there were spec validation issues
     const response: any = {
       success: true,
       data: product,
@@ -404,6 +419,7 @@ export async function DELETE(
       );
     }
 
+    // Find product first to get all image URLs
     const product = await Product.findById(id);
     
     if (!product) {
@@ -413,11 +429,13 @@ export async function DELETE(
       );
     }
 
+    // Delete all associated images from Cloudinary
     console.log(`[Delete] Deleting images for product: ${product.name} (ID: ${id})`);
     const { success: deletedCount, failed: failedCount } = await deleteProductImages(product);
     
     console.log(`[Delete] Images deleted: ${deletedCount} successful, ${failedCount} failed`);
     
+    // Delete the product from database
     await Product.findByIdAndDelete(id);
     
     return NextResponse.json({

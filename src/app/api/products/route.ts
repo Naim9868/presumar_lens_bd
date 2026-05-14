@@ -1,5 +1,6 @@
 // app/api/products/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import '@/models/index';
 import mongoose, { Types } from 'mongoose';
 import { dbConnect as connectDB } from '@/lib/dbConnect';
 import { Product } from '@/models/Product';
