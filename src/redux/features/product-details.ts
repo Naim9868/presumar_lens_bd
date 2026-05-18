@@ -1,36 +1,38 @@
-import { createSlice } from "@reduxjs/toolkit";
-import { Product } from "@/types/product";
+// redux/features/product-details-slice.ts (Simplified version)
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { IProduct } from "@/types/product";
 
-type InitialState = {
-  value: Product;
+interface ProductDetailsState {
+  value: IProduct | null;
+}
+
+const initialState: ProductDetailsState = {
+  value: null,
 };
 
-const initialState = {
-  value: {
-    title: "",
-    reviews: 0,
-    price: 0,
-    discountedPrice: 0,
-    img: "",
-    images: [],
-    id: 0,
-    imgs: { thumbnails: [], previews: [] },
-  },
-} as InitialState;
-
-export const productDetails = createSlice({
+export const productDetailsSlice = createSlice({
   name: "productDetails",
   initialState,
   reducers: {
-    updateproductDetails: (_, action) => {
-      return {
-        value: {
-          ...action.payload,
-        },
-      };
+    setProductDetails: (state, action: PayloadAction<IProduct>) => {
+      state.value = action.payload;
+    },
+    
+    updateProductDetails: (state, action: PayloadAction<Partial<IProduct>>) => {
+      if (state.value) {
+        state.value = { ...state.value, ...action.payload };
+      }
+    },
+    
+    clearProductDetails: (state) => {
+      state.value = null;
     },
   },
 });
 
-export const { updateproductDetails } = productDetails.actions;
-export default productDetails.reducer;
+export const { setProductDetails, updateProductDetails, clearProductDetails } = productDetailsSlice.actions;
+
+// Selectors
+export const selectProductDetails = (state: any) => state.productDetailsReducer.value;
+
+export default productDetailsSlice.reducer;
