@@ -2,15 +2,23 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
+import './fonts.css';
+import './async-gallery.css';
 import Navbar from '@/components/Navbar';
 // import AppProviders from '@/components/providers/AppProviders';
 import ToastProvider from '@/components/providers/ToastProvider';
 // import ProductDrawer from '@/components/product/ProductDrawer';
 import { QueryProviders } from '@/components/providers/QueryClientProvider';
 import { ProductDrawerProvider } from '@/components/providers/DrawerProvider';
-
+import { ReduxProvider } from "@/redux/provider";
+import Header from '@/components/Header';
+import { CartModalProvider } from "@/app/context/CartSidebarModalContext";
+import  CartSidebarModal  from "@/components/Common/CartSidebarModal";
+import { WishlistModalProvider } from './context/WishlistSidebarModalContext';
+import WishlistSidebarModal from '@/components/Common/WishlistSidebarModal';
 const inter = Inter({ 
   subsets: ['latin'], 
+  weight: ['400', '500', '600', '700'],
   variable: '--font-inter',
   display: 'swap',
 });
@@ -31,17 +39,25 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable}`}>
       <body className="font-sans antialiased bg-gray-50">
-        <ProductDrawerProvider>
-          <QueryProviders>
-          <Navbar />
-          <main className="min-h-screen">
-            {children}
-          </main>
-          {/* <ProductDrawer /> */}
-        <ToastProvider />
-        </QueryProviders>
-        </ProductDrawerProvider>
-      
+       <ReduxProvider>
+          <WishlistModalProvider>
+            <CartModalProvider>
+            <ProductDrawerProvider>
+            <QueryProviders>
+            {/* <Navbar /> */}
+            <Header />
+            <main className="min-h-screen">
+              {children}
+            </main>
+            {/* <ProductDrawer /> */}
+            <CartSidebarModal />
+            <WishlistSidebarModal />
+          <ToastProvider />
+          </QueryProviders>
+          </ProductDrawerProvider>
+          </CartModalProvider>
+          </WishlistModalProvider>
+       </ReduxProvider>
       </body>
     </html>
   );

@@ -131,28 +131,35 @@ export interface IReviewWithProduct extends IReview {
 
 // Cart item type
 export interface CartItem {
-  id: string;
+  _id: string;
+  productId: string;
   name: string;
+  slug: string;
   price: number;
-  image: string;
   quantity: number;
-  variant?: ProductVariant;
+  image: string;
+  variant?: ProductVariant | null;
   selectedAttributes?: Record<string, string>;
-  sku?: string;
-  compareAtPrice?: number;
-  originalPrice?: number;
+  maxStock: number;
 }
 
 // Wishlist item type
-export interface WishlistItem {
-  id: string;
-  name: string;
-  price: number;
-  image?: string;
-  sizes?: string[];
-  colors?: string[];
-  originalPrice?: number;
+// Wishlist Item Type (using IProduct)
+export interface WishlistItem extends IProduct {
+  addedAt?: string;
 }
+// export interface WishlistItem {
+//   id: string;
+//   name: string;
+//   price: number;
+//   image: string;
+//   quantity: number;
+//   variant?: ProductVariant;
+//   selectedAttributes?: Record<string, string>;
+//   sku?: string;
+//   compareAtPrice?: number;
+//   originalPrice?: number;
+// }
 
 // Checkout item type
 export interface CheckoutItem {

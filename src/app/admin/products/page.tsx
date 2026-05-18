@@ -46,6 +46,7 @@ export default function AdminProductsPage() {
       const res = await fetch(`/api/products?${params}`);
       const data = await res.json();
       
+      console.log("Products: ", data.products);
       setProducts(data.products || []);
       setTotalPages(data.totalPages || 1);
       setTotal(data.total || 0);

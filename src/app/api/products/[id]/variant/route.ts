@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import '@/models/index';
 import { dbConnect as connectDB } from '@/lib/dbConnect';
 import { Product } from '@/models/Product';
 import { generateVariantKey } from '@/utils/variant';
