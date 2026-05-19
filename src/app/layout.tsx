@@ -12,9 +12,9 @@ import { QueryProviders } from '@/components/providers/QueryClientProvider';
 import { ProductDrawerProvider } from '@/components/providers/DrawerProvider';
 import { ReduxProvider } from "@/redux/provider";
 import Header from '@/components/Header';
-import { CartModalProvider } from "@/app/context/CartSidebarModalContext";
+import { Providers } from './context/Provider';
 import  CartSidebarModal  from "@/components/Common/CartSidebarModal";
-import { WishlistModalProvider } from './context/WishlistSidebarModalContext';
+
 import WishlistSidebarModal from '@/components/Common/WishlistSidebarModal';
 const inter = Inter({ 
   subsets: ['latin'], 
@@ -40,23 +40,21 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable}`}>
       <body className="font-sans antialiased bg-gray-50">
        <ReduxProvider>
-          <WishlistModalProvider>
-            <CartModalProvider>
-            <ProductDrawerProvider>
-            <QueryProviders>
-            {/* <Navbar /> */}
-            <Header />
-            <main className="min-h-screen">
-              {children}
-            </main>
-            {/* <ProductDrawer /> */}
-            <CartSidebarModal />
-            <WishlistSidebarModal />
-          <ToastProvider />
-          </QueryProviders>
-          </ProductDrawerProvider>
-          </CartModalProvider>
-          </WishlistModalProvider>
+          <Providers>
+              <ProductDrawerProvider>
+              <QueryProviders>
+              {/* <Navbar /> */}
+              <Header />
+              <main className="min-h-screen">
+                {children}
+              </main>
+              {/* <ProductDrawer /> */}
+              <CartSidebarModal />
+              <WishlistSidebarModal />
+            <ToastProvider />
+            </QueryProviders>
+            </ProductDrawerProvider>
+          </Providers>
        </ReduxProvider>
       </body>
     </html>

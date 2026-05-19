@@ -271,6 +271,7 @@ export interface ProductVariant {
 
 export interface CartItem {
   id: string;
+  slug: string;
   productId: string;
   variantId?: string;
   name: string;
@@ -286,10 +287,16 @@ export interface CartItem {
 export interface WishlistItem {
   id: string;
   productId: string;
+  variantId?: string;
   name: string;
-  price: number;
-  image: string;
   slug: string;
+  price: number;
+  quantity: number;
+  image: string;
+  sku?: string;
+  variantKey?: string;
+  attributes?: VariantAttribute[];
+  selectedVariant?: ProductVariant;
 }
 
 export interface FilterOptions {

@@ -6,10 +6,11 @@ import { menuData } from "./menuData";
 import Dropdown from "./Dropdown";
 import { useAppSelector } from "@/redux/store";
 import { useSelector } from "react-redux";
-import { selectTotalPrice } from "@/redux/features/cart-slice";
+// import { selectTotalPrice } from "@/redux/features/cart-slice";
 import { useCartModalContext } from "@/app/context/CartSidebarModalContext";
 import { useWishlistModalContext } from "@/app/context/WishlistSidebarModalContext";
-import { selectWishlistCount } from "@/redux/features/wishlist-slice"
+import { useCartContext } from "@/app/context/CartContext";
+import { useWishlistContext } from "@/app/context/WishlistContext";
 import Image from "next/image";
 import { Menu, X, Search, User, ShoppingBag, Phone, Heart, Eye } from "lucide-react";
 
@@ -22,10 +23,11 @@ const Header = () => {
   const [isNavVisible, setIsNavVisible] = useState(true);
   const { openCartModal } = useCartModalContext();
   const { openWishlistModal } = useWishlistModalContext();
-  const wishlistCount = useAppSelector(selectWishlistCount);
-
-  const product = useAppSelector((state) => state.cartReducer.items);
-  const totalPrice = useSelector(selectTotalPrice);
+ 
+  const { cartCount, cartTotal } = useCartContext();
+  const { wishlistCount } = useWishlistContext();
+  // const totalPrice = useSelector(selectTotalPrice);
+  const totalPrice = cartTotal;
 
   const handleOpenCartModal = () => {
     openCartModal();
@@ -33,25 +35,21 @@ const Header = () => {
 
   const handleOpenWishlistModal = () => {
     openWishlistModal();
-  }
+  };
 
   // Handle sticky menu and auto-hide for navigation
   const handleScroll = () => {
     const currentScrollY = window.scrollY;
 
-    // Sticky menu shadow
     if (currentScrollY >= 80) {
       setStickyMenu(true);
     } else {
       setStickyMenu(false);
     }
 
-    // Auto-hide/show navigation section based on scroll direction
     if (currentScrollY > lastScrollY && currentScrollY > 100) {
-      // Scrolling down & past 100px - hide navigation
       setIsNavVisible(false);
     } else if (currentScrollY < lastScrollY) {
-      // Scrolling up - show navigation
       setIsNavVisible(true);
     }
 
@@ -86,15 +84,14 @@ const Header = () => {
   ];
 
   return (
-    <header
-      className={`fixed left-0 top-0 w-full z-[9999] transition-shadow duration-300`}
-    >
+    <header className="fixed left-0 top-0 w-full z-[9999] transition-shadow duration-300">
       {/* Main Header Top - Always Visible */}
       <div className="w-full bg-[#191970]">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-4">
           <div
-            className={`flex flex-col lg:flex-row items-center justify-between gap-3 lg:gap-4 transition-all duration-200 ${stickyMenu ? "py-2 lg:py-3" : "py-3 lg:py-4"
-              }`}
+            className={`flex flex-col lg:flex-row items-center justify-between gap-3 lg:gap-4 transition-all duration-200 ${
+              stickyMenu ? "py-2 lg:py-3" : "py-3 lg:py-4"
+            }`}
           >
             {/* Logo - Left Side */}
             <div className="flex items-center justify-between w-full lg:w-auto">
@@ -104,6 +101,7 @@ const Header = () => {
                     src="/images/logo/prosumer_logo (1).png"
                     alt="Logo"
                     fill
+                    sizes="(max-width: 768px) 150px, 200px"
                     className="object-contain"
                     priority
                   />
@@ -114,43 +112,44 @@ const Header = () => {
               <div className="flex items-center gap-2 lg:hidden">
                 <button
                   onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
-                  className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+                  className="p-1.5 hover:bg-white/10 rounded-full transition-colors"
                   aria-label="Search"
                 >
                   <Search className="w-5 h-5 text-white" />
                 </button>
 
+                {/* Mobile Wishlist Button */}
                 <button
                   onClick={handleOpenWishlistModal}
-                  className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                  className="relative p-1.5 hover:bg-white/10 rounded-full transition-colors"
+                  aria-label="Wishlist"
                 >
-                  <div className="relative">
-
-                    <Heart className="w-4 h-4 font-extrabold text-white hover:text-blue-400" />
-                    {wishlistCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                        {wishlistCount}
-                      </span>
-                    )}
-                  </div>
-                </button>
-
-                <button
-                  onClick={handleOpenCartModal}
-                  className="relative p-1.5 hover:bg-gray-100 rounded-full transition-colors"
-                  aria-label="Cart"
-                >
-                  <ShoppingBag className="w-5 h-5 text-white" />
-                  {product.length > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
-                      {product.length}
+                  <Heart className="w-5 h-5 text-white" />
+                  {wishlistCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                      {wishlistCount > 99 ? '99+' : wishlistCount}
                     </span>
                   )}
                 </button>
 
+                {/* Mobile Cart Button */}
+                <button
+                  onClick={handleOpenCartModal}
+                  className="relative p-1.5 hover:bg-white/10 rounded-full transition-colors"
+                  aria-label="Cart"
+                >
+                  <ShoppingBag className="w-5 h-5 text-white" />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                      {cartCount > 99 ? '99+' : cartCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Mobile Menu Button */}
                 <button
                   onClick={() => setNavigationOpen(!navigationOpen)}
-                  className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+                  className="p-1.5 hover:bg-white/10 rounded-full transition-colors"
                   aria-label="Menu"
                 >
                   {navigationOpen ? (
@@ -162,7 +161,7 @@ const Header = () => {
               </div>
             </div>
 
-            {/* Search Box - Constant Width for All Devices */}
+            {/* Search Box - Desktop */}
             <div className="hidden lg:block w-[500px] xl:w-[600px]">
               <form>
                 <div className="flex items-center gap-3">
@@ -176,7 +175,7 @@ const Header = () => {
                       id="search"
                       placeholder="I am shopping for..."
                       autoComplete="off"
-                      className="w-full rounded-[20px] bg-gray-50 border-l-0 border border-gray-300 py-2 pl-4 pr-10 outline-none focus:border-blue-500 transition-colors text-sm"
+                      className="w-full rounded-[20px] bg-gray-50 border border-gray-300 py-2 pl-4 pr-10 outline-none focus:border-blue-500 transition-colors text-sm"
                     />
                     <button
                       type="submit"
@@ -193,50 +192,51 @@ const Header = () => {
             {/* Right Side Icons - Desktop */}
             <div className="hidden lg:flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-blue-600" />
+                <Phone className="w-4 h-4 text-blue-400" />
                 <div>
                   <span className="block text-[10px] text-white uppercase">24/7 SUPPORT</span>
                   <p className="font-medium text-xs text-white">+8801521529868</p>
                 </div>
               </div>
 
-              <div className="w-px h-6 bg-gray-300"></div>
+              <div className="w-px h-6 bg-white/20"></div>
 
+              {/* Desktop Wishlist Button */}
               <button
                 onClick={handleOpenWishlistModal}
-                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                className="flex items-center gap-2 hover:opacity-80 transition-opacity group"
               >
                 <div className="relative">
-
-                  <Heart className="w-4 h-4 font-extrabold text-white hover:text-blue-400" />
+                  <Heart className="w-5 h-5 text-white group-hover:text-red-400 transition-colors" />
                   {wishlistCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                      {wishlistCount}
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                      {wishlistCount > 99 ? '99+' : wishlistCount}
                     </span>
                   )}
                 </div>
-                <div>
-                  <span className="block text-[10px] text-white uppercase">Wishlist</span>
+                <div className="text-left">
+                  <span className="block text-[10px] text-white/70 uppercase">Wishlist</span>
                   <p className="font-medium text-xs text-amber-100">
-                    ${totalPrice?.toFixed(2) || "0.00"}
+                    {wishlistCount} {wishlistCount === 1 ? 'item' : 'items'}
                   </p>
                 </div>
               </button>
 
+              {/* Desktop Cart Button */}
               <button
                 onClick={handleOpenCartModal}
-                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                className="flex items-center gap-2 hover:opacity-80 transition-opacity group"
               >
                 <div className="relative">
-                  <ShoppingBag className="w-4 h-4 text-white" />
-                  {product.length > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
-                      {product.length}
+                  <ShoppingBag className="w-5 h-5 text-white group-hover:text-blue-400 transition-colors" />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                      {cartCount > 99 ? '99+' : cartCount}
                     </span>
                   )}
                 </div>
-                <div>
-                  <span className="block text-[10px] text-white uppercase">cart</span>
+                <div className="text-left">
+                  <span className="block text-[10px] text-white/70 uppercase">Cart</span>
                   <p className="font-medium text-xs text-amber-100">
                     ${totalPrice?.toFixed(2) || "0.00"}
                   </p>
@@ -245,7 +245,7 @@ const Header = () => {
             </div>
           </div>
 
-          {/* Mobile Search Bar - Without Category Dropdown */}
+          {/* Mobile Search Bar */}
           {mobileSearchOpen && (
             <div className="lg:hidden pb-3 animate-fade-in">
               <form>
@@ -272,58 +272,57 @@ const Header = () => {
         </div>
       </div>
 
-      {/* Navigation Section - Auto Hide/Show on Scroll */}
+      {/* Navigation Section */}
       <div
-        className={`bg-amber-50 z-20 transition-all duration-300 ease-in-out ${isNavVisible
-          ? "translate-y-0 opacity-100"
-          : "-translate-x-full z-10 opacity-0 hidden lg:block"
-          }`}
+        className={`bg-amber-50 transition-all duration-300 ease-in-out ${
+          isNavVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
+        }`}
       >
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-4">
           <div className="relative">
             {/* Mobile Navigation Menu */}
             <div
-              className={`lg:hidden absolute top-0 left-0 right-0 bg-white border-b border-gray-200 shadow-lg transition-all duration-300 ease-in-out z-50 ${navigationOpen
-                ? "opacity-100 visible translate-y-0 max-h-[80vh] overflow-y-auto"
-                : "opacity-0 invisible -translate-y-2 max-h-0"
-                }`}
+              className={`lg:hidden absolute top-0 left-0 right-0 bg-white border-b border-gray-200 shadow-lg transition-all duration-300 ease-in-out z-50 ${
+                navigationOpen
+                  ? "opacity-100 visible translate-y-0 max-h-[80vh] overflow-y-auto"
+                  : "opacity-0 invisible -translate-y-2 max-h-0"
+              }`}
             >
               <div className="p-4 space-y-3">
-                {/* <nav className="space-y-1">
-                  {menuData.map((menuItem, i) => {
-                    console.log(menuItem);
-                    return (
-                    <div key={i}>
-                      {menuItem.submenu ? (
-                        <Dropdown
-                          menuItem={menuItem}
-                          stickyMenu={stickyMenu}
-                          isMobile={true}
-                        />
-                      ) : (
-                        <Link
-                          href={menuItem.path}
-                          className="block py-2 px-3 text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-colors font-medium text-sm"
-                          onClick={() => setNavigationOpen(false)}
-                        >
-                          {menuItem.title}
-                        </Link>
-                      )}
-                    </div>
-                  )
-                })}
-                
-                </nav> */}
-
-                <div className="pt-3 border-t border-gray-200 space-y-2">
-                  <Link
-                    href="/wishlist"
-                    className="flex items-center gap-3 py-2 px-3 text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-colors text-sm"
-                    onClick={() => setNavigationOpen(false)}
+                <div className="space-y-2">
+                  {/* Mobile Wishlist Item */}
+                  <button
+                    onClick={() => {
+                      handleOpenWishlistModal();
+                      setNavigationOpen(false);
+                    }}
+                    className="flex items-center gap-3 py-2 px-3 text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-colors text-sm w-full"
                   >
                     <Heart className="w-4 h-4" />
                     <span className="font-medium">Wishlist</span>
-                  </Link>
+                    {wishlistCount > 0 && (
+                      <span className="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
+                        {wishlistCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Mobile Cart Item */}
+                  <button
+                    onClick={() => {
+                      handleOpenCartModal();
+                      setNavigationOpen(false);
+                    }}
+                    className="flex items-center gap-3 py-2 px-3 text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-colors text-sm w-full"
+                  >
+                    <ShoppingBag className="w-4 h-4" />
+                    <span className="font-medium">Cart</span>
+                    {cartCount > 0 && (
+                      <span className="ml-auto bg-blue-600 text-white text-xs rounded-full px-2 py-0.5">
+                        {cartCount}
+                      </span>
+                    )}
+                  </button>
 
                   <Link
                     href="/recently-viewed"
@@ -347,40 +346,15 @@ const Header = () => {
                     <Phone className="w-4 h-4 text-blue-600" />
                     <div>
                       <span className="block text-[10px] text-gray-500">24/7 SUPPORT</span>
-                      <p className="font-medium text-xs">(+965) 7492-3477</p>
+                      <p className="font-medium text-xs">+8801521529868</p>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Desktop Navigation - This is the portion that auto-hides */}
-            <div className="hidden lg:flex items-center justify-between">
-              {/* <nav>
-                <ul className="flex items-center gap-6 xl:gap-8">
-                  {menuData.map((menuItem, i) => (
-                    <React.Fragment key={i}>
-                      {menuItem.submenu && menuItem.submenu.length > 0 ? (
-                        <Dropdown
-                          menuItem={menuItem}
-                          stickyMenu={stickyMenu}
-                        />
-                      ) : (
-                        <li className="relative">
-                          <Link
-                            href={menuItem.path}
-                            className={`inline-block text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors ${stickyMenu ? "py-3" : "py-4"
-                              }`}
-                          >
-                            {menuItem.title}
-                          </Link>
-                        </li>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </ul>
-              </nav> */}
-
+            {/* Desktop Navigation */}
+            <div className="hidden lg:flex items-center justify-between py-2">
               <div className="flex items-center gap-4">
                 <Link
                   href="/recently-viewed"

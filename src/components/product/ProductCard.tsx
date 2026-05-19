@@ -1,16 +1,17 @@
+// components/ProductCard.tsx
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { 
-  Star, Package, Heart, Eye, TrendingUp, 
+  Package, Heart, Eye, TrendingUp, 
   AlertCircle, CheckCircle, ShoppingBag, Zap 
 } from 'lucide-react';
 import { IProduct } from '@/types/product';
 import { ProductVariant } from '@/types';
-import { useCart } from '@/hooks/useCart';
-import { useWishlist } from '@/hooks/useWishlist';
+import { useCartContext } from '@/app/context/CartContext';
+import { useWishlistContext } from '@/app/context/WishlistContext';
 import { useProductDrawer } from '@/hooks/useProductDrawer';
 
 interface ProductCardProps {
@@ -22,12 +23,19 @@ const ProductCard = ({ product, priority = false }: ProductCardProps) => {
   const [isHovered, setIsHovered] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [isBuyingNow, setIsBuyingNow] = useState(false);
+  const [mounted, setMounted] = useState(false);
   
-  const { addToCart } = useCart();
-  const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
+  const { addToCart } = useCartContext();
+  const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlistContext();
   const { openDrawer } = useProductDrawer();
   
   const isWishlisted = isInWishlist(product._id);
+  
+  // Handle mounting to prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   
   // Calculate discount percentage
   const discountPercentage = useMemo(() => {
@@ -88,10 +96,9 @@ const ProductCard = ({ product, priority = false }: ProductCardProps) => {
     return null;
   }, [product.images, product.thumbnail, imageError]);
   
-  // Get default variant - FIXED: handle isDefault as optional boolean
+  // Get default variant
   const defaultVariant = useMemo((): ProductVariant | undefined => {
     if (!product.variants || product.variants.length === 0) return undefined;
-    // Check for isDefault === true (not just truthy)
     const defaultVar = product.variants.find(v => v.isDefault === true);
     return defaultVar || product.variants[0];
   }, [product.variants]);
@@ -117,12 +124,26 @@ const ProductCard = ({ product, priority = false }: ProductCardProps) => {
     
     setIsAddingToCart(true);
     try {
-      // Pass the variant if it exists, otherwise undefined
       await addToCart(product, defaultVariant, 1);
     } catch (error) {
       console.error('Error adding to cart:', error);
     } finally {
       setIsAddingToCart(false);
+    }
+  }, [product, defaultVariant, addToCart, stockStatus.isInStock]);
+  
+  const handleBuyNow = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!stockStatus.isInStock) return;
+    
+    setIsBuyingNow(true);
+    try {
+      await addToCart(product, defaultVariant, 1);
+      window.location.href = '/checkout';
+    } catch (error) {
+      console.error('Error buying now:', error);
+    } finally {
+      setIsBuyingNow(false);
     }
   }, [product, defaultVariant, addToCart, stockStatus.isInStock]);
   
@@ -171,14 +192,15 @@ const ProductCard = ({ product, priority = false }: ProductCardProps) => {
             </div>
           )}
           
-          {/* Discount Badge */}
-          {hasDiscount && discountPercentage > 0 && (
-            <div className="absolute top-3 right-3 z-10">
-              <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-full w-12 h-12 flex flex-col items-center justify-center shadow-lg">
-                <span className="text-white font-bold text-sm">{discountPercentage}%</span>
-                <span className="text-white text-[8px] -mt-0.5">OFF</span>
-              </div>
-            </div>
+          {/* Wishlist Heart Icon - Top Left Corner */}
+          {mounted && (
+            <button
+              onClick={handleWishlist}
+              className="absolute top-3 left-3 z-10 p-2 bg-white/90 backdrop-blur-sm hover:bg-white rounded-full transition-all duration-200 shadow-lg"
+              aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+            >
+              <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-red-500 text-red-500' : 'text-gray-700'}`} />
+            </button>
           )}
           
           {/* Out of Stock Overlay */}
@@ -190,7 +212,7 @@ const ProductCard = ({ product, priority = false }: ProductCardProps) => {
             </div>
           )}
           
-          {/* Quick Action Buttons */}
+          {/* Quick Action Buttons - Bottom Overlay */}
           <div className={`absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 to-transparent transform transition-all duration-300 z-10 ${
             isHovered && stockStatus.isInStock ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
           }`}>
@@ -209,19 +231,20 @@ const ProductCard = ({ product, priority = false }: ProductCardProps) => {
                   </>
                 )}
               </button>
+              
               <button
-                onClick={handleWishlist}
-                className="p-2.5 bg-white/90 backdrop-blur-sm hover:bg-white rounded-xl transition-all duration-200 shadow-lg"
-                aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+                onClick={handleBuyNow}
+                disabled={isBuyingNow || !stockStatus.isInStock}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg text-sm disabled:cursor-not-allowed"
               >
-                <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-red-500 text-red-500' : 'text-gray-700'}`} />
-              </button>
-              <button
-                onClick={handleQuickView}
-                className="p-2.5 bg-white/90 backdrop-blur-sm hover:bg-white rounded-xl transition-all duration-200 shadow-lg"
-                aria-label="Quick view"
-              >
-                <Eye className="w-4 h-4 text-gray-700" />
+                {isBuyingNow ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Zap size={16} />
+                    Buy Now
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -230,7 +253,8 @@ const ProductCard = ({ product, priority = false }: ProductCardProps) => {
       
       {/* Product Info */}
       <div className="p-4 space-y-2">
-        <div className="flex justify-between items-start">
+        {/* Brand and View Icon Row */}
+        <div className="flex justify-between items-center">
           <Link 
             href={`/products/${product.slug}`} 
             onClick={(e) => e.stopPropagation()}
@@ -240,13 +264,23 @@ const ProductCard = ({ product, priority = false }: ProductCardProps) => {
               {product.brand?.name || 'Unknown Brand'}
             </span>
           </Link>
-          {product.soldCount !== undefined && product.soldCount > 0 && (
-            <div className="flex items-center gap-1 text-xs text-gray-500">
-              <TrendingUp size={12} className="text-green-500" />
-              <span>{product.soldCount.toLocaleString()} sold</span>
-            </div>
-          )}
+          
+          <button
+            onClick={handleQuickView}
+            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-200"
+            aria-label="Quick view"
+          >
+            <Eye className="w-4 h-4 text-gray-500 hover:text-amber-600 transition-colors" />
+          </button>
         </div>
+
+        {/* Sold Count */}
+        {product.soldCount !== undefined && product.soldCount > 0 && (
+          <div className="flex items-center gap-1 text-xs text-gray-500">
+            <TrendingUp size={12} className="text-green-500" />
+            <span>{product.soldCount.toLocaleString()} sold</span>
+          </div>
+        )}
 
         <Link 
           href={`/products/${product.slug}`} 
@@ -268,8 +302,8 @@ const ProductCard = ({ product, priority = false }: ProductCardProps) => {
           </div>
         )}
 
-        {/* Price Display */}
-        <div className="flex items-baseline gap-2 pt-1 flex-wrap">
+        {/* Price Display with Discount Badge Beside */}
+        <div className="flex items-center gap-2 pt-1 flex-wrap">
           <span className="text-lg font-bold text-gray-900 dark:text-white">
             {formatPrice(currentPrice)}
           </span>
@@ -284,6 +318,14 @@ const ProductCard = ({ product, priority = false }: ProductCardProps) => {
             <span className="text-xs text-gray-400 line-through">
               {formatPrice(originalPrice)}
             </span>
+          )}
+          
+          {hasDiscount && discountPercentage > 0 && (
+            <div className="inline-flex items-center px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30">
+              <span className="text-xs font-bold text-red-600 dark:text-red-400">
+                -{discountPercentage}%
+              </span>
+            </div>
           )}
         </div>
         
