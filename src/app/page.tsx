@@ -10,6 +10,7 @@ import Newsletter from "@/components/Newsletter";
 // import ProductGrid from "@/components/ProductGrid";
 import { ProductGrid } from '@/components/product/ProductGrid';
 import { getAllProducts } from '@/app/actions/product.actions';
+import  Hero  from '@/components/Hero/Hero';
 
 export default async function Home() {
    const result = await getAllProducts();
@@ -20,8 +21,9 @@ export default async function Home() {
   return (
     <div className="min-h-screen">
       {/* Hero Section - Main banner */}
-      <HeroSection />
-
+      {/* <HeroSection /> */}
+      <Hero />
+      
       <ProductGrid initialProducts={products} />
       
       {/* Brand Showcase - Trust signals */}

@@ -272,10 +272,10 @@ const Header = () => {
         </div>
       </div>
 
-      {/* Navigation Section */}
+      {/* Navigation Section Bottom */}
       <div
         className={`bg-amber-50 transition-all duration-300 ease-in-out ${
-          isNavVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
+          isNavVisible ? "translate-y-0 opacity-100" : "-translate-x-full opacity-0"
         }`}
       >
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-4">
