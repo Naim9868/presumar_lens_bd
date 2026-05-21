@@ -349,17 +349,17 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
       {/* Backdrop */}
       <div
         onClick={handleClose}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 animate-fadeIn"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[50] animate-fadeIn"
       />
 
       {/* Drawer */}
       <aside className={`
         fixed right-0 top-0 h-full w-full md:w-[950px] lg:w-[1100px] 
-        bg-white dark:bg-gray-900 z-50 shadow-2xl flex flex-col
+        bg-white dark:bg-gray-900 z-1000 shadow-2xl flex flex-col
         ${isClosing ? 'animate-slideOutRight' : 'animate-slideInLeft'}
       `}>
         {/* Header */}
-        <div className="sticky top-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 p-4 flex items-center justify-between z-10">
+        <div className="sticky top-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 p-4 flex items-center justify-between z-[10]">
           <div>
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
               {product.name}

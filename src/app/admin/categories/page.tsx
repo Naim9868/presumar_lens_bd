@@ -94,6 +94,8 @@ export default function AdminCategoriesPage() {
     }
   };
 
+  console.log("categories:", categories);
+
   const filterCategories = () => {
     const filterTree = (items: Category[]): Category[] => {
       return items

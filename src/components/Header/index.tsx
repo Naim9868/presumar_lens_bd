@@ -84,7 +84,7 @@ const Header = () => {
   ];
 
   return (
-    <header className="fixed left-0 top-0 w-full z-[9999] transition-shadow duration-300">
+    <header className="fixed left-0 top-0 w-full z-[999] transition-shadow duration-300">
       {/* Main Header Top - Always Visible */}
       <div className="w-full bg-[#191970]">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-4">

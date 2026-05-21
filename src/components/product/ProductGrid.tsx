@@ -48,7 +48,7 @@ export function ProductGrid({ initialProducts = [], categoryId }: ProductGridPro
     setLoading(false);
     setIsInitialLoad(false);
   }, [filters, sortBy, categoryId, initialProducts.length, isInitialLoad]);
-
+ 
   // Fetch brands only once
   const fetchBrands = useCallback(async () => {
     // Skip if brands already loaded

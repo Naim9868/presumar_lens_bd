@@ -105,11 +105,11 @@ const HeroCarousel = () => {
       </Swiper>
 
       {/* Custom Styled Navigation Buttons */}
-      <button className="custom-swiper-button-prev absolute left-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-amber-500 hover:text-white transition-all duration-300 opacity-0 group-hover:opacity-100 hover:scale-110 shadow-lg border border-white/20">
+      <button className="custom-swiper-button-prev absolute left-1 top-1/2 -translate-y-1/2 z-20 w-10 h-10  rounded-full flex items-center justify-center text-white hover:bg-amber-500 hover:text-white transition-all duration-300 opacity-0 group-hover:opacity-100 hover:scale-110 shadow-lg border border-white/20">
         <ChevronLeft className="w-5 h-5" />
       </button>
       
-      <button className="custom-swiper-button-next absolute right-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-amber-500 hover:text-white transition-all duration-300 opacity-0 group-hover:opacity-100 hover:scale-110 shadow-lg border border-white/20">
+      <button className="custom-swiper-button-next absolute right-1 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full flex items-center justify-center text-white hover:bg-amber-500 hover:text-white transition-all duration-300 opacity-0 group-hover:opacity-100 hover:scale-110 shadow-lg border border-white/20">
         <ChevronRight className="w-5 h-5" />
       </button>
       

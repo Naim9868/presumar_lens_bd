@@ -40,8 +40,8 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable}`}>
       <body className="font-sans antialiased bg-gray-50">
        <ReduxProvider>
+          <ProductDrawerProvider>
           <Providers>
-              <ProductDrawerProvider>
               <QueryProviders>
               {/* <Navbar /> */}
               <Header />
@@ -53,8 +53,8 @@ export default function RootLayout({
               <WishlistSidebarModal />
             <ToastProvider />
             </QueryProviders>
-            </ProductDrawerProvider>
           </Providers>
+          </ProductDrawerProvider>
        </ReduxProvider>
       </body>
     </html>

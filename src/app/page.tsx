@@ -11,6 +11,9 @@ import Newsletter from "@/components/Newsletter";
 import { ProductGrid } from '@/components/product/ProductGrid';
 import { getAllProducts } from '@/app/actions/product.actions';
 import  Hero  from '@/components/Hero/Hero';
+import CategoryServer from '@/components/category/CategoryPage';
+import NewArrivals from "@/components/Home/NewArrival/NewArrivals";
+// import BestSelling from "@/components/Home/BestSelling/BestSelling";
 
 export default async function Home() {
    const result = await getAllProducts();
@@ -23,14 +26,17 @@ export default async function Home() {
       {/* Hero Section - Main banner */}
       {/* <HeroSection /> */}
       <Hero />
-      
+      <CategoryServer />
+
+      <NewArrivals />
+      {/* <BestSelling /> */}
       <ProductGrid initialProducts={products} />
       
       {/* Brand Showcase - Trust signals */}
       {/* <BrandShowcase /> */}
       
       {/* Categories - Product navigation */}
-      <CategoryGrid />
+      {/* <CategoryGrid /> */}
       
       {/* Featured Products - Best sellers */}
       <FeaturedProducts />

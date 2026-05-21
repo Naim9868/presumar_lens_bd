@@ -49,6 +49,14 @@ interface GetAllProductsParams extends FilterOptions {
   status?: string;
 }
 
+export interface GetProductsByCategoryResult {
+  success: boolean;
+  products: IProduct[];
+  total: number;
+  totalPages: number;
+  currentPage: number;
+}
+
 // Helper function to serialize MongoDB documents
 function serializeDocument(doc: any): any {
   if (!doc) return null;
@@ -84,6 +92,38 @@ function serializeDocument(doc: any): any {
   }
 
   return doc;
+}
+
+function transformProduct(product: any) {
+  const prices = product.variants?.map((v: any) => v.price) || [];
+
+  const filteredSpecsFlat = (product.specsFlat || []).filter((spec: any) => {
+    if (spec.value == null) return false;
+
+    if (typeof spec.value === 'string' && !spec.value.trim()) {
+      return false;
+    }
+
+    if (Array.isArray(spec.value) && spec.value.length === 0) {
+      return false;
+    }
+
+    return true;
+  });
+
+  return {
+    ...product,
+    specsFlat: filteredSpecsFlat,
+    lowestPrice: prices.length ? Math.min(...prices) : 0,
+    highestPrice: prices.length ? Math.max(...prices) : 0,
+    totalInventory:
+      product.variants?.reduce(
+        (sum: number, v: any) => sum + (v.inventory || 0),
+        0
+      ) || 0,
+    isAvailable:
+      product.variants?.some((v: any) => v.inventory > 0) || false,
+  };
 }
 
 
@@ -416,37 +456,118 @@ export async function getProductById(productId: string) {
 }
 
 // Get products by category
-export async function getProductsByCategory(categoryId: string, limit?: number) {
+// export async function getProductsByCategory(categoryId: string, limit?: number) {
+//   try {
+//     await connectDB();
+
+//     const query = {
+//       categoryId,
+//       status: 'active',
+//       deletedAt: null
+//     };
+
+//     let productsQuery = Product.find(query)
+//       .select('_id name slug thumbnail brandId categoryId lowestPrice highestPrice status variants images createdAt')
+//       .populate('brandId', 'name slug')
+//       .populate('categoryId', 'name slug')
+//       .sort({ createdAt: -1 });
+
+//     if (limit) {
+//       productsQuery = productsQuery.limit(limit);
+//     }
+
+//     const products = await productsQuery.lean();
+
+
+//     const productsDTO = products.map((p: IProductPopulated) =>
+//       toProductDTO(serializeDocument(p))
+//     );
+
+//     return { success: true, products: productsDTO };
+//   } catch (error) {
+//     console.error('Error fetching products by category:', error);
+//     return { success: false, products: [] };
+//   }
+// }
+
+export async function getProductsByCategory(
+  categoryId: string,
+  page: number = 1,
+  sort: string = 'newest',
+  limit: number = 12
+): Promise<GetProductsByCategoryResult> {
   try {
     await connectDB();
 
-    const query = {
-      categoryId,
+    const skip = (page - 1) * limit;
+
+    // Build sort object
+    let sortObject = {};
+    switch (sort) {
+      case 'price_asc':
+        sortObject = { lowestPrice: 1 };
+        break;
+      case 'price_desc':
+        sortObject = { lowestPrice: -1 };
+        break;
+      case 'popular':
+        sortObject = { soldCount: -1 };
+        break;
+      case 'rating':
+        sortObject = { averageRating: -1 };
+        break;
+      case 'newest':
+      default:
+        sortObject = { createdAt: -1 };
+        break;
+    }
+
+    // Build query
+    const query: any = {
       status: 'active',
       deletedAt: null
     };
 
-    let productsQuery = Product.find(query)
-      .select('_id name slug thumbnail brandId categoryId lowestPrice highestPrice status variants images createdAt')
-      .populate('brandId', 'name slug')
-      .populate('categoryId', 'name slug')
-      .sort({ createdAt: -1 });
-
-    if (limit) {
-      productsQuery = productsQuery.limit(limit);
+    if (mongoose.Types.ObjectId.isValid(categoryId)) {
+      query.categoryId = new mongoose.Types.ObjectId(categoryId);
     }
 
-    const products = await productsQuery.lean();
+    // Get total count
+    const total = await Product.countDocuments(query);
+    const totalPages = Math.ceil(total / limit);
 
+    // Get products
+    const products = await Product.find(query)
+    
+      .populate('brandId', 'name slug')
+      .populate('categoryId', 'name slug')
+      .sort(sortObject)
+      .skip(skip)
+      .limit(limit)
+      .lean();
 
-    const productsDTO = products.map((p: IProductPopulated) =>
-      toProductDTO(serializeDocument(p))
+    const transformedProducts = products.map(transformProduct);
+
+    const productsDTO: IProduct[] = transformedProducts.map((product: any) =>
+      toProductDTO(serializeDocument(product))
     );
 
-    return { success: true, products: productsDTO };
+    return {
+      success: true,
+      products: productsDTO,
+      total,
+      totalPages,
+      currentPage: page,
+    };
   } catch (error) {
     console.error('Error fetching products by category:', error);
-    return { success: false, products: [] };
+    return {
+      success: false,
+      products: [],
+      total: 0,
+      totalPages: 0,
+      currentPage: page,
+    };
   }
 }
 
@@ -471,3 +592,89 @@ export async function getAllBrands() {
   }
 }
 
+// Get New Arrivals (last 15 days)
+export async function getNewArrivals(limit: number = 8) {
+  try {
+    await connectDB();
+    
+    const fifteenDaysAgo = new Date();
+    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+    
+    const products = await Product.find({
+      status: 'active',
+      deletedAt: null,
+      createdAt: { $gte: fifteenDaysAgo }
+    })
+      .select('_id name slug thumbnail brandId categoryId lowestPrice highestPrice status variants images soldCount averageRating createdAt')
+      .populate('brandId', 'name slug')
+      .populate('categoryId', 'name slug')
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+    
+    const transformedProducts = products.map(transformProduct);
+
+    const productsDTO: IProduct[] = transformedProducts.map((product: any) =>
+      toProductDTO(serializeDocument(product))
+    );
+    
+    return { success: true, products: productsDTO };
+  } catch (error) {
+    console.error('Error fetching new arrivals:', error);
+    return { success: false, products: [] };
+  }
+}
+
+// Get Best Selling Products (high rating + high sold count)
+export async function getBestSellingProducts(limit: number = 8) {
+  try {
+    await connectDB();
+    
+    // Score = averageRating * 20 + (soldCount / 100)
+    // This gives more weight to rating while still considering sales
+    const products = await Product.find({
+      status: 'active',
+      deletedAt: null,
+      soldCount: { $gt: 0 }
+    })
+      .select('_id name slug thumbnail brandId categoryId lowestPrice highestPrice status variants images soldCount averageRating createdAt')
+      .populate('brandId', 'name slug')
+      .populate('categoryId', 'name slug')
+      .sort({ averageRating: -1, soldCount: -1 })
+      .limit(limit)
+      .lean();
+    
+    const productsDTO = products.map((p: any) => toProductDTO(serializeDocument(p)));
+    
+    return { success: true, products: productsDTO };
+  } catch (error) {
+    console.error('Error fetching best selling products:', error);
+    return { success: false, products: [] };
+  }
+}
+
+// Get products with rating >= 4.5
+export async function getTopRatedProducts(limit: number = 8) {
+  try {
+    await connectDB();
+    
+    const products = await Product.find({
+      status: 'active',
+      deletedAt: null,
+      averageRating: { $gte: 4.5 }
+    })
+      .select('_id name slug thumbnail brandId categoryId lowestPrice highestPrice status variants images soldCount averageRating createdAt')
+      .populate('brandId', 'name slug')
+      .populate('categoryId', 'name slug')
+      .sort({ averageRating: -1, soldCount: -1 })
+      .limit(limit)
+      .lean();
+    
+    const productsDTO = products.map((p: any) => toProductDTO(serializeDocument(p)));
+    
+    return { success: true, products: productsDTO };
+  } catch (error) {
+    console.error('Error fetching top rated products:', error);
+    return { success: false, products: [] };
+  }
+}
