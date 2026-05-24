@@ -8,6 +8,7 @@ import { Category } from '@/models/Category';
 import { Brand } from '@/models/Brand';
 import { CreateProductSchema } from '@/lib/validations/product.validation';
 
+
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
@@ -24,12 +25,18 @@ export async function GET(request: NextRequest) {
     const specsParam = searchParams.get('specs');
     const tags = searchParams.get('tags');
     const sortBy = searchParams.get('sortBy') || 'newest';
-    
+    const inStock = searchParams.get('inStock'); // Add this line
+
     const filter: any = {};
     
     if (status && status !== 'all') {
       filter.status = status;
+    }else {
+      filter.status = 'active'; // Only show active products
     }
+
+     // Add deletedAt filter (exclude deleted products)
+    filter.deletedAt = null;
     
     if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
       filter.categoryId = categoryId;
@@ -43,6 +50,17 @@ export async function GET(request: NextRequest) {
       filter.lowestPrice = {};
       if (minPrice) filter.lowestPrice.$gte = parseFloat(minPrice);
       if (maxPrice) filter.lowestPrice.$lte = parseFloat(maxPrice);
+    }
+
+
+    //  FIX: Handle in-stock filtering properly
+    if (inStock === 'true') {
+      // Products are in stock if they have at least one variant with inventory > 0
+      filter['variants'] = {
+        $elemMatch: {
+          inventory: { $gt: 0 }
+        }
+      };
     }
     
     // Text search
@@ -112,6 +130,7 @@ export async function GET(request: NextRequest) {
         .lean(),
       Product.countDocuments(filter)
     ]);
+
     
     
     return NextResponse.json({

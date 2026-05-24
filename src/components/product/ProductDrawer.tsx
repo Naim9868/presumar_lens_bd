@@ -14,6 +14,7 @@ import { useProductDrawer } from '@/hooks/useProductDrawer';
 import { useCheckout } from '@/hooks/useCheckout';
 import { useCart } from '@/hooks/useCart';
 import { useWishlist } from '@/hooks/useWishlist';
+import { useRecentlyViewed } from '@/hooks/useRecentlyViewed';
 import type { IProduct, ProductSpec } from '@/types/product';
 import toast from 'react-hot-toast';
 import { ProductVariant } from '@/types';
@@ -28,6 +29,7 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
   const { addToCart } = useCart();
   const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
   const { openCheckout } = useCheckout();
+  const { addToRecentlyViewed } = useRecentlyViewed();
 
   // State
   const [selectedImage, setSelectedImage] = useState(0);
@@ -193,6 +195,17 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
     setSelectedVariant(defaultVariant);
   }
 }, [isOpen, product, resetDrawerState]);
+
+
+
+  useEffect(() => {
+    if (product) {
+      addToRecentlyViewed(product);
+    }
+  }, [product, addToRecentlyViewed]);
+
+
+  
 
   // Close on escape key
   const handleClose = () => {

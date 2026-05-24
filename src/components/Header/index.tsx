@@ -11,8 +11,13 @@ import { useCartModalContext } from "@/app/context/CartSidebarModalContext";
 import { useWishlistModalContext } from "@/app/context/WishlistSidebarModalContext";
 import { useCartContext } from "@/app/context/CartContext";
 import { useWishlistContext } from "@/app/context/WishlistContext";
+import { fetchCategories } from "@/app/actions/category.actions";
+import { fetchBrands, Brand } from "@/app/actions/brand.actions"
+import SearchModal from "@/components/Search/SearchModal";
+import RecentlyViewedModal from "./RecentlyViewedModal";
+import { useRecentlyViewed } from "@/hooks/useRecentlyViewed";
 import Image from "next/image";
-import { Menu, X, Search, User, ShoppingBag, Phone, Heart, Eye } from "lucide-react";
+import { Menu, X, Search, User, ShoppingBag, Phone, Heart, Eye, ChevronDown  } from "lucide-react";
 
 const Header = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -23,9 +28,28 @@ const Header = () => {
   const [isNavVisible, setIsNavVisible] = useState(true);
   const { openCartModal } = useCartModalContext();
   const { openWishlistModal } = useWishlistModalContext();
- 
+  const [categories, setCategories] = useState<
+    { label: string; value: string }[]
+  >([
+    {
+      label: "All Categories",
+      value: "0",
+    },
+  ]);
+  const [selectedCategory, setSelectedCategory] = useState("0");
+
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [brandsDropdownOpen, setBrandsDropdownOpen] = useState(false);
+
+  const [recentlyViewedOpen, setRecentlyViewedOpen] = useState(false);
+
   const { cartCount, cartTotal } = useCartContext();
   const { wishlistCount } = useWishlistContext();
+  const { recentlyViewed, addToRecentlyViewed } = useRecentlyViewed();
   // const totalPrice = useSelector(selectTotalPrice);
   const totalPrice = cartTotal;
 
@@ -36,6 +60,84 @@ const Header = () => {
   const handleOpenWishlistModal = () => {
     openWishlistModal();
   };
+
+  //fetch categories.
+  useEffect(() => {
+    async function loadCategories() {
+
+      const data = await fetchCategories();
+
+      const formatted = [
+        {
+          label: "All Categories",
+          value: "0",
+        },
+
+        ...data.map((cat) => ({
+          label: cat.name,
+          value: cat._id,
+        })),
+      ];
+
+      setCategories(formatted);
+    }
+
+    loadCategories();
+  }, []);
+
+
+   //fetch brands
+  useEffect(() => {
+    async function loadBrands() {
+      const data = await fetchBrands();
+      setBrands(data);
+    }
+    loadBrands();
+  }, []);
+
+
+  //search results.
+  useEffect(() => {
+    const delayDebounce = setTimeout(async () => {
+
+      if (!searchQuery.trim()) {
+        setSearchResults([]);
+        setSearchOpen(false);
+        return;
+      }
+
+      try {
+        setSearchLoading(true);
+
+        const res = await fetch(
+          `/api/search-products?q=${encodeURIComponent(
+            searchQuery
+          )}`
+        );
+
+        console.log(res);
+
+        if (!res.ok) {
+          throw new Error("Failed to fetch");
+        }
+
+        const data = await res.json();
+
+        setSearchResults(data.products || []);
+        setSearchOpen(true);
+
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setSearchLoading(false);
+      }
+
+    }, 400);
+
+    return () => clearTimeout(delayDebounce);
+
+  }, [searchQuery, selectedCategory]);
+
 
   // Handle sticky menu and auto-hide for navigation
   const handleScroll = () => {
@@ -72,16 +174,11 @@ const Header = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const options = [
-    { label: "All Categories", value: "0" },
-    { label: "Desktop", value: "1" },
-    { label: "Laptop", value: "2" },
-    { label: "Monitor", value: "3" },
-    { label: "Phone", value: "4" },
-    { label: "Watch", value: "5" },
-    { label: "Mouse", value: "6" },
-    { label: "Tablet", value: "7" },
-  ];
+  const options = categories;
+
+  const handleBrandClick = (brand: Brand) => {
+    window.location.href = `/products?brand=${brand.slug}`;
+  };
 
   return (
     <header className="fixed left-0 top-0 w-full z-[999] transition-shadow duration-300">
@@ -89,9 +186,8 @@ const Header = () => {
       <div className="w-full bg-[#191970]">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-4">
           <div
-            className={`flex flex-col lg:flex-row items-center justify-between gap-3 lg:gap-4 transition-all duration-200 ${
-              stickyMenu ? "py-2 lg:py-3" : "py-3 lg:py-4"
-            }`}
+            className={`flex flex-col lg:flex-row items-center justify-between gap-3 lg:gap-4 transition-all duration-200 ${stickyMenu ? "py-2 lg:py-3" : "py-3 lg:py-4"
+              }`}
           >
             {/* Logo - Left Side */}
             <div className="flex items-center justify-between w-full lg:w-auto">
@@ -274,19 +370,65 @@ const Header = () => {
 
       {/* Navigation Section Bottom */}
       <div
-        className={`bg-amber-50 transition-all duration-300 ease-in-out ${
-          isNavVisible ? "translate-y-0 opacity-100" : "-translate-x-full opacity-0"
-        }`}
+        className={`bg-amber-50 transition-all duration-300 ease-in-out ${isNavVisible ? "translate-y-0 opacity-100" : "-translate-x-full opacity-0"
+          }`}
       >
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-4">
           <div className="relative">
+            
+             {/* Desktop Navigation - Left Brands, Right Recently Viewed */}
+            <div className="hidden lg:flex items-center justify-between py-3">
+              {/* Left Side - Brands Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setBrandsDropdownOpen(!brandsDropdownOpen)}
+                  className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                >
+                  <span>Shop by Brand</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${brandsDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {brandsDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+                    <div className="p-2">
+                      {brands.map((brand) => (
+                        <button
+                          key={brand._id}
+                          onClick={() => {
+                            handleBrandClick(brand);
+                            setBrandsDropdownOpen(false);
+                          }}
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 rounded-md transition-colors"
+                        >
+                          {brand.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Side - Recently Viewed Button */}
+              <button
+                onClick={() => setRecentlyViewedOpen(true)}
+                className="flex items-center gap-1.5 text-xs font-medium text-gray-700 hover:text-blue-600 transition-colors"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                Recently Viewed
+                {/* {recentlyViewed.length > 0 && (
+                  <span className="ml-1 bg-gray-200 text-gray-600 text-xs rounded-full px-1.5 py-0.5">
+                    {recentlyViewed.length}
+                  </span>
+                )} */}
+              </button>
+            </div>
+
             {/* Mobile Navigation Menu */}
             <div
-              className={`lg:hidden absolute top-0 left-0 right-0 bg-white border-b border-gray-200 shadow-lg transition-all duration-300 ease-in-out z-50 ${
-                navigationOpen
-                  ? "opacity-100 visible translate-y-0 max-h-[80vh] overflow-y-auto"
-                  : "opacity-0 invisible -translate-y-2 max-h-0"
-              }`}
+              className={`lg:hidden absolute top-0 left-0 right-0 bg-white border-b border-gray-200 shadow-lg transition-all duration-300 ease-in-out z-50 ${navigationOpen
+                ? "opacity-100 visible translate-y-0 max-h-[80vh] overflow-y-auto"
+                : "opacity-0 invisible -translate-y-2 max-h-0"
+                }`}
             >
               <div className="p-4 space-y-3">
                 <div className="space-y-2">
@@ -327,7 +469,10 @@ const Header = () => {
                   <Link
                     href="/recently-viewed"
                     className="flex items-center gap-3 py-2 px-3 text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-colors text-sm"
-                    onClick={() => setNavigationOpen(false)}
+                    onClick={() =>{
+                      setRecentlyViewedOpen(true);
+                      setNavigationOpen(false);
+                    }}
                   >
                     <Eye className="w-4 h-4" />
                     <span className="font-medium">Recently Viewed</span>
@@ -356,6 +501,7 @@ const Header = () => {
             {/* Desktop Navigation */}
             <div className="hidden lg:flex items-center justify-between py-2">
               <div className="flex items-center gap-4">
+                
                 <Link
                   href="/recently-viewed"
                   className="flex items-center gap-1.5 text-xs font-medium text-gray-700 hover:text-blue-600 transition-colors"
@@ -368,6 +514,19 @@ const Header = () => {
           </div>
         </div>
       </div>
+
+      <SearchModal
+        open={searchOpen}
+        loading={searchLoading}
+        products={searchResults}
+        onClose={() => setSearchOpen(false)}
+      />
+
+      <RecentlyViewedModal
+        isOpen={recentlyViewedOpen}
+        onClose={() => setRecentlyViewedOpen(false)}
+      />
+
     </header>
   );
 };

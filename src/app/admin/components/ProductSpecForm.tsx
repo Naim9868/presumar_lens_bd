@@ -197,8 +197,8 @@ export function ProductSpecForm({
             <option value="">
               Select {field.label.toLowerCase()}...
             </option>
-            {field.options?.map((opt) => (
-              <option key={opt} value={opt}>
+            {field.options?.map((opt, index) => (
+              <option key={index} value={opt}>
                 {opt}
               </option>
             ))}

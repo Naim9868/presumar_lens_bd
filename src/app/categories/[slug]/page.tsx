@@ -50,8 +50,6 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     parseInt(page),
     sort
   );
-
- 
   
   // Pass data to client component
   return (

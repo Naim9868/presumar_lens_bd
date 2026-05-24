@@ -33,6 +33,10 @@ const CategorySchema = new Schema({
   toObject: { virtuals: true }
 });
 
+CategorySchema.index({
+  name: "text",
+  slug: "text",
+});
 // NO middleware - slug will be handled in the API route
 
 export const Category = mongoose.models.Category || mongoose.model('Category', CategorySchema);

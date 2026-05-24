@@ -180,7 +180,7 @@ const CategoryClient = ({
                 {category.children.map((subcat) => (
                   <Link
                     key={subcat._id}
-                    href={`/category/${subcat.slug}`}
+                    href={`/categories/${subcat.slug}`}
                     className="group flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-full hover:border-amber-400 dark:hover:border-amber-500 transition-all duration-300 hover:shadow-md"
                   >
                     {subcat.image ? (

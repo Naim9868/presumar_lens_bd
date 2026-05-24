@@ -49,6 +49,6 @@ const BrandSchema = new Schema<IBrand>({
 });
 
 // Index for search
-BrandSchema.index({ name: 'text', description: 'text' });
+BrandSchema.index({ name: 'text', slug: "text", description: 'text' });
 
 export const Brand: Model<IBrand> = mongoose.models.Brand || mongoose.model<IBrand>('Brand', BrandSchema);
