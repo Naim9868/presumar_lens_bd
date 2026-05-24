@@ -499,7 +499,7 @@ const Header = () => {
             </div>
 
             {/* Desktop Navigation */}
-            <div className="hidden lg:flex items-center justify-between py-2">
+            {/* <div className="hidden lg:flex items-center justify-between py-2">
               <div className="flex items-center gap-4">
                 
                 <Link
@@ -510,7 +510,7 @@ const Header = () => {
                   Recently Viewed
                 </Link>
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
