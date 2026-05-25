@@ -33,6 +33,7 @@ interface ProductSearchFilterProps {
   onLoadingChange?: (loading: boolean) => void;
   brands: Brand[];
   initialSort?: string;
+  initialBrandSlug?: string;
   className?: string;
 }
 
@@ -67,6 +68,7 @@ export default function ProductSearchFilter({
   onLoadingChange,
   brands,
   initialSort = "newest",
+  initialBrandSlug = "",
   className = "",
 }: ProductSearchFilterProps) {
   const [mounted, setMounted] = useState(false);
@@ -75,10 +77,14 @@ export default function ProductSearchFilter({
 
   const [searchInput, setSearchInput] = useState("");
 
+  const initialBrand = brands.find(
+    (b) => b.slug === initialBrandSlug
+  );
+
   const [filters, setFilters] = useState({
     searchQuery: "",
     selectedSort: initialSort,
-    selectedBrandId: "",
+    selectedBrandId: initialBrand?._id || "",
     inStockOnly: false,
     minPrice: MIN_PRICE,
     maxPrice: MAX_PRICE,
@@ -284,15 +290,42 @@ export default function ProductSearchFilter({
     fetchProducts(resetFilters);
   };
 
-  // auto fetch sort
   useEffect(() => {
-    if (!mounted) return;
+  if (!initialBrandSlug) {
+    setFilters((prev) => ({
+      ...prev,
+      selectedBrandId: "",
+    }));
 
-    fetchProducts(filters);
-  }, [
-    filters.selectedSort,
-    mounted,
-  ]);
+    return;
+  }
+
+  const matchedBrand = brands.find(
+    (b) => b.slug === initialBrandSlug
+  );
+
+  if (!matchedBrand) return;
+
+  setFilters((prev) => ({
+    ...prev,
+    selectedBrandId: matchedBrand._id,
+  }));
+}, [initialBrandSlug, brands]);
+
+  // auto fetch sort
+useEffect(() => {
+  if (!mounted) return;
+
+  fetchProducts(filters);
+}, [
+  mounted,
+  filters.searchQuery,
+  filters.selectedSort,
+  filters.selectedBrandId,
+  filters.inStockOnly,
+  filters.minPrice,
+  filters.maxPrice,
+]);
 
   if (!mounted) return null;
 
@@ -407,10 +440,9 @@ export default function ProductSearchFilter({
         className={`
           fixed inset-0 z-50
           transition-all duration-300
-          ${
-            isModalOpen
-              ? "opacity-100 visible"
-              : "opacity-0 invisible"
+          ${isModalOpen
+            ? "opacity-100 visible"
+            : "opacity-0 invisible"
           }
         `}
       >
@@ -433,10 +465,9 @@ export default function ProductSearchFilter({
             shadow-2xl
             transition-all duration-300
             -translate-x-1/2 -translate-y-1/2
-            ${
-              isModalOpen
-                ? "scale-100 opacity-100"
-                : "scale-95 opacity-0"
+            ${isModalOpen
+              ? "scale-100 opacity-100"
+              : "scale-95 opacity-0"
             }
           `}
         >
@@ -568,18 +599,17 @@ export default function ProductSearchFilter({
                           ...prev,
                           selectedBrandId:
                             prev.selectedBrandId ===
-                            brand._id
+                              brand._id
                               ? ""
                               : brand._id,
                         }))
                       }
                       className={`
                         px-4 py-2 rounded-full text-sm border transition-all
-                        ${
-                          filters.selectedBrandId ===
+                        ${filters.selectedBrandId ===
                           brand._id
-                            ? "bg-amber-500 text-white border-amber-500"
-                            : "bg-gray-50 dark:bg-slate-800 border-gray-200 dark:border-slate-700"
+                          ? "bg-amber-500 text-white border-amber-500"
+                          : "bg-gray-50 dark:bg-slate-800 border-gray-200 dark:border-slate-700"
                         }
                       `}
                     >

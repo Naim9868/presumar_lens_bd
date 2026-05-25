@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useCallback } from 'react';
+import { useSearchParams } from "next/navigation";
 import { Package, ChevronLeft, ChevronRight, Home, Grid3X3, List } from 'lucide-react';
 import Link from 'next/link';
 import ProductCard from '@/components/product/ProductCard';
@@ -29,6 +30,10 @@ export default function ProductsClient({
   const [total, setTotal] = useState(initialTotal);
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  const searchParams = useSearchParams();
+
+  const brandSlug = searchParams.get("brand");
 
   const handleProductsUpdate = useCallback((newProducts: IProduct[], newTotal: number) => {
     setProducts(newProducts);
@@ -71,6 +76,7 @@ export default function ProductsClient({
             onLoadingChange={handleLoadingChange}
             brands={brands}
             initialSort="newest"
+            initialBrandSlug={brandSlug || ""}
           />
         </div>
 

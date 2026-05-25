@@ -25,7 +25,6 @@ const CartSidebarModal = () => {
     }
 
     if (isCartModalOpen) {
-      console.log(cartItems);
       document.addEventListener("mousedown", handleClickOutside);
       document.body.style.overflow = "hidden";
     }

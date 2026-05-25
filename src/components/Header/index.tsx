@@ -1,12 +1,8 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import CustomSelect from "./CustomSelect";
-import { menuData } from "./menuData";
-import Dropdown from "./Dropdown";
-import { useAppSelector } from "@/redux/store";
-import { useSelector } from "react-redux";
-// import { selectTotalPrice } from "@/redux/features/cart-slice";
 import { useCartModalContext } from "@/app/context/CartSidebarModalContext";
 import { useWishlistModalContext } from "@/app/context/WishlistSidebarModalContext";
 import { useCartContext } from "@/app/context/CartContext";
@@ -49,6 +45,7 @@ const Header = () => {
 
   const { cartCount, cartTotal } = useCartContext();
   const { wishlistCount } = useWishlistContext();
+  const router = useRouter();
   const { recentlyViewed, addToRecentlyViewed } = useRecentlyViewed();
   // const totalPrice = useSelector(selectTotalPrice);
   const totalPrice = cartTotal;
@@ -177,7 +174,8 @@ const Header = () => {
   const options = categories;
 
   const handleBrandClick = (brand: Brand) => {
-    window.location.href = `/products?brand=${brand.slug}`;
+    router.push(`/products?brand=${brand.slug}`);
+    router.refresh();
   };
 
   return (
@@ -261,7 +259,7 @@ const Header = () => {
             <div className="hidden lg:block w-[500px] xl:w-[600px]">
               <form>
                 <div className="flex items-center gap-3">
-                  <CustomSelect options={options} />
+                  {/* <CustomSelect options={options} /> */}
                   <div className="relative flex-1">
                     <input
                       onChange={(e) => setSearchQuery(e.target.value)}
@@ -271,7 +269,7 @@ const Header = () => {
                       id="search"
                       placeholder="I am shopping for..."
                       autoComplete="off"
-                      className="w-full rounded-[20px] bg-gray-50 border border-gray-300 py-2 pl-4 pr-10 outline-none focus:border-blue-500 transition-colors text-sm"
+                      className="w-full rounded-[20px] bg-gray-50 border border-gray-600 py-2 pl-4 pr-10 outline-none focus:border-blue-500 transition-colors text-sm"
                     />
                     <button
                       type="submit"
@@ -377,20 +375,20 @@ const Header = () => {
           <div className="relative">
             
              {/* Desktop Navigation - Left Brands, Right Recently Viewed */}
-            <div className="hidden lg:flex items-center justify-between py-3">
+            <div className="relative hidden lg:flex items-center justify-between py-5">
               {/* Left Side - Brands Dropdown */}
-              <div className="relative">
-                <button
+              {/* <div className=" border-black"> */}
+                {/* <button
                   onClick={() => setBrandsDropdownOpen(!brandsDropdownOpen)}
                   className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
                 >
                   <span>Shop by Brand</span>
                   <ChevronDown className={`w-4 h-4 transition-transform ${brandsDropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
+                </button> */}
                 
-                {brandsDropdownOpen && (
-                  <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
-                    <div className="p-2">
+                
+                  <div className="absolute z-50 max-h-96">
+                    <div className=" flex flex-row">
                       {brands.map((brand) => (
                         <button
                           key={brand._id}
@@ -405,13 +403,13 @@ const Header = () => {
                       ))}
                     </div>
                   </div>
-                )}
-              </div>
+                
+              {/* </div> */}
 
               {/* Right Side - Recently Viewed Button */}
               <button
                 onClick={() => setRecentlyViewedOpen(true)}
-                className="flex items-center gap-1.5 text-xs font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                className="absolute right-0 flex items-center gap-1.5 text-xs font-medium text-gray-700 hover:text-blue-600 transition-colors"
               >
                 <Eye className="w-3.5 h-3.5" />
                 Recently Viewed
@@ -466,8 +464,7 @@ const Header = () => {
                     )}
                   </button>
 
-                  <Link
-                    href="/recently-viewed"
+                  <div
                     className="flex items-center gap-3 py-2 px-3 text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-colors text-sm"
                     onClick={() =>{
                       setRecentlyViewedOpen(true);
@@ -476,7 +473,7 @@ const Header = () => {
                   >
                     <Eye className="w-4 h-4" />
                     <span className="font-medium">Recently Viewed</span>
-                  </Link>
+                  </div>
 
                   <Link
                     href="/account"
