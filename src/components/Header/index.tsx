@@ -155,10 +155,31 @@ const Header = () => {
     setLastScrollY(currentScrollY);
   };
 
-  useEffect(() => {
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [lastScrollY]);
+ useEffect(() => {
+  const onScroll = () => {
+    const currentScrollY = window.scrollY;
+
+    setStickyMenu(currentScrollY >= 80);
+
+    if (
+      currentScrollY > lastScrollY &&
+      currentScrollY > 100
+    ) {
+      setIsNavVisible(false);
+    } else {
+      setIsNavVisible(true);
+    }
+
+    setLastScrollY(currentScrollY);
+  };
+
+  window.addEventListener("scroll", onScroll, {
+    passive: true,
+  });
+
+  return () =>
+    window.removeEventListener("scroll", onScroll);
+}, [lastScrollY]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -171,12 +192,16 @@ const Header = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const options = categories;
+  // const options = categories;
 
   const handleBrandClick = (brand: Brand) => {
     router.push(`/products?brand=${brand.slug}`);
-    router.refresh();
   };
+
+  // const imageSrc =
+  // product.thumbnail?.startsWith("http")
+  //   ? product.thumbnail
+  //   : `/${product.thumbnail}`;
 
   return (
     <header className="fixed left-0 top-0 w-full z-[999] transition-shadow duration-300">
@@ -269,7 +294,7 @@ const Header = () => {
                       id="search"
                       placeholder="I am shopping for..."
                       autoComplete="off"
-                      className="w-full rounded-[20px] bg-gray-50 border border-gray-600 py-2 pl-4 pr-10 outline-none focus:border-blue-500 transition-colors text-sm"
+                      className="w-full rounded-[20px] bg-gray-50 border border-gray-800 py-2 pl-4 pr-10 outline-none focus:border-blue-500 transition-colors text-sm"
                     />
                     <button
                       type="submit"
@@ -350,7 +375,7 @@ const Header = () => {
                     type="search"
                     placeholder="I am shopping for..."
                     autoComplete="off"
-                    className="w-full rounded-lg border border-gray-300 bg-gray-50 py-2 pl-4 pr-10 outline-none focus:border-blue-500 transition-colors text-sm"
+                    className="w-full rounded-lg border border-gray-800 bg-gray-50 py-2 pl-4 pr-10 outline-none focus:border-blue-500 transition-colors text-sm"
                   />
                   <button
                     type="submit"
@@ -396,7 +421,7 @@ const Header = () => {
                             handleBrandClick(brand);
                             setBrandsDropdownOpen(false);
                           }}
-                          className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 rounded-md transition-colors"
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-gray-50 hover:text-blue-600 rounded-md transition-colors"
                         >
                           {brand.name}
                         </button>

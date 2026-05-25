@@ -658,20 +658,7 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* Error Display */}
-        {Object.keys(errors).length > 0 && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4" ref={(el) => { errorRefs.current['error-summary'] = el; }}>
-            <h3 className="text-sm font-medium text-red-800 mb-2 flex items-center gap-2">
-              <AlertCircle className="h-4 w-4" />
-              Please fix the following errors:
-            </h3>
-            <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
-              {Object.entries(errors).map(([key, error]) => (
-                <li key={key}>{error}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+        
 
         {/* Delete Confirmation Modal */}
         {showDeleteConfirm && (
@@ -994,7 +981,7 @@ useEffect(() => {
           </div>
 
           {/* Submit Buttons */}
-          <div className="flex justify-end gap-3">
+          <div className="flex justify-end gap-3 mb-4">
             <Link
               href="/admin/products"
               className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -1011,6 +998,22 @@ useEffect(() => {
             </button>
           </div>
         </form>
+
+        {/* Error Display */}
+        {Object.keys(errors).length > 0 && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4" ref={(el) => { errorRefs.current['error-summary'] = el; }}>
+            <h3 className="text-sm font-medium text-red-800 mb-2 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" />
+              Please fix the following errors:
+            </h3>
+            <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+              {Object.entries(errors).map(([key, error]) => (
+                <li key={key}>{error}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
       </div>
     </div>
   );
