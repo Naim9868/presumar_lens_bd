@@ -121,10 +121,10 @@ export default function NewArrivalsClient({ products, title, subtitle }: NewArri
         {/* View All Link */}
         <div className="text-center mt-8">
           <Link
-            href="/products?sort=newest"
+            href="/products"
             className="inline-flex items-center gap-2 text-amber-600 hover:text-amber-700 font-semibold group"
           >
-            View All New Arrivals
+            View All Products
             <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </Link>
         </div>
