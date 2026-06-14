@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { Filter, ChevronDown, ChevronUp, X } from 'lucide-react';
-import { FilterOptions } from '@/types';
+import { IProductFilters } from '@/types/product';
 import { FilterSection } from './FilterSection';
 
 interface ProductFiltersProps {
   brands: Array<{ _id: string; name: string; slug: string }>;
-  onFilterChange: (filters: FilterOptions) => void;
-  initialFilters?: FilterOptions;
+  onFilterChange: (filters:  Partial<IProductFilters>) => void;
+  initialFilters?: Partial<IProductFilters>;
   onClose?: () => void;
   isMobile?: boolean;
 }
@@ -16,9 +16,9 @@ interface ProductFiltersProps {
 export function ProductFilters({ brands, onFilterChange, initialFilters, onClose, isMobile = false }: ProductFiltersProps) {
   const [isOpen, setIsOpen] = useState(!isMobile);
   const [expandedSections, setExpandedSections] = useState<string[]>(['price', 'brands']);
-  const [selectedBrands, setSelectedBrands] = useState<string[]>(initialFilters?.brands || []);
+  const [selectedBrands, setSelectedBrands] = useState<string[]>( initialFilters?.brandId ? [initialFilters.brandId] : []);
   const [priceRange, setPriceRange] = useState({ min: initialFilters?.minPrice || 0, max: initialFilters?.maxPrice || 100000 });
-  const [inStockOnly, setInStockOnly] = useState(initialFilters?.inStock || false);
+  // const [inStockOnly, setInStockOnly] = useState(initialFilters?.inStock || false);
   // const [selectedRating, setSelectedRating] = useState(initialFilters?.rating || 0);
 
   const toggleSection = (section: string) => {
@@ -41,8 +41,8 @@ export function ProductFilters({ brands, onFilterChange, initialFilters, onClose
     onFilterChange({
       minPrice: priceRange.min > 0 ? priceRange.min : undefined,
       maxPrice: priceRange.max < 100000 ? priceRange.max : undefined,
-      brands: selectedBrands.length > 0 ? selectedBrands : undefined,
-      inStock: inStockOnly || undefined,
+      brandId: selectedBrands.length === 1 ? selectedBrands[0] : undefined,
+      // inStock: inStockOnly || undefined,
       // rating: selectedRating > 0 ? selectedRating : undefined,
     });
     if (isMobile && onClose) onClose();
@@ -51,13 +51,13 @@ export function ProductFilters({ brands, onFilterChange, initialFilters, onClose
   const clearFilters = () => {
     setSelectedBrands([]);
     setPriceRange({ min: 0, max: 100000 });
-    setInStockOnly(false);
+    // setInStockOnly(false);
     // setSelectedRating(0);
     onFilterChange({});
     if (isMobile && onClose) onClose();
   };
 
-  const hasActiveFilters = selectedBrands.length > 0 || priceRange.min > 0 || priceRange.max < 100000 || inStockOnly
+  const hasActiveFilters = selectedBrands.length > 0 || priceRange.min > 0 || priceRange.max < 100000 // || inStockOnly
 
   // const FilterSection = ({ title, section, children }: { title: string; section: string; children: React.ReactNode }) => (
   //   <div className="border-b border-gray-200 dark:border-gray-800 py-4">
@@ -147,7 +147,7 @@ export function ProductFilters({ brands, onFilterChange, initialFilters, onClose
       </FilterSection>
 
       {/* Availability */}
-      <FilterSection
+      {/* <FilterSection
         title="Availability" section="availability"
         expandedSections={expandedSections}
         toggleSection={toggleSection}
@@ -161,7 +161,7 @@ export function ProductFilters({ brands, onFilterChange, initialFilters, onClose
           />
           <span className="text-sm text-gray-700 dark:text-gray-300">In Stock Only</span>
         </label>
-      </FilterSection>
+      </FilterSection> */}
 
       {/* Rating */}
       {/* <FilterSection title="Customer Rating" section="rating">

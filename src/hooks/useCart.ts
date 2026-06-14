@@ -1,3 +1,4 @@
+// hooks/useCart.ts
 'use client';
 
 import { useMemo, useCallback } from 'react';
@@ -7,11 +8,42 @@ import { verifyProductAvailability } from '@/app/actions/cart.actions';
 import { toast } from 'react-hot-toast';
 import { IProduct } from '@/types/product';
 
+// Helper function to get the first image from product
+const getProductImage = (product: IProduct): string => {
+  // Check thumbnail first
+  if (product.thumbnail) {
+    return product.thumbnail;
+  }
+  
+  // Check image groups for first image
+  if (product.imageGroups && Array.isArray(product.imageGroups) && product.imageGroups.length > 0) {
+    const firstGroup = product.imageGroups[0];
+    if (firstGroup && firstGroup.images && Array.isArray(firstGroup.images) && firstGroup.images.length > 0) {
+      const firstImage = firstGroup.images[0];
+      // Handle both string and object image formats
+      if (typeof firstImage === 'string') {
+        return firstImage;
+      }
+      if (typeof firstImage === 'object' && firstImage.url) {
+        return firstImage.url;
+      }
+    }
+  }
+  
+  // Return default placeholder
+  return '/images/placeholder.jpg';
+};
+
 export function useCart() {
   const { storedValue: cartItems, setValue: setCartItems, isLoaded } = useLocalStorage<CartItem[]>('cart', []);
 
   const addToCart = useCallback(async (product: IProduct, variant?: ProductVariant, quantity: number = 1) => {
     const variantToUse = variant || product.variants?.find((v) => v.isDefault) || product.variants?.[0];
+    
+    if (!variantToUse) {
+      toast.error('Product variant not found');
+      return false;
+    }
     
     // Verify availability
     const availability = await verifyProductAvailability(product._id, variantToUse?.variantKey);
@@ -21,15 +53,15 @@ export function useCart() {
       return false;
     }
 
-    cartItems.map((item)=>{
+    // Debug log
+    cartItems.forEach((item) => {
       console.log(item);
-    })
+    });
     
     const existingItem = cartItems.find(
       item => item.productId === product._id && item.variantKey === variantToUse?.variantKey
     );
     
-   
     if (existingItem) {
       const newQuantity = existingItem.quantity + quantity;
       if (newQuantity > availability.stock) {
@@ -50,15 +82,18 @@ export function useCart() {
         return false;
       }
       
+      // Get product image
+      const productImage = getProductImage(product);
+      
       const newItem: CartItem = {
         id: `${product._id}-${variantToUse?.variantKey || 'default'}`,
         productId: product._id,
         variantId: variantToUse?.sku,
         name: product.name,
         slug: product.slug,
-        price: variantToUse?.price || product.price,
+        price: variantToUse?.price || product.lowestPrice || 0,
         quantity,
-        image: product.thumbnail || product.images?.[0],
+        image: productImage,
         sku: variantToUse?.sku,
         variantKey: variantToUse?.variantKey,
         attributes: variantToUse?.attributes,
@@ -73,15 +108,13 @@ export function useCart() {
   }, [cartItems, setCartItems]);
 
   const removeFromCart = useCallback((id: string) => {
-  setCartItems(items =>
-    items.filter(item => item.id !== id)
-  );
+    setCartItems(items =>
+      items.filter(item => item.id !== id)
+    );
+    toast.success('Removed from cart');
+  }, [setCartItems]);
 
-  toast.success('Removed from cart');
-}, [setCartItems]);
-
-
-   const updateQuantity = useCallback((id: string, quantity: number) => {
+  const updateQuantity = useCallback((id: string, quantity: number) => {
     if (quantity <= 0) {
       removeFromCart(id);
       return;
@@ -92,16 +125,14 @@ export function useCart() {
         item.id === id ? { ...item, quantity } : item
       )
     );
-  }, [setCartItems]);
+  }, [setCartItems, removeFromCart]);
 
- 
-
-   const clearCart = useCallback(() => {
+  const clearCart = useCallback(() => {
     setCartItems([]);
   }, [setCartItems]);
 
   const getCartTotal = useCallback(() => {
-    return cartItems.reduce((total=0, item) => total + (item.price * item.quantity), 0);
+    return cartItems.reduce((total = 0, item) => total + (item.price * item.quantity), 0);
   }, [cartItems]);
 
   const getCartCount = useCallback(() => {
@@ -111,7 +142,6 @@ export function useCart() {
   // Memoized values
   const cartTotal = useMemo(() => getCartTotal(), [getCartTotal]);
   const cartCount = useMemo(() => getCartCount(), [getCartCount]);
-  
 
   return {
     cartItems,

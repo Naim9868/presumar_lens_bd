@@ -1,6 +1,6 @@
 // app/api/reviews/[id]/route.ts (update the existing DELETE route to include PUT)
 import { NextResponse, NextRequest } from 'next/server';
-import { dbConnect } from '@/lib/dbConnect';
+import { connectDB } from '@/lib/dbConnect';
 import { Review } from '@/models/Review';
 import { Product } from '@/models/Product';
 
@@ -9,7 +9,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await dbConnect();
+    await connectDB();
     const { id } = await params;
     const review = await Review.findByIdAndDelete(id);
     
@@ -40,7 +40,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await dbConnect();
+    await connectDB();
      const { id } = await params;
     const body = await request.json();
     

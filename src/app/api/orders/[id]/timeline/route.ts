@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { updateOrderStatusSchema } from '@/lib/validations/order.validation';
-import { dbConnect } from '@/lib/dbConnect';
+import { connectDB } from '@/lib/dbConnect';
 import { OrderService } from '@/lib/services/order.service';
 
 export async function POST(
@@ -8,7 +8,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await dbConnect();
+    await connectDB();
 
     const { id } = await params;
 

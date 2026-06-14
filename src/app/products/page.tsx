@@ -1,52 +1,94 @@
-// app/products/page.tsx
-import { Metadata } from 'next';
-import { getAllProducts, getAllBrands } from '@/app/actions/product.actions';
-import ProductsClient from './ProductsClient';
+// src/app/products/page.tsx
 import { Suspense } from 'react';
+import { getProducts } from '@/app/actions/product/getProducts';
+import { getCategories } from '@/app/actions/category/getCategories';
+import { getBrands } from '@/app/actions/brand/getBrands';
+import Header from '@/components/Layout/Header';
+import Footer from '@/components/Layout/Footer';
+import ProductsClient from './ProductsClient';
 
-export const metadata: Metadata = {
-  title: 'All Products - ProsumerLensBD',
-  description: 'Shop premium mobile photography gear including lenses, gimbals, tripods, and creator accessories.',
-};
-
-export default async function ProductsPage() {
-  // Fetch initial products and brands using server actions (SSR for SEO)
-  const [productsResult, brandsResult] = await Promise.all([
-    getAllProducts({ page: 1, limit: 12, sortBy: 'newest' }),
-    getAllBrands(),
-  ]);
-
-  
-  return (
-    <Suspense fallback={<ProductsPageSkeleton />}>
-      <ProductsClient
-        initialProducts={productsResult.products}
-        initialTotal={productsResult.total}
-        brands={brandsResult.success ? brandsResult.brands : []}
-      />
-    </Suspense>
-  );
+interface SearchParams {
+  category?: string;
+  brand?: string;
+  minPrice?: string;
+  maxPrice?: string;
+  sort?: string;
+  page?: string;
+  search?: string;
 }
 
-// Loading skeleton
-function ProductsPageSkeleton() {
+interface ProductsPageProps {
+  searchParams: Promise<SearchParams>;
+}
+
+export default async function ProductsPage({ searchParams }: ProductsPageProps) {
+  const params = await searchParams;
+  
+  // Get filter parameters
+  const categoryId = params.category;
+  const brandId = params.brand;
+  const minPrice = params.minPrice ? parseFloat(params.minPrice) : undefined;
+  const maxPrice = params.maxPrice ? parseFloat(params.maxPrice) : undefined;
+  const sort = params.sort || 'newest';
+  const page = parseInt(params.page || '1');
+  const search = params.search;
+
+  // Fetch all data in parallel
+  const [productsResult, categories, brands] = await Promise.all([
+    getProducts({
+      page,
+      limit: 12,
+      categoryId,
+      brandId,
+      minPrice,
+      maxPrice,
+      sort,
+      query: search,
+      status: 'active',
+    }),
+    getCategories({ status: 'active' }),
+    getBrands({ isActive: true }),
+  ]);
+
+  const products = productsResult?.products || [];
+  const pagination = productsResult?.pagination || { 
+    page: 1, 
+    limit: 12, 
+    total: 0, 
+    totalPages: 0 
+  };
+
+  // Pass initial data to client component
   return (
-    <div className="pt-[130px] md:pt-[140px] lg:pt-[150px] pb-12 min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-slate-950 dark:to-slate-900">
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-4">
-        <div className="h-12 bg-gray-200 dark:bg-slate-800 rounded-full mb-8 animate-pulse"></div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-            <div key={i} className="bg-white dark:bg-slate-900 rounded-2xl overflow-hidden animate-pulse">
-              <div className="aspect-square bg-gray-200 dark:bg-slate-800"></div>
-              <div className="p-4 space-y-2">
-                <div className="h-4 bg-gray-200 dark:bg-slate-800 rounded w-1/3"></div>
-                <div className="h-5 bg-gray-200 dark:bg-slate-800 rounded w-3/4"></div>
-                <div className="h-6 bg-gray-200 dark:bg-slate-800 rounded w-1/2"></div>
-              </div>
-            </div>
-          ))}
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+      
+      {/* Hero Banner */}
+      <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white py-16">
+        <div className="container mx-auto px-4">
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">Shop Our Products</h1>
+          <p className="text-gray-300 text-lg max-w-2xl">
+            Discover premium quality products at competitive prices. Shop with confidence and enjoy free shipping on orders over $50.
+          </p>
         </div>
       </div>
+
+      <ProductsClient 
+        initialProducts={products}
+        initialPagination={pagination}
+        categories={categories}
+        brands={brands}
+        initialFilters={{
+          categoryId,
+          brandId,
+          minPrice: minPrice?.toString(),
+          maxPrice: maxPrice?.toString(),
+          sort,
+          search,
+        }}
+      />
+
+      <Footer />
     </div>
   );
 }

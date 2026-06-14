@@ -4,11 +4,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { courierService } from '@/lib/services/courier.service';
 import Order from '@/models/Order';
-import { dbConnect } from '@/lib/dbConnect';
+import { connectDB } from '@/lib/dbConnect';
 
 export async function POST(req: NextRequest) {
   try {
-    await dbConnect();
+    await connectDB();
 
     const body = await req.json();
     const { orderId } = body;

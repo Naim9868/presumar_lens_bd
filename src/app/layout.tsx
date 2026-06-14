@@ -10,8 +10,8 @@ import ToastProvider from '@/components/providers/ToastProvider';
 // import ProductDrawer from '@/components/product/ProductDrawer';
 import { QueryProviders } from '@/components/providers/QueryClientProvider';
 import { ProductDrawerProvider } from '@/components/providers/DrawerProvider';
-import { ReduxProvider } from "@/redux/provider";
-import Header from '@/components/Header';
+// import { ReduxProvider } from "@/redux/provider";
+// import Header from '@/components/Header';
 import { Providers } from './context/Provider';
 import  CartSidebarModal  from "@/components/Common/CartSidebarModal";
 
@@ -39,12 +39,12 @@ export default function RootLayout({
   return (
     <html lang="en" data-scroll-behavior="smooth" className={`${inter.variable}`}>
       <body className="font-sans antialiased bg-gray-50">
-       <ReduxProvider>
+       {/* <ReduxProvider> */}
           <ProductDrawerProvider>
           <Providers>
               <QueryProviders>
               {/* <Navbar /> */}
-              <Header />
+              {/* <Header /> */}
               <main className="min-h-screen">
                 {children}
               </main>
@@ -55,7 +55,7 @@ export default function RootLayout({
             </QueryProviders>
           </Providers>
           </ProductDrawerProvider>
-       </ReduxProvider>
+       {/* </ReduxProvider> */}
       </body>
     </html>
   );

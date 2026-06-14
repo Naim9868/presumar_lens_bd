@@ -1,35 +1,82 @@
 // app/categories/CategoriesClient.tsx
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { 
   ArrowRight, Camera, Smartphone, Film, Package, Sparkles, 
   Grid3X3, Layers, ChevronRight, Search, X,
   Home, ChevronLeft
 } from "lucide-react";
-import { Category } from "@/types/category";
+import { Category } from "@/types";
 
 interface CategoriesClientProps {
   initialCategories: Category[];
 }
 
+// Extended category type with children for UI purposes
+interface CategoryWithChildren extends Category {
+  children?: CategoryWithChildren[];
+}
+
 const CategoriesClient = ({ initialCategories }: CategoriesClientProps) => {
   const router = useRouter();
-  const searchParams = useSearchParams();
   
   const [viewMode, setViewMode] = useState<'grid' | 'compact'>('grid');
   const [filterType, setFilterType] = useState<'all' | 'parent' | 'sub'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  // Get all categories (including subcategories) as a flat list
-  const getAllCategories = (categories: Category[]): Category[] => {
-    const allCategories: Category[] = [];
+  // Build category tree with children - FIXED: Properly build hierarchy
+  const buildCategoryTree = useCallback((categories: Category[]): CategoryWithChildren[] => {
+    const categoryMap = new Map<string, CategoryWithChildren>();
+    const roots: CategoryWithChildren[] = [];
+
+    // First, create a map of all categories
+    categories.forEach(category => {
+      categoryMap.set(category._id, { ...category, children: [] });
+    });
+
+    // Then, build the tree structure
+    categories.forEach(category => {
+      const categoryWithChildren = categoryMap.get(category._id);
+      if (categoryWithChildren) {
+        if (category.parentId && categoryMap.has(category.parentId)) {
+          const parent = categoryMap.get(category.parentId);
+          if (parent) {
+            parent.children = parent.children || [];
+            parent.children.push(categoryWithChildren);
+          }
+        } else {
+          roots.push(categoryWithChildren);
+        }
+      }
+    });
+
+    // Sort roots by name
+    roots.sort((a, b) => a.name.localeCompare(b.name));
     
-    const flattenCategories = (cats: Category[]) => {
+    // Sort children of each category
+    const sortChildren = (categories: CategoryWithChildren[]) => {
+      categories.forEach(cat => {
+        if (cat.children && cat.children.length > 0) {
+          cat.children.sort((a, b) => a.name.localeCompare(b.name));
+          sortChildren(cat.children);
+        }
+      });
+    };
+    sortChildren(roots);
+
+    return roots;
+  }, []);
+
+  // Get all categories (including subcategories) as a flat list - FIXED: Recursive flatten
+  const getAllCategories = useCallback((categories: CategoryWithChildren[]): CategoryWithChildren[] => {
+    const allCategories: CategoryWithChildren[] = [];
+    
+    const flattenCategories = (cats: CategoryWithChildren[]) => {
       cats.forEach(cat => {
         allCategories.push(cat);
         if (cat.children && cat.children.length > 0) {
@@ -40,23 +87,30 @@ const CategoriesClient = ({ initialCategories }: CategoriesClientProps) => {
     
     flattenCategories(categories);
     return allCategories;
-  };
+  }, []);
 
-  // Filter categories based on type and search
-  const getFilteredCategories = () => {
-    const allCategories = getAllCategories(initialCategories);
-    let filtered = allCategories;
+  // Build the category tree
+  const categoryTree = useMemo(() => buildCategoryTree(initialCategories), [buildCategoryTree, initialCategories]);
+
+  // Get all categories flat for filtering
+  const allFlatCategories = useMemo(() => getAllCategories(categoryTree), [getAllCategories, categoryTree]);
+
+  // Filter categories based on type and search - FIXED: Proper filtering logic
+  const filteredCategories = useMemo(() => {
+    let filtered = allFlatCategories;
     
     // Apply type filter
     switch (filterType) {
       case 'parent':
-        filtered = initialCategories;
+        // Parent categories are those with parentId === null
+        filtered = allFlatCategories.filter(cat => cat.parentId === null);
         break;
       case 'sub':
-        filtered = allCategories.filter(cat => cat.parentId !== null);
+        // Subcategories are those with parentId !== null
+        filtered = allFlatCategories.filter(cat => cat.parentId !== null);
         break;
       default:
-        filtered = allCategories;
+        filtered = allFlatCategories;
     }
     
     // Apply search filter
@@ -69,66 +123,59 @@ const CategoriesClient = ({ initialCategories }: CategoriesClientProps) => {
     }
     
     return filtered;
-  };
+  }, [allFlatCategories, filterType, searchQuery]);
 
-  const filteredCategories = getFilteredCategories();
-
-  // Icon mapping based on category name
-  const getCategoryIcon = (name: string) => {
+  // Icon mapping based on category name - FIXED: More comprehensive mapping
+  const getCategoryIcon = useCallback((name: string) => {
+    const lowerName = name.toLowerCase();
+    
     const iconMap: { [key: string]: React.ReactNode } = {
-      'Macro Lens': <Camera className="w-6 h-6" />,
-      'Extreme Macro': <Camera className="w-5 h-5" />,
-      'Telephoto Lens': <Camera className="w-6 h-6" />,
-      'Ultra Wide Angle': <Camera className="w-6 h-6" />,
-      'Wide Angle': <Camera className="w-6 h-6" />,
-      'Lenses': <Camera className="w-6 h-6" />,
-      'Lens': <Camera className="w-6 h-6" />,
-      'Smartphone': <Smartphone className="w-6 h-6" />,
-      'Gimbals': <Film className="w-6 h-6" />,
-      'Gimbal': <Film className="w-6 h-6" />,
-      'Tripods': <Package className="w-6 h-6" />,
-      'Tripod': <Package className="w-6 h-6" />,
-      'Creator Gear': <Sparkles className="w-6 h-6" />,
+      'macro': <Camera className="w-6 h-6" />,
+      'extreme macro': <Camera className="w-5 h-5" />,
+      'telephoto': <Camera className="w-6 h-6" />,
+      'wide angle': <Camera className="w-6 h-6" />,
+      'lens': <Camera className="w-6 h-6" />,
+      'lenses': <Camera className="w-6 h-6" />,
+      'smartphone': <Smartphone className="w-6 h-6" />,
+      'phone': <Smartphone className="w-6 h-6" />,
+      'gimbal': <Film className="w-6 h-6" />,
+      'gimbals': <Film className="w-6 h-6" />,
+      'tripod': <Package className="w-6 h-6" />,
+      'tripods': <Package className="w-6 h-6" />,
+      'creator': <Sparkles className="w-6 h-6" />,
+      'gear': <Sparkles className="w-6 h-6" />,
     };
     
     // Find matching icon
     for (const [key, icon] of Object.entries(iconMap)) {
-      if (name.includes(key) || key.includes(name)) {
+      if (lowerName.includes(key)) {
         return icon;
       }
     }
     return <Camera className="w-6 h-6" />;
-  };
+  }, []);
 
-  // Get parent category name for subcategories
-  const getParentName = (category: Category): string | null => {
+  // Get parent category name for subcategories - FIXED: Using the flat list
+  const getParentName = useCallback((category: Category): string | null => {
     if (!category.parentId) return null;
     
-    const findParent = (cats: Category[]): string | null => {
-      for (const cat of cats) {
-        if (cat._id === category.parentId) return cat.name;
-        if (cat.children) {
-          const found = findParent(cat.children);
-          if (found) return found;
-        }
-      }
-      return null;
-    };
-    
-    return findParent(initialCategories);
-  };
+    const parent = allFlatCategories.find(cat => cat._id === category.parentId);
+    return parent ? parent.name : null;
+  }, [allFlatCategories]);
 
   // Clear all filters
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setSearchQuery('');
     setFilterType('all');
     setSelectedCategory(null);
-  };
+  }, []);
 
   // Render a single category card
-  const renderCategoryCard = (category: Category, index: number) => {
+  const renderCategoryCard = useCallback((category: CategoryWithChildren, index: number) => {
     const isSubcategory = category.parentId !== null;
     const parentName = getParentName(category);
+    // Count direct children only
+    const childrenCount = category.children?.length || 0;
     
     return (
       <Link
@@ -149,9 +196,16 @@ const CategoriesClient = ({ initialCategories }: CategoriesClientProps) => {
         
         {/* Parent Category Indicator - Top Right */}
         {parentName && (
-          <div className="absolute top-3 right-3 z-10 bg-[#191970]/80 backdrop-blur-sm text-white text-[9px] font-medium px-2 py-0.5 rounded-full flex items-center gap-1">
-            <ChevronRight className="w-2.5 h-2.5" />
-            {parentName.length > 15 ? parentName.substring(0, 12) + '...' : parentName}
+          <div className="absolute top-3 right-3 z-10 bg-[#191970]/80 backdrop-blur-sm text-white text-[9px] font-medium px-2 py-0.5 rounded-full flex items-center gap-1 max-w-[120px]">
+            <ChevronRight className="w-2.5 h-2.5 flex-shrink-0" />
+            <span className="truncate">{parentName}</span>
+          </div>
+        )}
+        
+        {/* Status Badge - Bottom Right if inactive */}
+        {category.status !== 'active' && (
+          <div className="absolute bottom-3 right-3 z-10 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-lg">
+            Inactive
           </div>
         )}
         
@@ -165,6 +219,11 @@ const CategoriesClient = ({ initialCategories }: CategoriesClientProps) => {
                 fill
                 sizes="(max-width: 768px) 128px, 128px"
                 className="object-contain transition-transform duration-500 group-hover:scale-110"
+                onError={(e) => {
+                  // Fallback if image fails to load
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                }}
               />
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-slate-800 dark:to-slate-700 rounded-2xl flex items-center justify-center">
@@ -186,16 +245,25 @@ const CategoriesClient = ({ initialCategories }: CategoriesClientProps) => {
           {/* Description */}
           {category.description && (
             <p className="text-center text-gray-500 dark:text-gray-400 text-xs mb-3 line-clamp-2 px-2">
-              {category.description.substring(0, 80)}...
+              {category.description.length > 80 
+                ? `${category.description.substring(0, 80)}...` 
+                : category.description}
             </p>
           )}
           
           {/* Stats */}
           <div className="flex items-center justify-center gap-3 text-xs text-gray-400 dark:text-gray-500 pb-4">
-            {category.children && category.children.length > 0 && (
+            {childrenCount > 0 && (
               <span className="flex items-center gap-1">
                 <Layers className="w-3 h-3" />
-                {category.children.length} Subcategories
+                {childrenCount} Subcategories
+              </span>
+            )}
+            {/* Optionally show product count if available */}
+            {(category as any).productCount !== undefined && (category as any).productCount > 0 && (
+              <span className="flex items-center gap-1">
+                <Package className="w-3 h-3" />
+                {(category as any).productCount} Products
               </span>
             )}
           </div>
@@ -205,8 +273,9 @@ const CategoriesClient = ({ initialCategories }: CategoriesClientProps) => {
         <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#191970] to-amber-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left" />
       </Link>
     );
-  };
+  }, [getCategoryIcon, getParentName]);
 
+  // If no categories
   if (!initialCategories || initialCategories.length === 0) {
     return (
       <div className="pt-[130px] md:pt-[140px] lg:pt-[150px] pb-16 min-h-screen bg-gray-50 dark:bg-slate-950">

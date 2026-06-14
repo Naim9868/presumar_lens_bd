@@ -1,6 +1,6 @@
 'use server';
 
-import { dbConnect as connectDB } from '@/lib/dbConnect';
+import { connectDB } from '@/lib/dbConnect';
 import Order from '@/models/Order';
 import { Product } from '@/models/Product';
 import { createOrderSchema } from '@/lib/validations/order.validation';

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { dbConnect } from '@/lib/dbConnect';
+import { connectDB } from '@/lib/dbConnect';
 import { Product } from '@/models/Product';
 import { Brand } from '@/models/Brand';
 import { Category } from '@/models/Category';
 
 export async function GET(request: NextRequest) {
   try {
-    await dbConnect();
+    await connectDB();
     
     // Get all products
     const products = await Product.find({}).lean();

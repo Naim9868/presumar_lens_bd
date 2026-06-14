@@ -1,9 +1,11 @@
+// models/Brand.ts
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface IBrand extends Document {
   name: string;
   slug: string;
   logo?: string;
+  logoPublicId?: string;
   description?: string;
   website?: string;
   isActive: boolean;
@@ -28,6 +30,10 @@ const BrandSchema = new Schema<IBrand>({
     index: true
   },
   logo: {
+    type: String,
+    trim: true
+  },
+  logoPublicId: {
     type: String,
     trim: true
   },

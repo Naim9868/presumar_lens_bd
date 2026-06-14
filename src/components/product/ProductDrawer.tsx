@@ -15,12 +15,34 @@ import { useCheckout } from '@/hooks/useCheckout';
 import { useCart } from '@/hooks/useCart';
 import { useWishlist } from '@/hooks/useWishlist';
 import { useRecentlyViewed } from '@/hooks/useRecentlyViewed';
-import type { IProduct, ProductSpec } from '@/types/product';
+import type { 
+  IProduct, 
+  IProductVariant, 
+  IProductSpecification,
+  IProductImageGroup 
+} from '@/types/product';
 import toast from 'react-hot-toast';
-import { ProductVariant } from '@/types';
 
 interface ProductDrawerProps {
   onViewFullDetails?: () => void;
+}
+
+// Extended type for populated brand
+interface ProductWithBrand extends IProduct {
+  brand?: {
+    _id: string;
+    name: string;
+    slug: string;
+  };
+}
+
+// Review type
+interface Review {
+  _id: string;
+  name?: string;
+  rating: number;
+  comment: string;
+  createdAt?: string;
 }
 
 export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
@@ -34,22 +56,24 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
   // State
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<IProductVariant | null>(null);
   const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState<'details' | 'specs' | 'reviews'>('details');
   const [showFullDescription, setShowFullDescription] = useState(false);
-  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
 
+  const typedProduct = product as ProductWithBrand | null;
+
   // Extract unique attribute types from variants
   const attributeTypes = useMemo(() => {
-    if (!product?.variants?.length) return [];
+    if (!typedProduct?.variants?.length) return [];
 
     const map = new Map<string, Set<string>>();
 
-    product.variants.forEach(variant => {
+    typedProduct.variants.forEach((variant: IProductVariant) => {
       variant.attributes?.forEach(attr => {
         if (!map.has(attr.key)) map.set(attr.key, new Set());
         map.get(attr.key)!.add(attr.value);
@@ -61,161 +85,165 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
       label: key.charAt(0).toUpperCase() + key.slice(1),
       values: Array.from(values),
     }));
-  }, [product]);
+  }, [typedProduct]);
 
-
-  // Get current price from selected variant or product
-  // const currentPrice = useMemo(() => {
-  //   if (selectedVariant) {
-  //     return selectedVariant.price;
-  //   }
-  //   return product?.price || 0;
-  // }, [selectedVariant, product]);
-
-  const currentPrice = selectedVariant?.price ?? product?.price ?? 0;
+  // Get current price
+  const currentPrice = useMemo(() => {
+    if (selectedVariant) {
+      return selectedVariant.price;
+    }
+    return typedProduct?.lowestPrice || 0;
+  }, [selectedVariant, typedProduct]);
 
   // Get compare at price
-  // const compareAtPrice = useMemo(() => {
-  //   if (selectedVariant?.compareAtPrice) {
-  //     return selectedVariant.compareAtPrice;
-  //   }
-  //   return null;
-  // }, [selectedVariant]);
-  const compareAtPrice = selectedVariant?.compareAtPrice ?? null;
+  const compareAtPrice = useMemo(() => {
+    if (selectedVariant?.compareAtPrice) {
+      return selectedVariant.compareAtPrice;
+    }
+    return null;
+  }, [selectedVariant]);
 
   const hasDiscount = compareAtPrice !== null && compareAtPrice > currentPrice;
   const discountPercent = hasDiscount ? Math.round(((compareAtPrice! - currentPrice) / compareAtPrice!) * 100) : 0;
 
-  // Get stock status from selected variant or product
-  // const currentStock = useMemo(() => {
-  //   if (selectedVariant) {
-  //     return selectedVariant.inventory - (selectedVariant.reserved || 0);
-  //   }
-  //   return product?.totalInventory || 0;
-  // }, [selectedVariant, product?.totalInventory]);
+  // Get stock status
+  const currentStock = useMemo(() => {
+    if (selectedVariant) {
+      return selectedVariant.inventory - (selectedVariant.reserved || 0);
+    }
+    return typedProduct?.inventorySummary?.available || 0;
+  }, [selectedVariant, typedProduct]);
 
-  // const isInStock = useMemo(() => {
-  //   if (selectedVariant) {
-  //     return selectedVariant.status === 'in_stock' && currentStock > 0;
-  //   }
-  //   return product?.isAvailable === true && currentStock > 0;
-  // }, [selectedVariant, product?.isAvailable, currentStock]);
-  const currentStock = selectedVariant
-    ? selectedVariant.inventory - (selectedVariant.reserved || 0)
-    : product?.totalInventory ?? 0;
+  const isInStock = useMemo(() => {
+    if (selectedVariant) {
+      return selectedVariant.status === 'in_stock' && currentStock > 0;
+    }
+    return typedProduct?.status === 'active' && currentStock > 0;
+  }, [selectedVariant, typedProduct, currentStock]);
 
-  const isInStock = selectedVariant
-    ? selectedVariant.status === 'in_stock' && currentStock > 0
-    : product?.isAvailable && currentStock > 0;
+  // Get all images for gallery
+  const allImages = useMemo(() => {
+    if (!typedProduct) return [];
+
+    // If variant has images, use those
+    if (selectedVariant?.images?.length) {
+      return selectedVariant.images;
+    }
+
+    // Otherwise get from imageGroups
+    const images: string[] = [];
+    
+    if (typedProduct.imageGroups?.length) {
+      typedProduct.imageGroups.forEach((group: IProductImageGroup) => {
+        if (group.images?.length) {
+          group.images.forEach(img => {
+            if (img.url) images.push(img.url);
+          });
+        }
+      });
+    }
+
+    // Add thumbnail if no images found
+    if (images.length === 0 && typedProduct.thumbnail) {
+      images.push(typedProduct.thumbnail);
+    }
+
+    return images;
+  }, [typedProduct, selectedVariant]);
 
   // Get current image
-  const getCurrentImage = useCallback(() => {
-    if (!product) return '/placeholder.jpg';
-
-    if (selectedVariant?.images?.length) {
-      return selectedVariant.images[selectedImage] || selectedVariant.images[0];
+  const getCurrentImage = useCallback((): string => {
+    if (allImages.length > 0) {
+      return allImages[selectedImage] || allImages[0];
     }
-
-    if (product.images?.length) {
-      return product.images[selectedImage] || product.images[0];
-    }
-
-    return product.thumbnail || '/placeholder.jpg';
-  }, [product, selectedVariant, selectedImage]);
+    return '/placeholder.jpg';
+  }, [allImages, selectedImage]);
 
   // Group specifications by group
   const groupedSpecs = useMemo(() => {
-    if (!product?.specsFlat || product.specsFlat.length === 0) {
-      return new Map<string, ProductSpec[]>();
+    if (!typedProduct?.specificationGroups?.length) {
+      return new Map<string, IProductSpecification[]>();
     }
 
-    const groups = new Map<string, ProductSpec[]>();
-    product.specsFlat.forEach(spec => {
-      const groupName = spec.group || 'General Specifications';
+    const groups = new Map<string, IProductSpecification[]>();
+    
+    // Sort groups by displayOrder
+    const sortedGroups = [...typedProduct.specificationGroups].sort(
+      (a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)
+    );
+
+    sortedGroups.forEach(group => {
+      const groupName = group.groupName;
       if (!groups.has(groupName)) {
         groups.set(groupName, []);
       }
-      groups.get(groupName)?.push(spec);
+      groups.get(groupName)?.push(...group.specifications);
     });
 
     return groups;
-  }, [product]);
+  }, [typedProduct]);
+
+  // Reset drawer state
+  const resetDrawerState = useCallback(() => {
+    setSelectedImage(0);
+    setQuantity(1);
+    setSelectedAttributes({});
+    setActiveTab('details');
+    setShowFullDescription(false);
+    setShowAllReviews(false);
+  }, []);
 
   // Find matching variant based on selected attributes
   useEffect(() => {
-    if (!product?.variants?.length) return;
-
+    if (!typedProduct?.variants?.length) return;
     if (Object.keys(selectedAttributes).length === 0) return;
 
-    const matchingVariant = product.variants.find(variant =>
-      variant.attributes.every(
-        attr => selectedAttributes[attr.key] === attr.value
-      )
+    const matchingVariant = typedProduct.variants.find((variant: IProductVariant) =>
+      variant.attributes.every(attr => selectedAttributes[attr.key] === attr.value)
     );
 
-    if (matchingVariant) {
-      setSelectedVariant(prev => {
-        if (prev?.variantKey === matchingVariant.variantKey) {
-          return prev; // prevent re-set → avoids loop
-        }
-        return matchingVariant;
-      });
-
+    if (matchingVariant && matchingVariant.variantKey !== selectedVariant?.variantKey) {
+      setSelectedVariant(matchingVariant);
       setSelectedImage(0);
       setQuantity(1);
     }
-  }, [product]);
-
-  const resetDrawerState = useCallback(() => {
-  setSelectedImage(0);
-  setQuantity(1);
-  setSelectedAttributes({});
-  setActiveTab('details');
-  setShowFullDescription(false);
-  setShowAllReviews(false);
-}, []);
+  }, [typedProduct, selectedAttributes, selectedVariant]);
 
   // Reset state when product changes
   useEffect(() => {
-  if (!isOpen || !product) return;
+    if (!isOpen || !typedProduct) return;
 
-  resetDrawerState();
+    resetDrawerState();
 
-  const defaultVariant =
-    product.variants?.find(v => v.isDefault) || product.variants?.[0];
+    // Find default variant
+    const defaultVariant = typedProduct.variants?.find((v: IProductVariant) => v.isDefault) || typedProduct.variants?.[0];
 
-  if (defaultVariant) {
-    const attrs: Record<string, string> = {};
-
-    defaultVariant.attributes.forEach(attr => {
-      attrs[attr.key] = attr.value;
-    });
-
-    setSelectedAttributes(attrs);
-    setSelectedVariant(defaultVariant);
-  }
-}, [isOpen, product, resetDrawerState]);
-
-
-
-  useEffect(() => {
-    if (product) {
-      addToRecentlyViewed(product);
+    if (defaultVariant) {
+      const attrs: Record<string, string> = {};
+      defaultVariant.attributes.forEach(attr => {
+        attrs[attr.key] = attr.value;
+      });
+      setSelectedAttributes(attrs);
+      setSelectedVariant(defaultVariant);
     }
-  }, [product, addToRecentlyViewed]);
+  }, [isOpen, typedProduct, resetDrawerState]);
 
-
-  
+  // Add to recently viewed
+  useEffect(() => {
+    if (typedProduct && isOpen) {
+      addToRecentlyViewed(typedProduct);
+    }
+  }, [typedProduct, isOpen, addToRecentlyViewed]);
 
   // Close on escape key
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setIsClosing(true);
     setTimeout(() => {
       closeDrawer();
       setIsClosing(false);
+      resetDrawerState();
     }, 200);
-  };
-
+  }, [closeDrawer, resetDrawerState]);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -225,7 +253,7 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
     };
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
-  }, [isOpen, isClosing]);
+  }, [isOpen, isClosing, handleClose]);
 
   // Prevent body scroll when drawer is open
   useEffect(() => {
@@ -240,16 +268,12 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
   }, [isOpen]);
 
   // Fetch reviews
-  useEffect(() => {
-    if (product?._id && isOpen) {
-      fetchReviews();
-    }
-  }, [product?._id, isOpen]);
-
-  const fetchReviews = async () => {
+  const fetchReviews = useCallback(async () => {
+    if (!typedProduct?._id) return;
+    
     setLoadingReviews(true);
     try {
-      const response = await fetch(`/api/reviews?productId=${product?._id}`);
+      const response = await fetch(`/api/reviews?productId=${typedProduct._id}`);
       if (response.ok) {
         const data = await response.json();
         setReviews(data);
@@ -259,63 +283,67 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
     } finally {
       setLoadingReviews(false);
     }
-  };
+  }, [typedProduct]);
 
-  const isWishlisted = product ? isInWishlist(product._id) : false;
+  useEffect(() => {
+    if (typedProduct?._id && isOpen) {
+      fetchReviews();
+    }
+  }, [typedProduct?._id, isOpen, fetchReviews]);
 
-  const handleAttributeSelect = (key: string, value: string) => {
+  const isWishlisted = typedProduct ? isInWishlist(typedProduct._id) : false;
+
+  const handleAttributeSelect = useCallback((key: string, value: string) => {
     setSelectedAttributes(prev => ({
       ...prev,
       [key]: value
     }));
-  };
+  }, []);
 
-  
-  const handleWishlist = () => {
-    if (!product) return;
+  const handleWishlist = useCallback(() => {
+    if (!typedProduct) return;
     if (isWishlisted) {
-      removeFromWishlist(product._id);
+      removeFromWishlist(typedProduct._id);
       toast.success('Removed from wishlist');
     } else {
-      addToWishlist(product);
+      addToWishlist(typedProduct);
       toast.success('Added to wishlist');
     }
-  };
+  }, [typedProduct, isWishlisted, removeFromWishlist, addToWishlist]);
 
-  const handleShare = async () => {
-    const url = `${window.location.origin}/products/${product?.slug}`;
+  const handleShare = useCallback(async () => {
+    const url = `${window.location.origin}/products/${typedProduct?.slug}`;
     try {
       await navigator.clipboard.writeText(url);
       toast.success('Link copied to clipboard!');
     } catch {
       toast.error('Failed to copy link');
     }
-  };
+  }, [typedProduct?.slug]);
 
-  const handleViewFullDetails = () => {
-    if (product?.slug) {
+  const handleViewFullDetails = useCallback(() => {
+    if (typedProduct?.slug) {
       handleClose();
       setTimeout(() => {
-        router.push(`/products/${product.slug}`);
+        router.push(`/products/${typedProduct.slug}`);
         onViewFullDetails?.();
       }, 200);
     }
-  };
+  }, [typedProduct?.slug, handleClose, router, onViewFullDetails]);
 
-  const handleAddToCart = () => {
-    if (!product) return;
+  const handleAddToCart = useCallback(() => {
+    if (!typedProduct) return;
     if (!isInStock) {
       toast.error('Product is out of stock');
       return;
     }
 
-    addToCart(product, selectedVariant || undefined, quantity);
+    addToCart(typedProduct, selectedVariant || undefined, quantity);
     toast.success('Added to cart');
-  };
+  }, [typedProduct, isInStock, selectedVariant, quantity, addToCart]);
 
-  // IMPORTANT: handleBuyNow must be defined before being used in JSX
   const handleBuyNow = useCallback(() => {
-    if (!product) return;
+    if (!typedProduct) return;
     if (!isInStock) {
       toast.error('Product is out of stock');
       return;
@@ -324,8 +352,8 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
     handleClose();
     setTimeout(() => {
       openCheckout({
-        productId: product._id,
-        name: product.name,
+        productId: typedProduct._id,
+        name: typedProduct.name,
         price: currentPrice,
         quantity,
         image: getCurrentImage(),
@@ -333,23 +361,22 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
         sku: selectedVariant?.sku,
       });
     }, 200);
-  }, [product, isInStock, currentPrice, quantity, getCurrentImage, selectedVariant, openCheckout]);
+  }, [typedProduct, isInStock, currentPrice, quantity, getCurrentImage, selectedVariant, openCheckout, handleClose]);
 
   const getAvailableValues = useCallback((attrKey: string) => {
-    if (!product?.variants) return new Set<string>();
+    if (!typedProduct?.variants) return new Set<string>();
 
     const available = new Set<string>();
-    product.variants.forEach(variant => {
+    typedProduct.variants.forEach((variant: IProductVariant) => {
       const attrValue = variant.attributes.find(a => a.key === attrKey)?.value;
-      if (attrValue && variant.status === 'in_stock' && (variant.inventory - (variant.reserved ?? 0)) > 0) {
+      if (attrValue && variant.status === 'in_stock' && (variant.inventory - (variant.reserved || 0)) > 0) {
         available.add(attrValue);
       }
     });
     return available;
-  }, [product]);
+  }, [typedProduct]);
 
-  if (!isOpen || !product) return null;
-
+  // Get average rating
   const averageRating = reviews.length > 0
     ? reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length
     : 0;
@@ -357,25 +384,37 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
   const displayedReviews = showAllReviews ? reviews : reviews.slice(0, 3);
   const hasMoreReviews = reviews.length > 3;
 
+  // Get brand name
+  const brandName = useMemo(() => {
+    if (typedProduct?.brandId && typeof typedProduct.brandId === 'object') {
+      return (typedProduct.brandId as any).name;
+    }
+    return null;
+  }, [typedProduct]);
+
+  if (!isOpen || !typedProduct) return null;
+
   return (
     <>
       {/* Backdrop */}
       <div
         onClick={handleClose}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[50] animate-fadeIn"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[1000] animate-in fade-in duration-200"
       />
 
       {/* Drawer */}
-      <aside className={`
-        fixed right-0 top-0 h-full w-full md:w-[950px] lg:w-[1100px] 
-        bg-white dark:bg-gray-900 z-1000 shadow-2xl flex flex-col
-        ${isClosing ? 'animate-slideOutRight' : 'animate-slideInLeft'}
-      `}>
+      <div
+        className={`
+          fixed right-0 top-0 h-full w-full md:w-[950px] lg:w-[1100px] 
+          bg-white dark:bg-gray-900 shadow-2xl flex flex-col z-[1001]
+          ${isClosing ? 'animate-out slide-out-to-right duration-200' : 'animate-in slide-in-from-right duration-300'}
+        `}
+      >
         {/* Header */}
-        <div className="sticky top-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 p-4 flex items-center justify-between z-[10]">
+        <div className="sticky top-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 p-4 flex items-center justify-between z-10">
           <div>
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-              {product.name}
+              {typedProduct.name}
             </h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
               Quick View
@@ -398,7 +437,6 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
           </div>
         </div>
 
-        {/* Rest of your JSX remains the same... */}
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-6xl mx-auto">
@@ -410,11 +448,15 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
                   <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 group">
                     <Image
                       src={getCurrentImage()}
-                      alt={product.name}
+                      alt={typedProduct.name}
                       fill
                       className="object-cover transition-transform duration-500 group-hover:scale-105"
                       sizes="(max-width: 1024px) 100vw, 50vw"
                       priority
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/placeholder.jpg';
+                      }}
                     />
 
                     <button
@@ -438,23 +480,28 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
                   </div>
 
                   {/* Thumbnails */}
-                  {(selectedVariant?.images?.length || product.images?.length) > 1 && (
+                  {allImages.length > 1 && (
                     <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
-                      {(selectedVariant?.images?.length ? selectedVariant.images : product.images).map((image, index) => (
+                      {allImages.map((image, index) => (
                         <button
                           key={index}
                           onClick={() => setSelectedImage(index)}
-                          className={`relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${selectedImage === index
-                            ? 'border-amber-500 dark:border-amber-400 shadow-md'
-                            : 'border-transparent opacity-70 hover:opacity-100'
-                            }`}
+                          className={`relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${
+                            selectedImage === index
+                              ? 'border-amber-500 dark:border-amber-400 shadow-md'
+                              : 'border-transparent opacity-70 hover:opacity-100'
+                          }`}
                         >
                           <Image
                             src={image}
-                            alt={`${product.name} - ${index + 1}`}
+                            alt={`${typedProduct.name} - ${index + 1}`}
                             fill
                             className="object-cover"
                             sizes="80px"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = '/placeholder.jpg';
+                            }}
                           />
                         </button>
                       ))}
@@ -467,17 +514,17 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
               <div className="lg:w-1/2 space-y-6">
                 {/* Brand & Title */}
                 <div>
-                  {product.brand && (
+                  {brandName && (
                     <Link
-                      href={`/brands/${product.brand.slug}`}
+                      href={`/brands/${(typedProduct.brandId as any)?.slug || ''}`}
                       onClick={(e) => e.stopPropagation()}
                       className="text-sm text-amber-600 hover:text-amber-700 font-medium inline-block mb-2"
                     >
-                      {product.brand.name}
+                      {brandName}
                     </Link>
                   )}
                   <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white leading-tight">
-                    {product.name}
+                    {typedProduct.name}
                   </h1>
                 </div>
 
@@ -496,11 +543,6 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
                       </span>
                     </>
                   )}
-                  {product.maxPrice > currentPrice && !selectedVariant && (
-                    <span className="text-sm text-gray-500">
-                      - ৳{product.maxPrice.toLocaleString()}
-                    </span>
-                  )}
                 </div>
 
                 {/* Stock Status */}
@@ -511,7 +553,7 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
                       <span className="text-sm text-green-600 dark:text-green-400 font-medium">
                         In Stock
                       </span>
-                      {currentStock <= 10 && (
+                      {currentStock <= 10 && currentStock > 0 && (
                         <span className="text-xs text-orange-600 dark:text-orange-400 ml-2">
                           Only {currentStock} left
                         </span>
@@ -572,9 +614,9 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
                 })}
 
                 {/* Short Description */}
-                {product.shortDescription && (
+                {typedProduct.shortDescription && (
                   <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-                    {product.shortDescription}
+                    {typedProduct.shortDescription}
                   </p>
                 )}
 
@@ -652,17 +694,18 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
                 <div className="border-b border-gray-200 dark:border-gray-800">
                   <div className="flex gap-6">
                     {[
-                      { id: 'details', label: 'Details' },
-                      { id: 'specs', label: 'Specifications' },
-                      { id: 'reviews', label: `Reviews (${reviews.length})` }
+                      { id: 'details' as const, label: 'Details' },
+                      { id: 'specs' as const, label: 'Specifications' },
+                      { id: 'reviews' as const, label: `Reviews (${reviews.length})` }
                     ].map(tab => (
                       <button
                         key={tab.id}
-                        onClick={() => setActiveTab(tab.id as any)}
-                        className={`pb-3 text-sm font-medium transition relative ${activeTab === tab.id
-                          ? 'text-amber-600 dark:text-amber-400'
-                          : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                          }`}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`pb-3 text-sm font-medium transition relative ${
+                          activeTab === tab.id
+                            ? 'text-amber-600 dark:text-amber-400'
+                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                        }`}
                       >
                         {tab.label}
                         {activeTab === tab.id && (
@@ -677,15 +720,19 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
                 <div className="min-h-[200px] pb-6">
                   {activeTab === 'details' && (
                     <div className="space-y-3">
-                      <div className={`relative ${!showFullDescription && product.description?.length > 300 ? 'max-h-32 overflow-hidden' : ''}`}>
+                      <div className={`relative ${
+                        !showFullDescription && typedProduct.description?.length > 300 
+                          ? 'max-h-32 overflow-hidden' 
+                          : ''
+                      }`}>
                         <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed whitespace-pre-line">
-                          {product.description || 'No description available.'}
+                          {typedProduct.description || 'No description available.'}
                         </p>
-                        {!showFullDescription && product.description && product.description.length > 300 && (
+                        {!showFullDescription && typedProduct.description && typedProduct.description.length > 300 && (
                           <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white dark:from-gray-900 to-transparent" />
                         )}
                       </div>
-                      {product.description && product.description.length > 300 && (
+                      {typedProduct.description && typedProduct.description.length > 300 && (
                         <button
                           onClick={() => setShowFullDescription(!showFullDescription)}
                           className="text-sm text-amber-600 hover:text-amber-700 font-medium inline-flex items-center gap-1"
@@ -698,9 +745,24 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
                         </button>
                       )}
 
-                      {product.tags && product.tags.length > 0 && (
+                      {/* Badges */}
+                      {typedProduct.badges && typedProduct.badges.length > 0 && (
                         <div className="flex flex-wrap gap-2 pt-2">
-                          {product.tags.map(tag => (
+                          {typedProduct.badges.slice(0, 3).map((badge, idx) => (
+                            <span
+                              key={badge.id || idx}
+                              className="px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs rounded-full"
+                            >
+                              {badge.label}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Tags */}
+                      {typedProduct.tags && typedProduct.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-2 pt-2">
+                          {typedProduct.tags.map(tag => (
                             <span key={tag} className="px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs rounded-full">
                               #{tag}
                             </span>
@@ -719,20 +781,30 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
                               {groupName}
                             </h3>
                             <div className="space-y-2">
-                              {specs.map((spec, idx) => (
-                                <div key={idx} className="flex text-sm py-1 border-b border-gray-100 dark:border-gray-800">
-                                  <span className="w-1/2 text-gray-500 dark:text-gray-400">
-                                    {spec.label || spec.key}
-                                  </span>
-                                  <span className="w-1/2 text-gray-900 dark:text-gray-200 font-medium">
-                                    {typeof spec.value === 'boolean'
-                                      ? (spec.value ? 'Yes' : 'No')
-                                      : spec.value || 'N/A'
-                                    }
-                                    {spec.unit && ` ${spec.unit}`}
-                                  </span>
-                                </div>
-                              ))}
+                              {specs.map((spec, idx) => {
+                                let displayValue: string = '';
+                                if (typeof spec.value === 'boolean') {
+                                  displayValue = spec.value ? 'Yes' : 'No';
+                                } else if (spec.value instanceof Date) {
+                                  displayValue = spec.value.toLocaleDateString();
+                                } else if (Array.isArray(spec.value)) {
+                                  displayValue = spec.value.join(', ');
+                                } else {
+                                  displayValue = String(spec.value || 'N/A');
+                                }
+
+                                return (
+                                  <div key={idx} className="flex text-sm py-1 border-b border-gray-100 dark:border-gray-800">
+                                    <span className="w-1/2 text-gray-500 dark:text-gray-400">
+                                      {spec.label || spec.key}
+                                    </span>
+                                    <span className="w-1/2 text-gray-900 dark:text-gray-200 font-medium">
+                                      {displayValue}
+                                      {spec.unit && ` ${spec.unit}`}
+                                    </span>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         ))
@@ -856,7 +928,7 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
             </div>
           </div>
         </div>
-      </aside>
+      </div>
     </>
   );
 }

@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrderById } from '@/app/actions/order.actions';
-import { dbConnect } from '@/lib/dbConnect';
+import { connectDB } from '@/lib/dbConnect';
 import Order from '@/models/Order';
 import { Product } from '@/models';
 
@@ -12,7 +12,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await dbConnect();
+    await connectDB();
 
     const { id } = await params;
 
@@ -49,7 +49,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await dbConnect();
+    await connectDB();
 
     const { id } = await params;
     const body = await request.json();
@@ -106,7 +106,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await dbConnect();
+    await connectDB();
 
     const { id } = await params;
 

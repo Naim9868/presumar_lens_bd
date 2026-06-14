@@ -1,235 +1,398 @@
-// Variant attribute from your schema
-export interface VariantAttribute {
-  key: string;
-  value: string;
-}
+// types/product.ts
+import { Types } from "mongoose";
 
-// Product variant from your schema
-export interface ProductVariant {
-  sku: string;
-  variantKey?: string;
-  attributes: VariantAttribute[];
-  price: number;
-  compareAtPrice?: number;
-  inventory: number;
-  reserved?: number;
-  images?: string[];
-  isDefault?: boolean; // Keep as optional since schema has default: false
-  status: 'in_stock' | 'out_of_stock' | 'discontinued';
-}
+export type ProductStatus =
+  | "draft"
+  | "active"
+  | "archived";
 
-// Product specification from your schema
-export interface ProductSpec {
+export type VariantStatus =
+  | "in_stock"
+  | "out_of_stock"
+  | "discontinued";
+
+export type SpecificationType =
+  | "text"
+  | "textarea"
+  | "number"
+  | "boolean"
+  | "date"
+  | "select"
+  | "multiselect";
+
+export type ImageGroupType =
+  | "product"
+  | "package"
+  | "sample"
+  | "lifestyle"
+  | "installation"
+  | "comparison"
+  | "other";
+
+export type VideoPlatform =
+  | "youtube"
+  | "vimeo"
+  | "other";
+
+/* ==================================================
+   SPECIFICATIONS
+================================================== */
+
+export interface IProductSpecification {
   key: string;
   label: string;
-  value: any;
-  group: string;
+  value: string | number | boolean | string[] | Date;
+  unit?: string;
+  type?: SpecificationType;
+  filterable?: boolean;
+}
+
+export interface IProductSpecificationGroup {
+  groupName: string;
+  displayOrder?: number;
+  specifications: IProductSpecification[];
+}
+
+/* ==================================================
+   FLAT SPECS
+================================================== */
+
+export interface IProductFlatSpec {
+  key: string;
+  label: string;
+  value: string | number | boolean | string[] | Date;
   unit?: string;
   filterable?: boolean;
 }
 
-// Main Product type matching your schema
-export interface IProduct {
-  _id: string;
-  name: string;
-  slug: string;
-  description: string;
-  shortDescription: string;
-  brand: {
-    id: string;
-    name: string;
-    slug: string;
-  } | null;
-  category: {
-    id: string;
-    name: string;
-    slug: string;
-  } | null;
-  subcategory?: {
-    id: string;
-    name: string;
-    slug: string;
-  } | undefined;
-  specsFlat: ProductSpec[];
-  variants: ProductVariant[];
-  images: string[];
-  thumbnail: string;
-  tags: string[];
-  price: number; // derived (lowestPrice)
-  maxPrice: number; // highestPrice
-  totalInventory: number;
-  isAvailable: boolean;
-  createdAt: string;
-  updatedAt: string;
-  status: 'draft' | 'active' | 'archived';
-  // Optional fields for UI
-  soldCount?: number;
-  rating?: number;
-  reviewCount?: number;
-}
+/* ==================================================
+   VARIANTS
+================================================== */
 
-// Brand type
-export interface IBrand {
-  _id: string;
-  name: string;
-  slug: string;
-  logo?: string;
-  description?: string;
-}
-
-// Category with specification template
-export interface ICategory {
-  _id: string;
-  name: string;
-  slug: string;
-  image: string;
-  description: string;
-  parentId?: string | ICategory;
-  specificationTemplate: CategorySpecGroup[];
-  status: 'active' | 'inactive';
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-// Category specification field
-export interface CategorySpecField {
+export interface IVariantAttribute {
   key: string;
-  label: string;
-  type: 'text' | 'number' | 'select' | 'boolean' | 'multiselect';
-  unit?: string;
-  options?: string[];
-  required: boolean;
-  filterable: boolean;
-  isVariantAttribute: boolean;
-  defaultValue?: any;
+  value: string;
 }
 
-// Category specification group
-export interface CategorySpecGroup {
-  groupName: string;
-  fields: CategorySpecField[];
-  displayOrder: number;
-}
+export interface IProductVariant {
+  sku: string;
+  variantKey: string;
 
-// Review type
-export interface IReview {
-  _id: string;
-  productId: string;
-  name: string;
-  email?: string;
-  rating: number;
-  image?: string;
-  comment: string;
-  isVerifiedPurchase: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-}
+  attributes: IVariantAttribute[];
 
-export interface IReviewWithProduct extends IReview {
-  product?: IProduct;
-}
-
-// Cart item type
-export interface CartItem {
-  _id: string;
-  productId: string;
-  name: string;
-  slug: string;
-  price: number;
-  quantity: number;
-  image: string;
-  variant?: ProductVariant | null;
-  selectedAttributes?: Record<string, string>;
-  maxStock: number;
-}
-
-// Wishlist item type
-// Wishlist Item Type (using IProduct)
-export interface WishlistItem extends IProduct {
-  addedAt?: string;
-}
-// export interface WishlistItem {
-//   id: string;
-//   name: string;
-//   price: number;
-//   image: string;
-//   quantity: number;
-//   variant?: ProductVariant;
-//   selectedAttributes?: Record<string, string>;
-//   sku?: string;
-//   compareAtPrice?: number;
-//   originalPrice?: number;
-// }
-
-// Checkout item type
-export interface CheckoutItem {
-  _id: string;
-  name: string;
   price: number;
   compareAtPrice?: number;
-  image: string;
-  quantity: number;
-  selectedAttributes?: Record<string, string>;
-  variant?: ProductVariant;
-  sku?: string;
+
+  inventory: number;
+  reserved?: number;
+
+  images: string[];
+
+  isDefault?: boolean;
+
+  status: VariantStatus;
 }
 
-// Database product type
-export interface IProductDB {
+/* ==================================================
+   IMAGES
+================================================== */
+
+export interface IProductImage {
+  url: string;
+  alt?: string;
+  sortOrder?: number;
+}
+
+export interface IProductImageGroup {
+  type: ImageGroupType;
+  title: string;
+  description?: string;
+  images: IProductImage[];
+}
+
+/* ==================================================
+   Videos
+================================================== */
+
+export interface IProductVideo {
+  url: string;
+  title?: string;
+  thumbnail?: string;
+  platform?: VideoPlatform;
+}
+
+/* =====================================================
+   INVENTORY SUMMARY
+===================================================== */
+
+export interface IInventorySummary {
+  available: number;
+
+  reserved: number;
+
+  incoming: number;
+
+  lowStockThreshold: number;
+}
+
+/* ==================================================
+SEO
+================================================== */
+
+export interface IProductSEO {
+  metaTitle?: string;
+  metaDescription?: string;
+  metaKeywords?: string[];
+
+  canonicalUrl?: string;
+
+  ogImage?: string;
+
+  noIndex?: boolean;
+}
+
+/* ==================================================
+BADGES
+================================================== */
+
+export type BadgeType =
+  | "default"
+  | "custom";
+
+export interface IProductBadge {
+  id?: string;
+  label: string;
+  color?: string;
+  icon?: string;
+  type?: BadgeType;
+}
+
+/* ==================================================
+   PRODUCT
+================================================== */
+
+export interface IProduct {
   _id: string;
+
   name: string;
   slug: string;
+
   description: string;
   shortDescription: string;
+
   brandId: string;
   categoryId: string;
   subcategoryId?: string;
-  specsFlat: ProductSpec[];
-  variants: ProductVariant[];
-  images: string[];
+
+  specificationGroups: IProductSpecificationGroup[];
+
+  /**
+   * Auto-generated from specificationGroups
+   * Used for filtering and searching
+   */
+  specsFlat: IProductFlatSpec[];
+
+  variants: IProductVariant[];
+
+  imageGroups: IProductImageGroup[];
+
   thumbnail: string;
+
+  videos: IProductVideo[];
+
   tags: string[];
+
+   badges: IProductBadge[];
+
+  relatedProducts: (
+    string |
+    Types.ObjectId
+  )[];
+
+  featured: boolean;
+
+  searchBoost: number;
+
+  inventorySummary: IInventorySummary;
+
   lowestPrice: number;
-  highestPrice: number;
+  highestPrice?: number;
   totalInventory: number;
-  status: 'draft' | 'active' | 'archived';
-  deletedAt?: Date | null;
-  searchKeywords?: string[];
-  createdAt: Date;
-  updatedAt: Date;
+
+  ratingAverage: number;
+
+  ratingCount: number;
+
+  seo?: IProductSEO;
+
+  status: ProductStatus;
+
+  deletedAt?: string | null;
+
+  searchKeywords: string[];
+
+  createdAt: string;
+  updatedAt: string;
 }
 
-// Populated product type
-export interface IProductPopulated {
+/* ==================================================
+   PRODUCT LIST ITEM
+================================================== */
+export interface IProductVariantCard {
+  _id?: string;
+  price: number;
+  compareAtPrice?: number;
+  isDefault?: boolean;
+}
+
+export interface IProductCard {
   _id: string;
+
   name: string;
   slug: string;
+
+  thumbnail?: string;
+
+  images?: string[];
+
+  price?: number;
+
+  variants?: IProductVariantCard[];
+
+  brand?: {
+    _id?: string;
+    name: string;
+    slug?: string;
+  } | null;
+
+  totalInventory: number;
+
+  soldCount?: number;
+
+  isAvailable: boolean;
+}
+
+/* ==================================================
+   CREATE PRODUCT
+================================================== */
+
+export interface ICreateProduct {
+  name: string;
   description: string;
   shortDescription: string;
-  brandId: {
-    _id: string;
-    name: string;
-    slug: string;
-  };
-  categoryId: {
-    _id: string;
-    name: string;
-    slug: string;
-  };
-  subcategoryId?: {
-    _id: string;
-    name: string;
-    slug: string;
-  };
-  specsFlat: ProductSpec[];
-  variants: ProductVariant[];
-  images: string[];
+
+  brandId: string;
+  categoryId: string;
+  subcategoryId?: string;
+
+  specificationGroups: IProductSpecificationGroup[];
+
+  variants: IProductVariant[];
+
+  imageGroups: IProductImageGroup[];
+
   thumbnail: string;
-  tags: string[];
-  lowestPrice: number;
-  highestPrice: number;
-  totalInventory: number;
-  status: 'draft' | 'active' | 'archived';
-  createdAt: Date;
-  updatedAt: Date;
+
+  videos?: IProductVideo[];
+
+  tags?: string[];
+
+  badges?: IProductBadge[];
+
+  seo?: IProductSEO;
+
+  status?: ProductStatus;
+}
+
+/* ==================================================
+   PRODUCT FILTERS
+================================================== */
+
+export interface IProductFilters {
+  page?: number;
+  limit?: number;
+
+  query?: string;
+
+  categoryId?: string;
+  brandId?: string;
+
+  minPrice?: number;
+  maxPrice?: number;
+
+  tags?: string[];
+
+  status?: ProductStatus;
+
+  specs?: Record<
+    string,
+    string | number | boolean | string[]
+  >;
+  sort?: string | 'newest' | 'price_low' | 'price_high' | 'popular' | 'rating';
+}
+
+export interface IProductListResponse {
+  products: IProduct[];
+
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+
+  filters?: {
+    brands?: {
+      id: string;
+      name: string;
+      count: number;
+    }[];
+
+    specs?: {
+      key: string;
+      values: {
+        value: string;
+        count: number;
+      }[];
+    }[];
+
+    sort?: 'newest' | 'price_low' | 'price_high' | 'popular' | 'rating';
+  };
+}
+
+
+export interface UpdateProductData {
+  id: string;
+
+  name?: string;
+  description?: string;
+  shortDescription?: string;
+
+  brandId?: string;
+  categoryId?: string;
+  subcategoryId?: string;
+
+  specificationGroups?: IProductSpecificationGroup[];
+
+  variants?: IProductVariant[];
+
+  imageGroups?: IProductImageGroup[];
+
+  thumbnail?: string;
+
+  videos?: IProductVideo[];
+
+  tags?: string[];
+
+  badges?: IProductBadge[];
+
+  relatedProducts?: string[];
+
+  featured?: boolean;
+
+  searchBoost?: number;
+
+  seo?: IProductSEO;
+
+  status?: ProductStatus;
 }

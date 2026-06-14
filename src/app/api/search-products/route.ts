@@ -4,12 +4,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 import "@/models";
 
-import { dbConnect } from "@/lib/dbConnect";
+import { connectDB } from "@/lib/dbConnect";
 import { Product } from "@/models/Product";
 
 export async function GET(req: NextRequest) {
   try {
-    await dbConnect();
+    await connectDB();
 
     const { searchParams } = new URL(req.url);
 

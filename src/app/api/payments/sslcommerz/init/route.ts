@@ -1,6 +1,6 @@
 // app/api/payments/sslcommerz/init/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { dbConnect as connectDB } from '@/lib/dbConnect';
+import { connectDB } from '@/lib/dbConnect';
 import Order from '@/models/Order';
 import { PaymentService } from '@/lib/services/payment.service';
 

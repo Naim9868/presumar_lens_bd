@@ -1,6 +1,6 @@
 "use server";
 
-import { dbConnect } from "@/lib/dbConnect";
+import { connectDB } from "@/lib/dbConnect";
 import { Product } from "@/models/Product";
 
 export async function searchProducts(
@@ -8,7 +8,7 @@ export async function searchProducts(
   categoryId?: string
 ) {
   try {
-    await dbConnect();
+    await connectDB();
 
     if (!query.trim()) {
       return [];

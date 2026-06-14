@@ -1,7 +1,7 @@
 'use server';
 
 import { Product } from '@/models/Product';
-import { dbConnect as connectDB } from '@/lib/dbConnect';
+import { connectDB } from '@/lib/dbConnect';
 
 export async function verifyProductAvailability(productId: string, variantKey?: string) {
   try {

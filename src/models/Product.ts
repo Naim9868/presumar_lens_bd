@@ -1,29 +1,152 @@
-// models/Product.ts
 
-import mongoose, { Schema } from "mongoose";
-import { generateVariantKey } from "../utils/variant";
+import mongoose, { Schema, Document, Types } from "mongoose";
 import { normalizeString } from "../utils/normalize";
+import { generateVariantKey } from "../utils/variant";
 import { generateUniqueSlug } from "../utils/slug";
+
+/* ==================================================
+   SPECIFICATION
+================================================== */
+
+const ProductSpecificationSchema = new Schema(
+  {
+    key: {
+      type: String,
+      required: true,
+    },
+
+    label: {
+      type: String,
+      required: true,
+    },
+
+    value: {
+      type: Schema.Types.Mixed,
+      required: true,
+    },
+
+    unit: {
+      type: String,
+      default: "",
+    },
+
+    type: {
+      type: String,
+      enum: [
+        "text",
+        "textarea",
+        "number",
+        "boolean",
+        "date",
+        "select",
+        "multiselect",
+      ],
+      default: "text",
+    },
+
+    filterable: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  { _id: false }
+);
+
+const ProductSpecificationGroupSchema = new Schema(
+  {
+    groupName: {
+      type: String,
+      required: true,
+    },
+
+    displayOrder: {
+      type: Number,
+      default: 0,
+    },
+
+    specifications: {
+      type: [ProductSpecificationSchema],
+      default: [],
+    },
+  },
+  { _id: false }
+);
+
+/* ==================================================
+   FLAT SPECS (SEARCH + FILTERING)
+================================================== */
+
+const ProductFlatSpecSchema = new Schema(
+  {
+    key: String,
+    label: String,
+    value: Schema.Types.Mixed,
+    unit: String,
+
+    filterable: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  { _id: false }
+);
+
+/* ==================================================
+   VARIANT
+================================================== */
 
 const VariantAttributeSchema = new Schema(
   {
-    key: String,
-    value: String,
+    key: {
+      type: String,
+      required: true,
+    },
+
+    value: {
+      type: String,
+      required: true,
+    },
   },
   { _id: false }
 );
 
 const ProductVariantSchema = new Schema(
   {
-    sku: { type: String, required: true, unique: true },
-    variantKey: { type: String, required: true },
-    attributes: [VariantAttributeSchema],
+    sku: {
+      type: String,
+      required: true,
+      unique: true,
+    },
 
-    price: { type: Number, required: true },
-    compareAtPrice: Number,
+    variantKey: {
+      type: String,
+      required: true,
+    },
 
-    inventory: { type: Number, default: 0 },
-    reserved: { type: Number, default: 0 },
+    attributes: {
+      type: [VariantAttributeSchema],
+      default: [],
+    },
+
+    price: {
+      type: Number,
+      required: true,
+    },
+
+    compareAtPrice: {
+      type: Number,
+      default: 0,
+    },
+
+    inventory: {
+      type: Number,
+      default: 0,
+    },
+
+    reserved: {
+      type: Number,
+      default: 0,
+    },
 
     images: {
       type: [String],
@@ -37,40 +160,97 @@ const ProductVariantSchema = new Schema(
 
     status: {
       type: String,
-      enum: ["in_stock", "out_of_stock", "discontinued"],
+      enum: [
+        "in_stock",
+        "out_of_stock",
+        "discontinued",
+      ],
       default: "in_stock",
     },
   },
   { _id: false }
 );
 
-const ProductSpecSchema = new Schema(
-  {
-    key: String,
-    label: String,
-    value: Schema.Types.Mixed,
-    group: String,
-    unit: String,
 
-    filterable: {
-      type: Boolean,
-      default: false,
+const ProductImageSchema = new Schema({
+  url: String,
+  alt: String,
+  sortOrder: Number
+}, { _id: false });
+
+
+const ProductImageGroupSchema = new Schema({
+  type: {
+    type: String,
+    enum: [
+      "product",
+      "package",
+      "sample",
+      "lifestyle",
+      "installation",
+      "comparison",
+      "other"
+    ],
+    required: true
+  },
+
+  title: {
+    type: String,
+    required: true
+  },
+
+  description: {
+    type: String,
+    default: ""
+  },
+
+  images: [ProductImageSchema]
+
+}, { _id: false });
+
+const ProductVideoSchema = new Schema({
+  url: String,
+  title: String,
+  thumbnail: String,
+  platform: {
+    type: String,
+    enum: ["youtube", "vimeo", "other"],
+    default: "youtube"
+  }
+}, { _id: false });
+
+
+const BadgeSchema = new mongoose.Schema(
+  {
+    id: String,
+    label: String,
+    color: String,
+    icon: String,
+    type: {
+      type: String,
+      enum: ['default', 'custom'],
+      default: 'custom',
     },
   },
   { _id: false }
 );
+
+/* ==================================================
+   PRODUCT
+================================================== */
 
 const ProductSchema = new Schema(
   {
     name: {
       type: String,
       required: true,
+      trim: true,
     },
 
     slug: {
       type: String,
-      sparse: true,
       unique: true,
+      sparse: true,
       index: true,
     },
 
@@ -101,13 +281,24 @@ const ProductSchema = new Schema(
       ref: "Category",
     },
 
-    specsFlat: [ProductSpecSchema],
-
-    variants: [ProductVariantSchema],
-
-    images: {
-      type: [String],
+    specificationGroups: {
+      type: [ProductSpecificationGroupSchema],
       default: [],
+    },
+
+    specsFlat: {
+      type: [ProductFlatSpecSchema],
+      default: [],
+    },
+
+    variants: {
+      type: [ProductVariantSchema],
+      default: [],
+    },
+
+    imageGroups: {
+      type: [ProductImageGroupSchema],
+      default: []
     },
 
     thumbnail: {
@@ -115,13 +306,90 @@ const ProductSchema = new Schema(
       required: true,
     },
 
+    videos: {
+      type: [ProductVideoSchema],
+      default: []
+    },
+
     tags: {
       type: [String],
       default: [],
     },
 
+    inventorySummary: {
+      available: {
+        type: Number,
+        default: 0
+      },
+
+      reserved: {
+        type: Number,
+        default: 0
+      },
+
+      incoming: {
+        type: Number,
+        default: 0
+      },
+
+      lowStockThreshold: {
+        type: Number,
+        default: 5
+      }
+    },
+
+    relatedProducts: [{
+      type: Schema.Types.ObjectId,
+      ref: "Product"
+    }],
+
+    featured: {
+      type: Boolean,
+      default: false
+    },
+
+    badges: {
+      type: [BadgeSchema],
+      default: [],
+    },
+
+    ratingAverage: {
+      type: Number,
+      default: 0
+    },
+
+    ratingCount: {
+      type: Number,
+      default: 0
+    },
+
+    searchBoost: {
+      type: Number,
+      default: 1
+    },
+
+    seo: {
+      metaTitle: String,
+      metaDescription: String,
+      metaKeywords: {
+        type: [String],
+        default: []
+      },
+
+      canonicalUrl: String,
+
+      ogImage: String,
+
+      noIndex: {
+        type: Boolean,
+        default: false
+      }
+    },
+
     lowestPrice: Number,
+
     highestPrice: Number,
+
     totalInventory: Number,
 
     status: {
@@ -135,7 +403,6 @@ const ProductSchema = new Schema(
       default: null,
     },
 
-    // IMPORTANT
     searchKeywords: {
       type: [String],
       default: [],
@@ -146,13 +413,9 @@ const ProductSchema = new Schema(
   }
 );
 
-
-
-
-
-/* =========================================
+/* ==================================================
    INDEXES
-========================================= */
+================================================== */
 
 ProductSchema.index({
   searchKeywords: "text",
@@ -160,90 +423,116 @@ ProductSchema.index({
   shortDescription: "text",
 });
 
+ProductSchema.index({ brandId: 1 });
+ProductSchema.index({ categoryId: 1 });
+ProductSchema.index({ status: 1 });
+ProductSchema.index({ tags: 1 });
+ProductSchema.index({ lowestPrice: 1 });
+ProductSchema.index({ createdAt: -1 });
 ProductSchema.index({
-  brandId: 1,
+  deletedAt: 1
 });
 
 ProductSchema.index({
-  categoryId: 1,
+  featured: 1
+});
+
+ProductSchema.index({
+  ratingAverage: -1
+});
+
+ProductSchema.index({
+  searchBoost: -1
+});
+
+ProductSchema.index({
+  "specsFlat.key": 1,
+  "specsFlat.value": 1,
+});
+
+ProductSchema.index({
+  "variants.inventory": 1,
+});
+
+ProductSchema.index({
+  relatedProducts: 1
 });
 
 ProductSchema.index({
   status: 1,
+  categoryId: 1,
+  brandId: 1,
+  lowestPrice: 1
 });
 
-ProductSchema.index({
-  tags: 1,
-});
-
-ProductSchema.index({
-  lowestPrice: 1,
-});
-
-ProductSchema.index({
-  createdAt: -1,
-});
-
-ProductSchema.index({ 'specsFlat.key': 1, 'specsFlat.value': 1 });
-ProductSchema.index({ 'variants.inventory': 1 });
-
-
-/* =========================================
+/* ==================================================
    PRE SAVE
-========================================= */
+================================================== */
 
 ProductSchema.pre("save", async function () {
   const doc = this as any;
 
-  /*
-    ======================================
-    NORMALIZE SPECS
-    ======================================
-  */
+  /* -----------------------------
+     Build specsFlat automatically
+  ------------------------------ */
 
-  if (doc.specsFlat?.length) {
-    doc.specsFlat.forEach((spec: any) => {
+  const flatSpecs: any[] = [];
+
+  doc.specificationGroups?.forEach((group: any) => {
+    group.specifications?.forEach((spec: any) => {
       if (spec.key) {
         spec.key = normalizeString(spec.key);
       }
 
-      if (spec.value && typeof spec.value === "string") {
-        spec.value = normalizeString(spec.value);
-      }
+      flatSpecs.push({
+        key: spec.key,
+        label: spec.label,
+        value: spec.value,
+        unit: spec.unit,
+        filterable: spec.filterable,
+      });
     });
-  }
+  });
 
-  /*
-    ======================================
-    VARIANTS
-    ======================================
-  */
+  doc.specsFlat = flatSpecs;
+
+  /* -----------------------------
+     Variants
+  ------------------------------ */
+
+  doc.variants?.forEach((variant: any) => {
+    variant.attributes?.forEach((attr: any) => {
+      attr.key = normalizeString(attr.key);
+      attr.value = normalizeString(attr.value);
+    });
+
+    variant.variantKey =
+      generateVariantKey(variant.attributes);
+  });
+
+  /* -----------------------------
+     inventorySummary
+  ------------------------------ */
+
+  doc.inventorySummary.available =
+    doc.variants.reduce(
+      (sum: number, v: any) =>
+        sum + (v.inventory || 0),
+      0
+    );
+
+  doc.inventorySummary.reserved =
+    doc.variants.reduce(
+      (sum: number, v: any) =>
+        sum + (v.reserved || 0),
+      0
+    );
+
+  /* -----------------------------
+     Aggregate Prices
+  ------------------------------ */
 
   if (doc.variants?.length) {
-    doc.variants.forEach((variant: any) => {
-      variant.attributes?.forEach((attr: any) => {
-        if (attr.key) {
-          attr.key = normalizeString(attr.key);
-        }
-
-        if (attr.value) {
-          attr.value = normalizeString(attr.value);
-        }
-      });
-
-      variant.variantKey = generateVariantKey(
-        variant.attributes
-      );
-    });
-  }
-
-  /*
-    ======================================
-    AGGREGATES
-    ======================================
-  */
-
-  if (doc.variants.length > 0) {
     const prices = doc.variants.map(
       (v: any) => v.price || 0
     );
@@ -259,11 +548,9 @@ ProductSchema.pre("save", async function () {
     );
   }
 
-  /*
-    ======================================
-    SLUG
-    ======================================
-  */
+  /* -----------------------------
+     Slug
+  ------------------------------ */
 
   if (!doc.slug || doc.isModified("name")) {
     const baseSlug = doc.name
@@ -278,11 +565,9 @@ ProductSchema.pre("save", async function () {
     );
   }
 
-  /*
-    ======================================
-    SEARCH KEYWORDS
-    ======================================
-  */
+  /* -----------------------------
+     Search Keywords
+  ------------------------------ */
 
   const keywords = new Set<string>();
 
@@ -298,27 +583,20 @@ ProductSchema.pre("save", async function () {
     keywords.add(str);
   };
 
-  // Product basic info
   addKeyword(doc.name);
   addKeyword(doc.slug);
   addKeyword(doc.shortDescription);
   addKeyword(doc.description);
 
-  // Tags
-  doc.tags?.forEach((tag: string) => {
-    addKeyword(tag);
-  });
+  doc.tags?.forEach(addKeyword);
 
-  // Specs
   doc.specsFlat?.forEach((spec: any) => {
     addKeyword(spec.key);
     addKeyword(spec.label);
     addKeyword(spec.value);
-    addKeyword(spec.group);
     addKeyword(spec.unit);
   });
 
-  // Variants
   doc.variants?.forEach((variant: any) => {
     addKeyword(variant.sku);
     addKeyword(variant.variantKey);
@@ -332,21 +610,6 @@ ProductSchema.pre("save", async function () {
   doc.searchKeywords = Array.from(keywords);
 });
 
-
-
-
-
 export const Product =
   mongoose.models.Product ||
   mongoose.model("Product", ProductSchema);
-// models/ProductVariant.ts
-export const ProductVariant =
-  mongoose.models.ProductVariant ||
-  mongoose.model('ProductVariant', ProductVariantSchema);
-
-// models/ProductSpecification.ts
-export const ProductSpecification =
-  mongoose.models.ProductSpecification ||
-  mongoose.model('ProductSpecification', ProductSpecSchema);
-
- 

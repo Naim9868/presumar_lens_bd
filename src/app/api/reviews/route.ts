@@ -1,11 +1,11 @@
 import { NextResponse, NextRequest} from 'next/server';
-import {dbConnect }from '@/lib/dbConnect';
+import { connectDB }from '@/lib/dbConnect';
 import { Review } from '@/models/Review';
 import { Product } from '@/models/Product';
 
 export async function GET(request: NextRequest) {
   try {
-    await dbConnect();
+    await connectDB();
     const { searchParams } = new URL(request.url);
     const productId = searchParams.get('productId');
     
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    await dbConnect();
+    await connectDB();
     const body = await request.json();
     
     const review = await Review.create(body);

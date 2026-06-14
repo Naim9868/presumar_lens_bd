@@ -37,63 +37,6 @@ export interface ApiResponse<T = unknown> {
   };
 }
 
-// ==================== Spec Field ====================
-
-export interface ICategorySpecField {
-  key: string;
-  label: string;
-  type: 'text' | 'number' | 'select' | 'boolean' | 'multiselect';
-  unit?: string;
-  options?: string[];
-  required: boolean;
-  filterable: boolean;
-  isVariantAttribute: boolean;
-  defaultValue?: unknown; // ✅ no `any`
-}
-
-// ==================== Spec Group ====================
-
-export interface ICategorySpecGroup {
-  groupName: string;
-  fields: ICategorySpecField[];
-  displayOrder: number;
-}
-
-// ==================== Base Category ====================
-
-export interface ICategory {
-  _id: Types.ObjectId;
-  name: string;
-  slug?: string;
-  parentId?: Types.ObjectId | null;
-  specificationTemplate: ICategorySpecGroup[];
-
-  status: 'active' | 'inactive';
-
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// ==================== Mongoose Document ====================
-
-export interface ICategoryDocument extends ICategory, Document {}
-
-// ==================== Lean Version (IMPORTANT) ====================
-// Use this when you do `.lean()`
-
-export interface ICategoryLean {
-  _id: string; // ObjectId becomes string
-  name: string;
-  slug?: string;
-  parentId?: string | null;
-
-  specificationTemplate: ICategorySpecGroup[];
-
-  status: 'active' | 'inactive';
-
-  createdAt: Date;
-  updatedAt: Date;
-}
 
 
 //order type
@@ -215,36 +158,31 @@ export interface Notification {
 // }
 
 
-export interface SpecField {
-  key: string;
-  label: string;
-  value?: string | number | boolean | string[];
-  group: string;
-  unit?: string;
-  filterable?: boolean;
-  type?: 'text' | 'textarea' | 'number' | 'select' | 'multiselect' | 'boolean';
-  options?: string[];
-  required?: boolean;
-  isVariantAttribute?: boolean;
-  defaultValue?: unknown;
-}
-
-export interface SpecGroup {
-  groupName: string;
-  fields: SpecField[];
-  displayOrder?: number;
-}
-
-
-export interface Category {
-  _id: string;
-  name: string;
-  specificationTemplate: SpecGroup[];
-}
 
 export interface Brand {
   _id: string;
   name: string;
+  slug: string;
+  logo?: string;
+  logoPublicId?: string;
+  description?: string;
+  website?: string;
+  isActive: boolean;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+}
+
+export interface Category {
+  _id: string;
+  name: string;
+  slug: string;
+  image?: string;
+  imagePublicId?: string;
+  description?: string;
+  parentId: string | null;
+  status: 'active' | 'inactive';
+  createdAt: string | Date;
+  updatedAt: string | Date;
 }
 
 export interface VariantAttribute {

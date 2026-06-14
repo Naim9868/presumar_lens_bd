@@ -1,21 +1,23 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import CustomSelect from "./CustomSelect";
 import { useCartModalContext } from "@/app/context/CartSidebarModalContext";
 import { useWishlistModalContext } from "@/app/context/WishlistSidebarModalContext";
 import { useCartContext } from "@/app/context/CartContext";
 import { useWishlistContext } from "@/app/context/WishlistContext";
-import { fetchCategories } from "@/app/actions/category.actions";
-import { fetchBrands, Brand } from "@/app/actions/brand.actions"
+// import { fetchCategories } from "@/app/actions/category.actions";
+import { getBrands } from "@/app/actions/brand/getBrands";
+import { Brand } from "@/types";
 import SearchModal from "@/components/Search/SearchModal";
 import RecentlyViewedModal from "./RecentlyViewedModal";
 import { useRecentlyViewed } from "@/hooks/useRecentlyViewed";
 import Image from "next/image";
-import { Menu, X, Search, User, ShoppingBag, Phone, Heart, Eye, ChevronDown  } from "lucide-react";
+import { Menu, X, Search, User, ShoppingBag, Phone, Heart, Eye, ChevronDown } from "lucide-react";
 
-const Header = () => {
+// Create a separate component for the actual header content
+const HeaderContent = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [navigationOpen, setNavigationOpen] = useState(false);
   const [stickyMenu, setStickyMenu] = useState(false);
@@ -47,7 +49,7 @@ const Header = () => {
   const { wishlistCount } = useWishlistContext();
   const router = useRouter();
   const { recentlyViewed, addToRecentlyViewed } = useRecentlyViewed();
-  // const totalPrice = useSelector(selectTotalPrice);
+
   const totalPrice = cartTotal;
 
   const handleOpenCartModal = () => {
@@ -59,34 +61,35 @@ const Header = () => {
   };
 
   //fetch categories.
-  useEffect(() => {
-    async function loadCategories() {
+  // useEffect(() => {
+  //   async function loadCategories() {
 
-      const data = await fetchCategories();
+  //     const data = await fetchCategories();
+  //     console.log(data);
+  //     const formatted = [
+  //       {
+  //         label: "All Categories",
+  //         value: "0",
+  //       },
 
-      const formatted = [
-        {
-          label: "All Categories",
-          value: "0",
-        },
+  //       ...data.map((cat) => ({
+  //         label: cat.name,
+  //         value: cat._id,
+  //       })),
+  //     ];
 
-        ...data.map((cat) => ({
-          label: cat.name,
-          value: cat._id,
-        })),
-      ];
+  //     setCategories(formatted);
+  //   }
 
-      setCategories(formatted);
-    }
-
-    loadCategories();
-  }, []);
+  //   loadCategories();
+  // }, []);
 
 
    //fetch brands
   useEffect(() => {
     async function loadBrands() {
-      const data = await fetchBrands();
+      const data = await getBrands();
+
       setBrands(data);
     }
     loadBrands();
@@ -136,25 +139,6 @@ const Header = () => {
   }, [searchQuery, selectedCategory]);
 
 
-  // Handle sticky menu and auto-hide for navigation
-  const handleScroll = () => {
-    const currentScrollY = window.scrollY;
-
-    if (currentScrollY >= 80) {
-      setStickyMenu(true);
-    } else {
-      setStickyMenu(false);
-    }
-
-    if (currentScrollY > lastScrollY && currentScrollY > 100) {
-      setIsNavVisible(false);
-    } else if (currentScrollY < lastScrollY) {
-      setIsNavVisible(true);
-    }
-
-    setLastScrollY(currentScrollY);
-  };
-
  useEffect(() => {
   const onScroll = () => {
     const currentScrollY = window.scrollY;
@@ -192,16 +176,9 @@ const Header = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // const options = categories;
-
   const handleBrandClick = (brand: Brand) => {
     router.push(`/products?brand=${brand.slug}`);
   };
-
-  // const imageSrc =
-  // product.thumbnail?.startsWith("http")
-  //   ? product.thumbnail
-  //   : `/${product.thumbnail}`;
 
   return (
     <header className="fixed left-0 top-0 w-full z-[999] transition-shadow duration-300">
@@ -284,7 +261,6 @@ const Header = () => {
             <div className="hidden lg:block w-[500px] xl:w-[600px]">
               <form>
                 <div className="flex items-center gap-3">
-                  {/* <CustomSelect options={options} /> */}
                   <div className="relative flex-1">
                     <input
                       onChange={(e) => setSearchQuery(e.target.value)}
@@ -399,37 +375,23 @@ const Header = () => {
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-4">
           <div className="relative">
             
-             {/* Desktop Navigation - Left Brands, Right Recently Viewed */}
             <div className="relative hidden lg:flex items-center justify-between py-5">
-              {/* Left Side - Brands Dropdown */}
-              {/* <div className=" border-black"> */}
-                {/* <button
-                  onClick={() => setBrandsDropdownOpen(!brandsDropdownOpen)}
-                  className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
-                >
-                  <span>Shop by Brand</span>
-                  <ChevronDown className={`w-4 h-4 transition-transform ${brandsDropdownOpen ? 'rotate-180' : ''}`} />
-                </button> */}
-                
-                
-                  <div className="absolute z-50 max-h-96">
-                    <div className=" flex flex-row">
-                      {brands.map((brand) => (
-                        <button
-                          key={brand._id}
-                          onClick={() => {
-                            handleBrandClick(brand);
-                            setBrandsDropdownOpen(false);
-                          }}
-                          className="block w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-gray-50 hover:text-blue-600 rounded-md transition-colors"
-                        >
-                          {brand.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                
-              {/* </div> */}
+              <div className="absolute z-50 max-h-96">
+                <div className=" flex flex-row">
+                  {brands.map((brand) => (
+                    <button
+                      key={brand._id}
+                      onClick={() => {
+                        handleBrandClick(brand);
+                        setBrandsDropdownOpen(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-gray-50 hover:text-blue-600 rounded-md transition-colors"
+                    >
+                      {brand.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {/* Right Side - Recently Viewed Button */}
               <button
@@ -438,11 +400,6 @@ const Header = () => {
               >
                 <Eye className="w-3.5 h-3.5" />
                 Recently Viewed
-                {/* {recentlyViewed.length > 0 && (
-                  <span className="ml-1 bg-gray-200 text-gray-600 text-xs rounded-full px-1.5 py-0.5">
-                    {recentlyViewed.length}
-                  </span>
-                )} */}
               </button>
             </div>
 
@@ -519,20 +476,6 @@ const Header = () => {
                 </div>
               </div>
             </div>
-
-            {/* Desktop Navigation */}
-            {/* <div className="hidden lg:flex items-center justify-between py-2">
-              <div className="flex items-center gap-4">
-                
-                <Link
-                  href="/recently-viewed"
-                  className="flex items-center gap-1.5 text-xs font-medium text-gray-700 hover:text-blue-600 transition-colors"
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  Recently Viewed
-                </Link>
-              </div>
-            </div> */}
           </div>
         </div>
       </div>
@@ -551,6 +494,20 @@ const Header = () => {
 
     </header>
   );
+};
+
+// Main Header component with early return
+const Header = () => {
+  const pathname = usePathname();
+  const isAdminRoute = pathname?.startsWith('/admin');
+  
+  // Early return BEFORE any hooks - this is allowed
+  if (isAdminRoute) {
+    return null;
+  }
+  
+  // Only render the header content on non-admin routes
+  return <HeaderContent />;
 };
 
 export default Header;

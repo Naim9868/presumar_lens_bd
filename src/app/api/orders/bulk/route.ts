@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { dbConnect as connectDB } from '@/lib/dbConnect';
+import { connectDB } from '@/lib/dbConnect';
 import Order from '@/models/Order';
 
 export async function PUT(request: NextRequest) {

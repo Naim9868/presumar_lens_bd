@@ -1,6 +1,6 @@
 // app/category/page.tsx
 import { Metadata } from 'next';
-import { fetchCategories } from '@/app/actions/category.actions';
+import { getCategories} from '@/app/actions/category/getCategories';
 import CategoriesClient from './CategoriesClient';
 import { Suspense } from 'react';
 
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default async function CategoriesPage() {
   // Fetch all categories on the server
-  const categories = await fetchCategories();
+  const categories = await getCategories();
   
   return (
     <Suspense fallback={<CategoriesSkeleton />}>

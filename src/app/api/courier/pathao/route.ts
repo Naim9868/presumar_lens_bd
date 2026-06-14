@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { courierService } from '@/lib/services/courier.service';
 // import { authenticate } from '@/lib/auth';
 import Order from '@/models/Order';
-import { dbConnect as connectDB } from '@/lib/dbConnect';
+import { connectDB } from '@/lib/dbConnect';
 
 export async function POST(req: NextRequest) {
   try {

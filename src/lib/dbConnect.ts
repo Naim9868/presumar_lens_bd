@@ -22,7 +22,7 @@ if (!cached) {
   cached = global.mongoose = { conn: null, promise: null };
 }
 
-export async function dbConnect() {
+export async function connectDB() {
   // Skip mongoose connection if in edge runtime
   if (process.env.NEXT_RUNTIME === 'edge') {
     console.warn('MongoDB connection skipped in edge runtime');

@@ -6,9 +6,11 @@ import ProductCard from './ProductCard';
 import { ProductFilters } from './ProductFilters';
 import { ProductSort } from './ProductSort';
 import LoadingSpinner from '@/components/admin/ui/LoadingSpinner';
-import { getAllProducts, getAllBrands } from '@/app/actions/product.actions';
+import { getBrands } from '@/app/actions/brand/getBrands';
+import { getProducts } from '@/app/actions/product/getProducts';
+import { getAllProducts } from '@/app/actions/product/getAllProducts';
 import { FilterOptions } from '@/types';
-import { IProduct } from '@/types/product';
+import { IProduct, IProductFilters } from '@/types/product';
 import { Filter } from 'lucide-react';
 import { ProductDrawer } from './ProductDrawer';
 
@@ -21,43 +23,61 @@ export function ProductGrid({ initialProducts = [], categoryId }: ProductGridPro
   const [products, setProducts] = useState<IProduct[]>(initialProducts);
   const [brands, setBrands] = useState<Array<{ _id: string; name: string; slug: string }>>([]);
   const [loading, setLoading] = useState(false);
-  const [filters, setFilters] = useState<FilterOptions>({});
+  const [filters, setFilters] = useState<Partial<IProductFilters>>({});
   const [sortBy, setSortBy] = useState('newest');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [totalCount, setTotalCount] = useState(initialProducts.length);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Memoize fetchProducts to prevent unnecessary re-renders
-  const fetchProducts = useCallback(async () => {
-    // Don't show loading on initial load if we have products
+ const fetchProducts = useCallback(async () => {
+  try {
+    // Don't show loading on initial load if we already have products
     if (!isInitialLoad || (isInitialLoad && initialProducts.length === 0)) {
       setLoading(true);
     }
-    
+
     const result = await getAllProducts({
       ...filters,
-  });
-    
-    if (result.success) {
-      setProducts(result.products);
+      sort: sortBy,
+      categoryId,
+    });
 
-      // console.log("product:", result.products);
-      setTotalCount(result.products.length);
-    }
-    
+    setProducts(result.products || []);
+
+    // Use pagination total instead of current page length
+    setTotalCount(result.pagination.total);
+
+    // Optional if you track pages
+    // setCurrentPage(result.pagination.page);
+    // setTotalPages(result.pagination.totalPages);
+
+  } catch (error) {
+    console.error('Failed to fetch products:', error);
+
+    setProducts([]);
+    setTotalCount(0);
+  } finally {
     setLoading(false);
     setIsInitialLoad(false);
-  }, [filters, sortBy, categoryId, initialProducts.length, isInitialLoad]);
+  }
+}, [
+  filters,
+  sortBy,
+  categoryId,
+  initialProducts.length,
+  isInitialLoad,
+]);
  
   // Fetch brands only once
   const fetchBrands = useCallback(async () => {
     // Skip if brands already loaded
     if (brands.length > 0) return;
     
-    const result = await getAllBrands();
-    if (result.success) {
-      setBrands(result.brands);
-    }
+    const result = await getBrands();
+      console.log("brands:", result);
+      setBrands(result);
+    
   }, [brands.length]);
 
   // Fetch products when filters or sort changes
@@ -76,7 +96,7 @@ export function ProductGrid({ initialProducts = [], categoryId }: ProductGridPro
     fetchBrands();
   }, [fetchBrands]);
 
-  const handleFilterChange = (newFilters: FilterOptions) => {
+  const handleFilterChange = (newFilters: Partial<IProductFilters>) => {
     setFilters(newFilters);
   };
 

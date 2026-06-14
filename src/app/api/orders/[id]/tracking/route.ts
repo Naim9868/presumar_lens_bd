@@ -1,7 +1,7 @@
 // app/api/orders/[id]/tracking/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { dbConnect } from '@/lib/dbConnect';
+import { connectDB } from '@/lib/dbConnect';
 import Order from '@/models/Order';
 import { courierService } from '@/lib/services/courier.service';
 
@@ -10,7 +10,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await dbConnect();
+    await connectDB();
 
     const { id } = await params;
 

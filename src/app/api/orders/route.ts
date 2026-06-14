@@ -3,13 +3,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createOrderSchema } from '@/lib/validations/order.validation';
 // import { OrderService } from '@/lib/services/order.service';
 import { createOrder } from '@/app/actions/order.actions';
-import { dbConnect } from '@/lib/dbConnect';
+import { connectDB } from '@/lib/dbConnect';
 import Order from '@/models/Order';
 
 // import { authenticate } from '@/lib/auth';
 export async function GET(request: NextRequest) {
   try {
-    await dbConnect();
+    await connectDB();
     
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get('status');

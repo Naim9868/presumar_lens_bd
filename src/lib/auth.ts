@@ -1,7 +1,7 @@
 // lib/auth.ts
 import { NextRequest } from 'next/server';
 import jwt from 'jsonwebtoken';
-import { dbConnect as connectDB } from './dbConnect';
+import {  connectDB } from './dbConnect';
 // import User from '@/models/User';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
