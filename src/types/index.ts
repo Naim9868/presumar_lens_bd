@@ -208,18 +208,26 @@ export interface ProductVariant {
  
 
 export interface CartItem {
-  id: string;
-  slug: string;
+  id: string; // Unique cart item ID (productId-variantKey)
   productId: string;
-  variantId?: string;
   name: string;
-  price: number;
-  quantity: number;
-  image: string;
+  slug: string;
+  image?: string;
   sku?: string;
+  brand?: string;
+  category?: string;
+  price: {
+    original: number;
+    sale: number;
+  };
   variantKey?: string;
-  attributes?: VariantAttribute[];
-  selectedVariant?: ProductVariant;
+  variantName?: string;
+  attributes?: Record<string, string>;
+  quantity: number;
+  maxQuantity?: number;
+  // Optional: For backward compatibility
+  variantId?: string;
+  selectedVariant?: any;
 }
 
 export interface WishlistItem {

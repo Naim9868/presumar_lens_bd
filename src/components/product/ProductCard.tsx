@@ -12,6 +12,7 @@ import { IProduct, IProductVariant } from '@/types/product';
 import { useCartContext } from '@/app/context/CartContext';
 import { useWishlistContext } from '@/app/context/WishlistContext';
 import { useProductDrawer } from '@/hooks/useProductDrawer';
+import BuyNowButton from '@/components/BuyNowButton';
 
 interface ProductCardProps {
   product: IProduct;
@@ -47,18 +48,18 @@ const ProductCard = ({ product, priority = false }: ProductCardProps) => {
     if (product.inventorySummary?.available !== undefined && product.inventorySummary.available > 0) {
       return product.inventorySummary.available;
     }
-    
+
     // Priority 2: Check variants
     if (product.variants && product.variants.length > 0) {
       const totalStock = product.variants.reduce((sum, variant) => sum + (variant.inventory || 0), 0);
       if (totalStock > 0) return totalStock;
     }
-    
+
     // Priority 3: Check totalInventory field
     if (product.totalInventory && product.totalInventory > 0) {
       return product.totalInventory;
     }
-    
+
     // Default: no stock
     return 0;
   }, [product.inventorySummary, product.variants, product.totalInventory]);
@@ -93,11 +94,11 @@ const ProductCard = ({ product, priority = false }: ProductCardProps) => {
     // 1. Status is 'active' (or 'published' depending on your enum)
     // 2. Available stock > 0
     // 3. Not deleted
-    
+
     const isActive = product.status === 'active';
     const hasStock = availableStock > 0;
     const isNotDeleted = !product.deletedAt;
-    
+
     const isInStock = isActive && hasStock && isNotDeleted;
     const isLowStock = isInStock && availableStock <= (product.inventorySummary?.lowStockThreshold || 5);
 
@@ -171,20 +172,20 @@ const ProductCard = ({ product, priority = false }: ProductCardProps) => {
     }
   }, [product, defaultVariant, addToCart, stockStatus.isInStock]);
 
-  const handleBuyNow = useCallback(async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!stockStatus.isInStock) return;
+  // const handleBuyNow = useCallback(async (e: React.MouseEvent) => {
+  //   e.stopPropagation();
+  //   if (!stockStatus.isInStock) return;
 
-    setIsBuyingNow(true);
-    try {
-      await addToCart(product, defaultVariant, 1);
-      window.location.href = '/checkout';
-    } catch (error) {
-      console.error('Error buying now:', error);
-    } finally {
-      setIsBuyingNow(false);
-    }
-  }, [product, defaultVariant, addToCart, stockStatus.isInStock]);
+  //   setIsBuyingNow(true);
+  //   try {
+  //     await addToCart(product, defaultVariant, 1);
+  //     window.location.href = '/checkout';
+  //   } catch (error) {
+  //     console.error('Error buying now:', error);
+  //   } finally {
+  //     setIsBuyingNow(false);
+  //   }
+  // }, [product, defaultVariant, addToCart, stockStatus.isInStock]);
 
   const handleWishlist = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -278,20 +279,23 @@ const ProductCard = ({ product, priority = false }: ProductCardProps) => {
                 )}
               </button>
 
-              <button
-                onClick={handleBuyNow}
-                disabled={isBuyingNow || !stockStatus.isInStock}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg text-sm disabled:cursor-not-allowed"
+              <div
+                // onClick={handleBuyNow}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg text-sm cursor-pointer"
+                style={{ opacity: (!stockStatus.isInStock || isBuyingNow) ? 0.5 : 1, pointerEvents: (!stockStatus.isInStock || isBuyingNow) ? 'none' : 'auto' }}
               >
                 {isBuyingNow ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <>
-                    <Zap size={16} />
-                    Buy Now
+                    {/* <Zap size={16} /> */}
+                    <BuyNowButton
+                      product={product}
+                      showModal={true}
+                    />
                   </>
                 )}
-              </button>
+              </div>
             </div>
           </div>
         </div>

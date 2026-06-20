@@ -1,93 +1,85 @@
-// app/api/orders/route.ts
+// src/app/api/orders/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { createOrderSchema } from '@/lib/validations/order.validation';
-// import { OrderService } from '@/lib/services/order.service';
-import { createOrder } from '@/app/actions/order.actions';
 import { connectDB } from '@/lib/dbConnect';
-import Order from '@/models/Order';
+import { createOrder, getOrders } from '@/services/order.service';
 
-// import { authenticate } from '@/lib/auth';
-export async function GET(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
     await connectDB();
     
-    const searchParams = request.nextUrl.searchParams;
-    const status = searchParams.get('status');
-    const search = searchParams.get('search');
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const body = await req.json();
     
-    // Build query
-    const query: any = {};
-    
-    if (status && status !== 'ALL') {
-      query.status = status;
+    // Validate required fields
+    if (!body.items || !body.items.length) {
+      return NextResponse.json(
+        { error: 'Items are required' },
+        { status: 400 }
+      );
     }
-    
-    if (search) {
-      query.$or = [
-        { orderId: { $regex: search, $options: 'i' } },
-        { 'shipping.name': { $regex: search, $options: 'i' } },
-        { 'shipping.phone': { $regex: search, $options: 'i' } },
-        { 'shipping.email': { $regex: search, $options: 'i' } },
-      ];
+
+    if (!body.shipping || !body.shipping.name || !body.shipping.phone || !body.shipping.address) {
+      return NextResponse.json(
+        { error: 'Shipping information is required' },
+        { status: 400 }
+      );
     }
+
+    if (!body.deliveryType) {
+      return NextResponse.json(
+        { error: 'Delivery type is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!body.paymentMethod) {
+      return NextResponse.json(
+        { error: 'Payment method is required' },
+        { status: 400 }
+      );
+    }
+
+    const order = await createOrder(body);
     
-    // Execute queries
-    const [orders, total] = await Promise.all([
-      Order.find(query)
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .lean(),
-      Order.countDocuments(query),
-    ]);
-    
-    return NextResponse.json({
-      orders,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
-    });
-  } catch (error) {
-    console.error('Error fetching orders:', error);
+    return NextResponse.json(order, { status: 201 });
+  } catch (error: any) {
+    console.error('Create order error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch orders' },
+      { error: error.message || 'Failed to create order' },
       { status: 500 }
     );
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    const body = await req.json();
+    await connectDB();
+    
+    const searchParams = req.nextUrl.searchParams;
+    const status = searchParams.get('status') || undefined;
+    const startDate = searchParams.get('startDate') ? new Date(searchParams.get('startDate')!) : undefined;
+    const endDate = searchParams.get('endDate') ? new Date(searchParams.get('endDate')!) : undefined;
+    const userId = searchParams.get('userId') || undefined;
+    const search = searchParams.get('search') || undefined;
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const sort = searchParams.get('sort') || '-createdAt';
 
-    const parsed = createOrderSchema.safeParse(body);
+    const result = await getOrders({
+      status,
+      startDate,
+      endDate,
+      userId,
+      search,
+      page,
+      limit,
+      sort,
+    });
 
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: parsed.error.flatten() },
-        { status: 400 }
-      );
-    }
-
-    const result = await createOrder(parsed.data);
-
-    if (!result.success) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json(result, { status: 201 });
-
-  } catch (error) {
+    return NextResponse.json(result);
+  } catch (error: any) {
+    console.error('Get orders error:', error);
     return NextResponse.json(
-      { error: 'Something went wrong' },
+      { error: error.message || 'Failed to fetch orders' },
       { status: 500 }
     );
   }

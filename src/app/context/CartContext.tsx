@@ -1,16 +1,15 @@
-// context/CartContext.tsx
 'use client';
 
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useCart } from '@/hooks/useCart';
-import { CartItem, ProductVariant } from '@/types';
-import { IProduct } from '@/types/product';
+import { CartItem } from '@/types/cart';
+import { IProduct, IProductVariant } from '@/types/product';
 
 interface CartContextType {
   cartItems: CartItem[];
   cartTotal: number;
   cartCount: number;
-  addToCart: (product: IProduct, variant?: ProductVariant, quantity?: number) => Promise<boolean>;
+  addToCart: (product: IProduct, variant?: IProductVariant, quantity?: number) => Promise<boolean>;
   updateQuantity: (id: string, quantity: number) => void;
   removeFromCart: (id: string) => void;
   clearCart: () => void;
@@ -24,8 +23,21 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: ReactNode }) {
   const cart = useCart();
 
+  const contextValue: CartContextType = {
+    cartItems: cart.cartItems,
+    cartTotal: cart.cartTotal,
+    cartCount: cart.cartCount,
+    addToCart: cart.addToCart,
+    updateQuantity: cart.updateQuantity,
+    removeFromCart: cart.removeFromCart,
+    clearCart: cart.clearCart,
+    getCartTotal: cart.getCartTotal,
+    getCartCount: cart.getCartCount,
+    isLoaded: cart.isLoaded,
+  };
+
   return (
-    <CartContext.Provider value={cart}>
+    <CartContext.Provider value={contextValue}>
       {children}
     </CartContext.Provider>
   );

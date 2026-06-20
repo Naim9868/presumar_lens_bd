@@ -1,125 +1,210 @@
-import mongoose, { Schema, Document } from 'mongoose';
+// src/models/Order.ts
+import mongoose, { Schema, Document, Types } from 'mongoose';
+import { Product } from './Product';
+
+export type OrderStatus =
+  | 'PENDING'
+  | 'AWAITING_PAYMENT'
+  | 'CONFIRMED'
+  | 'PROCESSING'
+  | 'PACKED'
+  | 'READY_TO_SHIP'
+  | 'SHIPPED'
+  | 'IN_TRANSIT'
+  | 'OUT_FOR_DELIVERY'
+  | 'DELIVERED'
+  | 'CANCELLED'
+  | 'RETURN_REQUESTED'
+  | 'RETURNED'
+  | 'REFUNDED';
 
 export interface IOrder extends Document {
   orderId: string;
-  // userId?: mongoose.Types.ObjectId;
-
+  userId?: Types.ObjectId;
+  guestEmail?: string;
+  guestPhone?: string;
   items: {
-    productId: mongoose.Types.ObjectId;
-    variantId?: string; // Changed to string for SKU
-    name: string;
-    sku?: string;
-    price: number;
+    productId: Types.ObjectId;
+    variantKey?: string;
+    snapshot: {
+      name: string;
+      slug: string;
+      image?: string;
+      sku?: string;
+      brand?: string;
+      category?: string;
+      attributes?: Record<string, string>;
+    };
+    price: { original: number; sale: number };
     quantity: number;
-    image?: string;
+    total: number;
   }[];
-
   pricing: {
     subtotal: number;
+    itemDiscount: number;
+    couponDiscount: number;
+    campaignDiscount: number;
     deliveryCharge: number;
-    discount: number;
+    tax: number;
     total: number;
+    currency: string;
   };
-
-  status: string;
-  customStatus?: string;
-
-  timeline: {
-    status: string;
-    note?: string;
-    createdAt: Date;
-  }[];
-
-  payment: {
-    method: 'COD' | 'ONLINE';
-    status: 'PAID' | 'UNPAID' | 'FAILED';
-    transactionId?: string;
+  coupon?: {
+    couponId?: Types.ObjectId;
+    code: string;
+    type: 'PERCENTAGE' | 'FIXED' | 'FREE_SHIPPING';
+    value: number;
+    discountAmount: number;
   };
-
+  marketing?: {
+    source?: string;
+    medium?: string;
+    campaign?: string;
+    fbclid?: string;
+    gclid?: string;
+    ttclid?: string;
+    utm: {
+      source?: string;
+      medium?: string;
+      campaign?: string;
+      term?: string;
+      content?: string;
+    };
+    referrer?: string;
+  };
+  status: OrderStatus;
   shipping: {
     name: string;
     phone: string;
+    email?: string;
     address: string;
     area: string;
     city: string;
+    postcode?: string;
+    division?: string;
+    landmark?: string;
   };
-
   delivery: {
     type: 'INSIDE_DHAKA' | 'OUTSIDE_DHAKA';
-    courier?: string;
-    trackingId?: string;
   };
-
-  isCancelled: boolean;
-
+  inventory: {
+    reserved: boolean;
+    released: boolean;
+    releasedAt?: Date;
+    itemsReserved: {
+      productId: Types.ObjectId;
+      variantKey?: string;
+      quantity: number;
+    }[];
+  };
+  notes: {
+    text: string;
+    createdBy?: Types.ObjectId;
+    createdAt: Date;
+  }[];
+  meta: {
+    ip?: string;
+    userAgent?: string;
+    device?: string;
+    platform?: string;
+  };
+  notifications: {
+    sms: boolean;
+    email: boolean;
+    whatsapp: boolean;
+  };
+  paymentMethod: 'COD' | 'ONLINE';
+  paymentStatus: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
   createdAt: Date;
   updatedAt: Date;
 }
 
 const OrderSchema = new Schema<IOrder>(
   {
-    orderId: { type: String, unique: true, required: true },
-
-    // userId: { type: Schema.Types.ObjectId, ref: 'User' },
+    orderId: { type: String, required: true, unique: true, index: true },
+    userId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
+    guestEmail: String,
+    guestPhone: String,
 
     items: [
       {
         productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
-        variantId: { type: String }, // Changed from Schema.Types.ObjectId to String
-        name: { type: String, required: true },
-        sku: { type: String },
-        price: { type: Number, required: true },
+        variantKey: String,
+        snapshot: {
+          name: { type: String, required: true },
+          slug: String,
+          image: String,
+          sku: String,
+          brand: String,
+          category: String,
+          attributes: Schema.Types.Mixed,
+        },
+        price: { 
+          original: { type: Number, required: true },
+          sale: { type: Number, required: true }
+        },
         quantity: { type: Number, required: true, min: 1 },
-        image: { type: String },
+        total: { type: Number, required: true },
       },
     ],
 
     pricing: {
       subtotal: { type: Number, required: true },
-      deliveryCharge: { type: Number, required: true },
-      discount: { type: Number, default: 0 },
+      itemDiscount: { type: Number, default: 0 },
+      couponDiscount: { type: Number, default: 0 },
+      campaignDiscount: { type: Number, default: 0 },
+      deliveryCharge: { type: Number, default: 0 },
+      tax: { type: Number, default: 0 },
       total: { type: Number, required: true },
+      currency: { type: String, default: 'BDT' },
+    },
+
+    coupon: {
+      couponId: { type: Schema.Types.ObjectId, ref: 'Coupon' },
+      code: String,
+      type: { type: String, enum: ['PERCENTAGE', 'FIXED', 'FREE_SHIPPING'] },
+      value: Number,
+      discountAmount: Number,
+    },
+
+    marketing: {
+      source: String,
+      medium: String,
+      campaign: String,
+      fbclid: String,
+      gclid: String,
+      ttclid: String,
+      utm: {
+        source: String,
+        medium: String,
+        campaign: String,
+        term: String,
+        content: String,
+      },
+      referrer: String,
     },
 
     status: {
       type: String,
       enum: [
-        'PENDING',
-        'CONFIRMED',
-        'PROCESSING',
-        'SHIPPED',
-        'DELIVERED',
-        'CANCELLED',
+        'PENDING', 'AWAITING_PAYMENT', 'CONFIRMED', 'PROCESSING',
+        'PACKED', 'READY_TO_SHIP', 'SHIPPED', 'IN_TRANSIT',
+        'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED',
+        'RETURN_REQUESTED', 'RETURNED', 'REFUNDED',
       ],
       default: 'PENDING',
-    },
-
-    customStatus: { type: String },
-
-    timeline: [
-      {
-        status: { type: String, required: true },
-        note: { type: String },
-        createdAt: { type: Date, default: Date.now },
-      },
-    ],
-
-    payment: {
-      method: { type: String, enum: ['COD', 'ONLINE'], required: true },
-      status: {
-        type: String,
-        enum: ['PAID', 'UNPAID', 'FAILED'],
-        default: 'UNPAID',
-      },
-      transactionId: { type: String },
     },
 
     shipping: {
       name: { type: String, required: true },
       phone: { type: String, required: true },
+      email: String,
       address: { type: String, required: true },
       area: { type: String, required: true },
       city: { type: String, required: true },
+      postcode: String,
+      division: String,
+      landmark: String,
     },
 
     delivery: {
@@ -128,16 +213,62 @@ const OrderSchema = new Schema<IOrder>(
         enum: ['INSIDE_DHAKA', 'OUTSIDE_DHAKA'],
         required: true,
       },
-      courier: { type: String },
-      trackingId: { type: String },
     },
 
-    isCancelled: { type: Boolean, default: false },
+    inventory: {
+      reserved: { type: Boolean, default: false },
+      released: { type: Boolean, default: false },
+      releasedAt: Date,
+      itemsReserved: [
+        {
+          productId: { type: Schema.Types.ObjectId, ref: 'Product' },
+          variantKey: String,
+          quantity: Number,
+        },
+      ],
+    },
+
+    notes: [
+      {
+        text: { type: String, required: true },
+        createdBy: { type: Schema.Types.ObjectId, ref: 'Admin' },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+
+    meta: { 
+      ip: String, 
+      userAgent: String, 
+      device: String,
+      platform: String,
+    },
+
+    notifications: {
+      sms: { type: Boolean, default: false },
+      email: { type: Boolean, default: false },
+      whatsapp: { type: Boolean, default: false },
+    },
+
+    paymentMethod: {
+      type: String,
+      enum: ['COD', 'ONLINE'],
+      required: true,
+    },
+    paymentStatus: {
+      type: String,
+      enum: ['PENDING', 'PAID', 'FAILED', 'REFUNDED'],
+      default: 'PENDING',
+    },
   },
   { timestamps: true }
 );
 
-// Check if model exists before creating a new one
- const Order = mongoose.models.Order || mongoose.model<IOrder>('Order', OrderSchema);
+// Indexes
+OrderSchema.index({ userId: 1, createdAt: -1 });
+OrderSchema.index({ status: 1, createdAt: -1 });
+OrderSchema.index({ 'marketing.source': 1 });
+OrderSchema.index({ 'shipping.phone': 1 });
+OrderSchema.index({ createdAt: -1 });
+OrderSchema.index({ orderId: 'text' });
 
-export default Order;
+export default mongoose.models.Order || mongoose.model<IOrder>('Order', OrderSchema);

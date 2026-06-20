@@ -1,137 +1,73 @@
-// ./src/app/api/orders/[id]/route.ts
-
+// src/app/api/orders/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { getOrderById } from '@/app/actions/order.actions';
 import { connectDB } from '@/lib/dbConnect';
-import Order from '@/models/Order';
-import { Product } from '@/models';
+import { getOrderById, updateOrderStatus } from '@/services/order.service';
 
-// ================= GET =================
 export async function GET(
-  request: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
-
+    
     const { id } = await params;
-
     const order = await getOrderById(id);
-
+    
     if (!order) {
       return NextResponse.json(
-        { success: false, error: 'Order not found' },
+        { error: 'Order not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      data: order
-    });
+    // Get events
+    const OrderEvent = (await import('@/models/OrderEvent')).default;
+    const events = await OrderEvent.find({ orderId: order._id })
+      .sort({ createdAt: -1 })
+      .limit(50);
 
+    return NextResponse.json({ order, events });
   } catch (error: any) {
-    console.error('Error fetching order:', error);
-
+    console.error('Get order detail error:', error);
     return NextResponse.json(
-      {
-        success: false,
-        error: error.message || 'Failed to fetch order'
-      },
+      { error: error.message || 'Failed to fetch order' },
       { status: 500 }
     );
   }
 }
 
-// ================= PATCH =================
 export async function PATCH(
-  request: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
+    
+    const body = await req.json();
+    const { status, note } = body;
+
+    if (!status) {
+      return NextResponse.json(
+        { error: 'Status is required' },
+        { status: 400 }
+      );
+    }
 
     const { id } = await params;
-    const body = await request.json();
-
-    const order = await Order.findByIdAndUpdate(
-      id,
-      { status: body.status },
-      { new: true, runValidators: true } // ✅ fixed option
-    );
-
+    const order = await updateOrderStatus(id, status, undefined, note);
+    
     if (!order) {
       return NextResponse.json(
-        { success: false, error: 'Order not found' },
+        { error: 'Order not found' },
         { status: 404 }
       );
     }
 
-    // ✅ Inventory update (FIXED LOGIC)
-    if (body.status === 'DELIVERED') {
-      for (const item of order.items) {
-        await Product.updateOne(
-          {
-            _id: item.productId,
-            'variants._id': item.variantId // ⚠️ important
-          },
-          {
-            $inc: { 'variants.$.inventory': -item.quantity }
-          }
-        );
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: order
-    });
-
+    return NextResponse.json(order);
   } catch (error: any) {
-    console.error('Error updating order:', error);
-
+    console.error('Update order status error:', error);
     return NextResponse.json(
-      {
-        success: false,
-        error: error.message || 'Failed to update order'
-      },
-      { status: 500 }
-    );
-  }
-}
-
-// ================= DELETE =================
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    await connectDB();
-
-    const { id } = await params;
-
-    const deleted = await Order.findByIdAndDelete(id);
-
-    if (!deleted) {
-      return NextResponse.json(
-        { success: false, error: 'Order not found' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: 'Order deleted successfully'
-    });
-
-  } catch (error: any) {
-    console.error('Error deleting order:', error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: error.message || 'Failed to delete order'
-      },
+      { error: error.message || 'Failed to update order' },
       { status: 500 }
     );
   }

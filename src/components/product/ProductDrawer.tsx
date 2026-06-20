@@ -22,6 +22,7 @@ import type {
   IProductImageGroup 
 } from '@/types/product';
 import toast from 'react-hot-toast';
+import BuyNowButton from '@/components/BuyNowButton';
 
 interface ProductDrawerProps {
   onViewFullDetails?: () => void;
@@ -56,7 +57,7 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
   // State
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [selectedVariant, setSelectedVariant] = useState<IProductVariant | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<IProductVariant | undefined>(undefined);
   const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState<'details' | 'specs' | 'reviews'>('details');
   const [showFullDescription, setShowFullDescription] = useState(false);
@@ -342,26 +343,26 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
     toast.success('Added to cart');
   }, [typedProduct, isInStock, selectedVariant, quantity, addToCart]);
 
-  const handleBuyNow = useCallback(() => {
-    if (!typedProduct) return;
-    if (!isInStock) {
-      toast.error('Product is out of stock');
-      return;
-    }
+  // const handleBuyNow = useCallback(() => {
+  //   if (!typedProduct) return;
+  //   if (!isInStock) {
+  //     toast.error('Product is out of stock');
+  //     return;
+  //   }
 
-    handleClose();
-    setTimeout(() => {
-      openCheckout({
-        productId: typedProduct._id,
-        name: typedProduct.name,
-        price: currentPrice,
-        quantity,
-        image: getCurrentImage(),
-        variantId: selectedVariant?.variantKey,
-        sku: selectedVariant?.sku,
-      });
-    }, 200);
-  }, [typedProduct, isInStock, currentPrice, quantity, getCurrentImage, selectedVariant, openCheckout, handleClose]);
+  //   handleClose();
+  //   setTimeout(() => {
+  //     openCheckout({
+  //       productId: typedProduct._id,
+  //       name: typedProduct.name,
+  //       price: currentPrice,
+  //       quantity,
+  //       image: getCurrentImage(),
+  //       variantId: selectedVariant?.variantKey,
+  //       sku: selectedVariant?.sku,
+  //     });
+  //   }, 200);
+  // }, [typedProduct, isInStock, currentPrice, quantity, getCurrentImage, selectedVariant, openCheckout, handleClose]);
 
   const getAvailableValues = useCallback((attrKey: string) => {
     if (!typedProduct?.variants) return new Set<string>();
@@ -657,13 +658,17 @@ export function ProductDrawer({ onViewFullDetails }: ProductDrawerProps) {
                     <ShoppingBag size={18} />
                     Add to Cart
                   </button>
-                  <button
-                    onClick={handleBuyNow}
+                  <BuyNowButton
+                    product={typedProduct}
+                    variant={selectedVariant}
+                    quantity={quantity}
                     disabled={!isInStock}
+                     showModal={false}
                     className="flex-1 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 dark:bg-white dark:hover:bg-gray-100 dark:text-gray-900 disabled:dark:bg-gray-600 text-white py-3.5 rounded-xl font-semibold transition flex items-center justify-center gap-2 shadow-md"
                   >
                     Buy Now
-                  </button>
+                  </BuyNowButton>
+
                 </div>
 
                 {/* View Full Details Link */}
