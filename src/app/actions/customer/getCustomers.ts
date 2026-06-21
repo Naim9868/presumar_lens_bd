@@ -3,6 +3,7 @@
 
 import { connectDB } from '@/lib/dbConnect';
 import Customer from '@/models/Customer';
+import { serializeCustomer } from '@/lib/serialize-customer';
 
 interface GetCustomersParams {
   page?: number;
@@ -84,10 +85,7 @@ export async function getCustomers(params: GetCustomersParams) {
 
     return {
       success: true,
-      customers: customers.map((customer: any) => ({
-        ...customer,
-        _id: customer._id.toString(),
-      })),
+      customers: customers.map(serializeCustomer),
       pagination: {
         page,
         limit,

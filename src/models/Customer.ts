@@ -85,7 +85,7 @@ const CustomerSchema = new Schema<ICustomer>(
     notes: [
       {
         text: { type: String, required: true },
-        createdBy: { type: Schema.Types.ObjectId, ref: 'Admin' },
+        createdBy: { type: String, default: 'ADMIN' },
         createdAt: { type: Date, default: Date.now },
       },
     ],

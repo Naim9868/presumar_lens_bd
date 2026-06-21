@@ -11,26 +11,29 @@ export async function GET(
 ){
 
  const id = (await params).id;
- const customer =
- await Customer.findById(id);
+ const customer = await Customer.findById(id);
 
  const orders =
  await Order.find({
    $or:[
      {
        userId:
-       customer.userId
+       customer._id
      },
 
      {
        guestPhone:
        customer.phone
+     },
+     {
+      guestEmail: customer.email
      }
    ]
  })
  .sort({
    createdAt:-1
  });
+
 
  return NextResponse.json(
    orders

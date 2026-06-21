@@ -39,7 +39,7 @@ export interface ICustomer extends Document {
   };
   notes: {
     text: string;
-    createdBy: Types.ObjectId;
+    createdBy: string;
     createdAt: Date;
   }[];
   smsHistory: {
@@ -68,9 +68,10 @@ export interface CustomerStats {
 }
 
 export interface CustomerNote {
+  noteId?: string;
   text: string;
   createdBy?: string;
-  createdAt: Date;
+  createdAt: Date | string;
 }
 
 export interface CustomerSMS {

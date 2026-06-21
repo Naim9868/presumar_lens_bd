@@ -187,8 +187,8 @@ export default function CustomersClient({
     setShowSMSModal(true);
   };
 
-  // Handle note edit
-  const handleEditNote = (customer: Customer) => {
+  // Handle open note modal
+  const handleOpenNoteModal = (customer: Customer) => {
     setSelectedCustomer(customer);
     setShowNoteModal(true);
   };
@@ -285,13 +285,87 @@ export default function CustomersClient({
 
       if (data.success) {
         toast.success('Note added successfully');
+        // Update the selected customer's notes so the modal reflects the change
+        // immediately without waiting for a full refetch.
+        if (selectedCustomer) {
+          setSelectedCustomer({
+            ...selectedCustomer,
+            notes: data.notes ?? selectedCustomer.notes,
+          });
+        }
         fetchCustomers();
       } else {
         toast.error(data.error || 'Failed to add note');
+        throw new Error(data.error || 'Failed to add note');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding note:', error);
-      toast.error('Failed to add note');
+      toast.error(error?.message || 'Failed to add note');
+      throw error;
+    }
+  };
+
+  // Handle edit note
+  const handleEditNote = async (noteId: string, text: string) => {
+    if (!selectedCustomer) return;
+    try {
+      const response = await fetch(
+        `/api/customers/${selectedCustomer._id}/notes`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ noteId, text }),
+        }
+      );
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('Note updated successfully');
+        setSelectedCustomer({
+          ...selectedCustomer,
+          notes: data.notes ?? selectedCustomer.notes,
+        });
+        fetchCustomers();
+      } else {
+        toast.error(data.error || 'Failed to update note');
+        throw new Error(data.error || 'Failed to update note');
+      }
+    } catch (error: any) {
+      console.error('Error updating note:', error);
+      toast.error(error?.message || 'Failed to update note');
+      throw error;
+    }
+  };
+
+  // Handle delete note
+  const handleDeleteNote = async (noteId: string) => {
+    if (!selectedCustomer) return;
+    try {
+      const response = await fetch(
+        `/api/customers/${selectedCustomer._id}/notes`,
+        {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ noteId }),
+        }
+      );
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('Note deleted successfully');
+        setSelectedCustomer({
+          ...selectedCustomer,
+          notes: data.notes ?? selectedCustomer.notes,
+        });
+        fetchCustomers();
+      } else {
+        toast.error(data.error || 'Failed to delete note');
+        throw new Error(data.error || 'Failed to delete note');
+      }
+    } catch (error: any) {
+      console.error('Error deleting note:', error);
+      toast.error(error?.message || 'Failed to delete note');
+      throw error;
     }
   };
 
@@ -322,7 +396,7 @@ export default function CustomersClient({
         onEditCustomer={handleEditCustomer}
         onArchiveCustomer={handleArchiveCustomer}
         onSendSMS={handleSingleSMS}
-        onEditNote={handleEditNote}
+        onEditNote={handleOpenNoteModal}
         loading={loading}
       />
 
@@ -415,6 +489,8 @@ export default function CustomersClient({
           setSelectedCustomer(null);
         }}
         onSave={(note) => handleAddNote(selectedCustomer?._id || '', note)}
+        onUpdate={handleEditNote}
+        onDelete={handleDeleteNote}
         customerName={selectedCustomer?.name}
         existingNotes={selectedCustomer?.notes || []}
       />

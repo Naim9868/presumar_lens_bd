@@ -2,6 +2,7 @@
 import { NextRequest } from 'next/server';
 import Customer from '@/models/Customer';
 import { connectDB } from '@/lib/dbConnect';
+import { serializeCustomer } from '@/lib/serialize-customer';
 
 export async function GET(req: NextRequest) {
   try {
@@ -76,7 +77,7 @@ export async function GET(req: NextRequest) {
     ]);
 
     return Response.json({
-      customers,
+      customers: customers.map(serializeCustomer),
       pagination: {
         page,
         limit,
