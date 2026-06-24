@@ -4,6 +4,9 @@ import { nanoid } from 'nanoid';
 import Order, { IOrder } from '@/models/Order';
 import OrderEvent from '@/models/OrderEvent';
 import Customer from '@/models/Customer';
+import Payment from '@/models/Payment';
+import { trackEvent } from './tracking.service';
+import { sendOrderNotification } from './notification.service';
 
 import { reserveInventory, releaseInventory } from './inventory.service';
 
@@ -39,6 +42,15 @@ export interface CreateOrderInput {
   };
   deliveryType: 'INSIDE_DHAKA' | 'OUTSIDE_DHAKA';
   paymentMethod: 'COD' | 'ONLINE';
+  pricing: {
+    subtotal: number;
+    itemDiscount: number;
+    couponDiscount: number;
+    campaignDiscount: number;
+    deliveryCharge: number;
+    tax?: number;
+    total: number;
+  };
   coupon?: {
     couponId?: string;
     code: string;
@@ -237,6 +249,17 @@ export async function createOrder(input: CreateOrderInput): Promise<IOrder> {
       );
     }
 
+    // Create COD payment record immediately
+    if (input.paymentMethod === 'COD') {
+      await Payment.create({
+        orderId: order._id,
+        method: 'COD',
+        amount: input.pricing.total,
+        currency: 'BDT',
+        status: 'PENDING',
+      });
+    }
+
     // Log event
     await OrderEvent.create(
       [{
@@ -253,6 +276,25 @@ export async function createOrder(input: CreateOrderInput): Promise<IOrder> {
 
     await session.commitTransaction();
 
+    // Track purchase event (non-blocking)
+    trackEvent({
+      name: 'purchase',
+      userId: input.userId,
+      sessionId: nanoid(),
+      value: input.pricing.total,
+      orderId: order._id.toString(),
+      utm: input.marketing?.utm as Record<string, string>,
+      fbclid: input.marketing?.fbclid,
+      gclid: input.marketing?.gclid,
+      ttclid: input.marketing?.ttclid,
+    }).catch(console.error);
+
+    // Send notifications (non-blocking)
+    sendOrderNotification(
+      order,
+      'ORDER_PLACED'
+    ).catch(console.error);
+
     // Return populated order
     return order;
   } catch (error) {
@@ -262,6 +304,8 @@ export async function createOrder(input: CreateOrderInput): Promise<IOrder> {
     session.endSession();
   }
 }
+
+
 
 export async function updateOrderStatus(
   orderId: string,
@@ -279,6 +323,8 @@ export async function updateOrderStatus(
     }
 
     const previousStatus = order.status;
+    if (previousStatus === status)
+      return order;
 
     // If cancelling, release inventory
     if (status === 'CANCELLED' && previousStatus !== 'CANCELLED') {
@@ -287,9 +333,35 @@ export async function updateOrderStatus(
       order.inventory.releasedAt = new Date();
     }
 
+
+
+    // COD auto paid
+    if (
+      status === 'DELIVERED'
+    ) {
+
+      await Payment.updateOne(
+        {
+          orderId: order._id,
+          method: 'COD',
+          status: 'PENDING'
+        },
+        {
+          status: 'PAID',
+          paidAt: new Date()
+        },
+        { session }
+      );
+
+      order.paymentStatus =
+        'PAID';
+    }
     // Update status
-    order.status = status as any;
-    await order.save({ session });
+    order.status = status;
+
+    await order.save({
+      session
+    });
 
     // Log event
     await OrderEvent.create({
@@ -297,11 +369,18 @@ export async function updateOrderStatus(
       status,
       previousStatus,
       source: adminId ? 'ADMIN' : 'SYSTEM',
-      note,
+      note:
+        note ??
+        `Status → ${status}`,
       createdBy: adminId ? new mongoose.Types.ObjectId(adminId) : undefined,
     });
 
     await session.commitTransaction();
+
+    sendOrderNotification(
+      order,
+      `STATUS_${status}`
+    ).catch(console.error);
 
     return order;
   } catch (error) {
@@ -312,13 +391,63 @@ export async function updateOrderStatus(
   }
 }
 
+
+export async function addOrderNote(
+  orderId: string,
+  text: string,
+  adminId?: string
+) {
+
+  return Order.findByIdAndUpdate(
+    orderId,
+    {
+      $push: {
+        notes: {
+          text,
+
+          createdBy:
+            adminId,
+
+          createdAt:
+            new Date()
+        }
+      }
+    },
+    { new: true }
+  );
+
+}
+
+
 export async function getOrderById(orderId: string): Promise<IOrder | null> {
   return Order.findById(orderId);
 }
 
+
+
 export async function getOrderByOrderId(orderId: string): Promise<IOrder | null> {
   return Order.findOne({ orderId });
 }
+
+
+export async function cancelOrder(orderId: string, reason?: string, adminId?: string) {
+  return updateOrderStatus(orderId, 'CANCELLED', adminId, reason || 'Order cancelled');
+}
+
+export async function getOrderTimeline(
+  orderId: string
+) {
+
+  return OrderEvent
+    .find({
+      orderId
+    })
+    .sort({
+      createdAt: 1
+    });
+
+}
+
 
 export interface OrderFilterOptions {
   status?: string;
@@ -329,21 +458,23 @@ export interface OrderFilterOptions {
   page?: number;
   limit?: number;
   sort?: string;
+  source?: string;
 }
 
 export async function getOrders(options: OrderFilterOptions) {
-  const { status, startDate, endDate, userId, search, page = 1, limit = 20, sort = '-createdAt' } = options;
+  const { status, startDate, endDate, userId, search, page = 1, limit = 20, sort = '-createdAt', source } = options;
 
   const filter: any = {};
 
-  if (status) {
+  if (status && status !== 'ALL') {
     filter.status = status;
   }
+  if (source) filter['marketing.source'] = source;
 
   if (startDate || endDate) {
     filter.createdAt = {};
-    if (startDate) filter.createdAt.$gte = startDate;
-    if (endDate) filter.createdAt.$lte = endDate;
+    if (startDate) filter.createdAt.$gte = new Date(startDate);
+    if (endDate) filter.createdAt.$lte = new Date(endDate);
   }
 
   if (userId) {
@@ -366,13 +497,72 @@ export async function getOrders(options: OrderFilterOptions) {
     Order.countDocuments(filter),
   ]);
 
+  return { orders, total, page, limit, pages: Math.ceil(total / limit) };
+}
+
+
+
+export async function getOrderStats() {
+
+  const today =
+    new Date();
+
+  today.setHours(
+    0,
+    0,
+    0,
+    0
+  );
+
+  const [
+    total,
+    todayOrders,
+    pending,
+    revenue
+  ] = await Promise.all([
+
+    Order.countDocuments(),
+    Order.countDocuments({
+      createdAt: {
+        $gte: today
+      }
+    }),
+    Order.countDocuments({
+      status: {
+        $in: [
+          'PENDING',
+          'CONFIRMED',
+          'PROCESSING'
+        ]
+      }
+    }),
+    Order.aggregate([
+      {
+        $match: {
+          status:
+            'DELIVERED'
+        }
+      },
+      {
+        $group: {
+          _id: null,
+
+          total: {
+            $sum:
+              '$pricing.total'
+          }
+        }
+      }
+    ])
+  ]);
+
   return {
-    orders,
-    pagination: {
-      page,
-      limit,
-      total,
-      pages: Math.ceil(total / limit),
-    },
+    totalOrders: total,
+    todayOrders,
+    pendingOrders: pending,
+    totalRevenue:
+      revenue[0]
+        ?.total ?? 0
   };
+
 }

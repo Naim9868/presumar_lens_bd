@@ -22,7 +22,13 @@ import {
   FileText,
   Gift,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  Star,
+  Send,
+  ScanSearch,
+  Navigation,
+  MapPin,
+  Activity
 } from 'lucide-react';
 
 interface MenuItem {
@@ -62,6 +68,11 @@ const menuItems: MenuItem[] = [
     icon: Users
   },
   {
+    name: 'Reviews',
+    href: '/admin/reviews',
+    icon: Star
+  },
+  {
     name: 'Coupons',
     href: '/admin/coupons',
     icon: Ticket
@@ -73,7 +84,8 @@ const menuItems: MenuItem[] = [
     submenu: [
       { name: 'Sales Report', href: '/admin/analytics/sales', icon: TrendingUp },
       { name: 'Inventory Report', href: '/admin/analytics/inventory', icon: Package },
-      { name: 'Customer Report', href: '/admin/analytics/customers', icon: Users }
+      { name: 'Customer Report', href: '/admin/analytics/customers', icon: Users },
+      { name: 'Product Performance', href: '/admin/analytics/product_performance', icon: Activity }
     ]
   },
   {
@@ -82,13 +94,32 @@ const menuItems: MenuItem[] = [
     icon: Gift,
     submenu: [
       { name: 'Campaigns', href: '/admin/marketing/campaigns', icon: Bell },
-      { name: 'Newsletter', href: '/admin/marketing/newsletter', icon: FileText }
+      { name: 'Newsletter', href: '/admin/marketing/newsletter', icon: FileText },
+      { name: 'Marketing Attribution', href: '/admin/marketing/attribution', icon: BarChart3 }
+    ]
+  },
+  {
+    name: 'Accounting',
+    href: '/admin/accounting',
+    icon: FileText,
+    submenu: [
+      { name: 'Business Dashboard', href: '/admin/accounting/dashboard', icon: BarChart3 },
+      { name: 'Invoices', href: '/admin/accounting/invoices', icon: FileText},
+      { name: 'Suppliers', href: '/admin/accounting/suppliers', icon: Users },
+      { name: 'Purcheses', href: '/admin/accounting/purcheses', icon: ShoppingCart },
+      { name: 'Expenses', href: '/admin/accounting/expenses', icon: FileText }
     ]
   },
   {
     name: 'Shipping',
     href: '/admin/shipping',
-    icon: Truck
+    icon: Truck,
+    submenu: [
+      { name: 'Shipments', href: '/admin/shipping/shipments', icon: Truck },
+      { name: 'Courier Bookings', href: '/admin/shipping/courier_booking', icon: ScanSearch },
+      { name: 'Tracking', href: '/admin/shipping/tracking', icon: Navigation },
+      { name: 'Delivery Zones', href: '/admin/shipping/delivery_zones', icon: MapPin }
+    ]
   },
   {
     name: 'Settings',
@@ -97,7 +128,10 @@ const menuItems: MenuItem[] = [
     submenu: [
       { name: 'General', href: '/admin/settings/general', icon: Settings },
       { name: 'Payment', href: '/admin/settings/payment', icon: Shield },
-      { name: 'Notifications', href: '/admin/settings/notifications', icon: Bell }
+      { name: 'Notifications', href: '/admin/settings/notifications', icon: Bell },
+      { name: 'API Settings', href: '/admin/settings/api', icon: Settings, badge: 2},
+      { name: 'Merketing Tools', href: '/admin/settings/marketing', icon: Gift },
+      { name: 'SMS Setting', href: '/admin/settings/sms', icon: Send }
     ]
   }
 ];

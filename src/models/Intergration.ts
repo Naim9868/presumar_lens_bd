@@ -16,6 +16,18 @@ export interface IIntegration extends Document {
     accountId?: string;
     testEventCode?: string;
     webhookSecret?: string;
+    clientId?: string;
+    clientSecret?: string;
+    username?: string;
+    password?: string;
+    storeId?: string;
+    appKey?: string;
+    appSecret?: string;
+    username2?: string;
+    password2?: string;
+    phoneNumberId?: string;
+    botToken?: string;
+    channelId?: string;
   };
   settings?: Record<string, unknown>;
 }
@@ -32,6 +44,16 @@ const IntegrationSchema = new Schema<IIntegration>(
       accountId: String,
       testEventCode: String,
       webhookSecret: String,
+      clientId: String,
+      clientSecret: String,
+      username: String,
+      password: String,
+      storeId: String,
+      appKey: String,
+      appSecret: String,
+      phoneNumberId: String,
+      botToken: String,
+      channelId: String,
     },
     settings: Schema.Types.Mixed,
   },

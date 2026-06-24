@@ -1,664 +1,694 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
-  ArrowLeft,
-  Package,
-  User,
-  Phone,
-  MapPin,
-  CreditCard,
-  Calendar,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Truck,
-  Printer,
-  Mail,
-  Globe,
-  ShoppingBag,
-  Tag,
-  DollarSign,
-  RefreshCw,
-  AlertCircle
+  ArrowLeft, Printer, Edit2, Save, X, Package, User,
+  Phone, Mail, MapPin, Truck, CreditCard, Clock,
+  CheckCircle2, AlertTriangle, MessageSquare, ExternalLink,
+  Shield, ChevronDown, Plus, Trash2,
 } from 'lucide-react';
+import { format } from 'date-fns';
 import toast from 'react-hot-toast';
+import { Order, OrderStatus, STATUS_CONFIG, FraudResult } from '@/types/order';
 
-// Interface matching your Order schema
-interface OrderItem {
-  productId: string;
-  variantId?: string;
-  name: string;
-  sku?: string;
-  price: number;
-  quantity: number;
-  image?: string;
-}
-
-interface Pricing {
-  subtotal: number;
-  deliveryCharge: number;
-  discount: number;
-  total: number;
-}
+// ── Print styles injected inline ─────────────────────────
+const PRINT_STYLES = `
+  @media print {
+    body > *:not(#invoice-print) { display: none !important; }
+    #invoice-print { display: block !important; position: fixed; inset: 0; background: white; z-index: 9999; padding: 32px; }
+    @page { margin: 20mm; }
+  }
+`;
 
 interface TimelineEvent {
+  _id: string;
   status: string;
+  source: string;
   note?: string;
   createdAt: string;
 }
 
-interface Payment {
-  method: 'COD' | 'ONLINE';
-  status: 'PAID' | 'UNPAID' | 'FAILED';
-  transactionId?: string;
-}
-
-interface Shipping {
-  name: string;
-  phone: string;
-  address: string;
-  area: string;
-  city: string;
-}
-
-interface Delivery {
-  type: 'INSIDE_DHAKA' | 'OUTSIDE_DHAKA';
-  courier?: string;
-  trackingId?: string;
-}
-
-interface Order {
-  _id: string;
-  orderId: string;
-  userId?: string;
-  items: OrderItem[];
-  pricing: Pricing;
-  status: string;
-  customStatus?: string;
-  timeline: TimelineEvent[];
-  payment: Payment;
-  shipping: Shipping;
-  delivery: Delivery;
-  isCancelled: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface OrderDetailClientProps {
-  order: Order;
-}
-
-const statusColors: Record<string, string> = {
-  PENDING: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-  CONFIRMED: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-  PROCESSING: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
-  SHIPPED: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400',
-  DELIVERED: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  CANCELLED: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+const STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  PENDING:          ['CONFIRMED', 'CANCELLED'],
+  AWAITING_PAYMENT: ['CONFIRMED', 'CANCELLED'],
+  CONFIRMED:        ['PROCESSING', 'CANCELLED'],
+  PROCESSING:       ['PACKED', 'CANCELLED'],
+  PACKED:           ['READY_TO_SHIP', 'CANCELLED'],
+  READY_TO_SHIP:    ['SHIPPED'],
+  SHIPPED:          ['IN_TRANSIT', 'DELIVERED'],
+  IN_TRANSIT:       ['OUT_FOR_DELIVERY', 'DELIVERED'],
+  OUT_FOR_DELIVERY: ['DELIVERED', 'RETURNED'],
+  DELIVERED:        ['RETURN_REQUESTED', 'REFUNDED'],
+  CANCELLED:        ['CONFIRMED'],
+  RETURN_REQUESTED: ['RETURNED', 'REFUNDED'],
+  RETURNED:         ['REFUNDED'],
+  REFUNDED:         [],
 };
 
-const statusIcons: Record<string, any> = {
-  PENDING: Clock,
-  CONFIRMED: CheckCircle,
-  PROCESSING: Clock,
-  SHIPPED: Truck,
-  DELIVERED: CheckCircle,
-  CANCELLED: XCircle,
-};
+interface Props { order: Order }
 
-const statusOptions = [
-  { value: 'PENDING', label: 'Pending' },
-  { value: 'CONFIRMED', label: 'Confirmed' },
-  { value: 'PROCESSING', label: 'Processing' },
-  { value: 'SHIPPED', label: 'Shipped' },
-  { value: 'DELIVERED', label: 'Delivered' },
-  { value: 'CANCELLED', label: 'Cancelled' },
-];
-
-export default function OrderDetailClient({ order: initialOrder }: OrderDetailClientProps) {
+export default function OrderDetailClient({ order: initial }: Props) {
   const router = useRouter();
+  const sp = useSearchParams();
+  const [order, setOrder] = useState<Order>(initial);
+  const [editMode, setEditMode] = useState(sp.get('edit') === 'true');
+  const [saving, setSaving] = useState(false);
+  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [fraud, setFraud] = useState<FraudResult | null>(null);
+  const [noteText, setNoteText] = useState('');
+  const [addingNote, setAddingNote] = useState(false);
+  const [showNoteInput, setShowNoteInput] = useState(false);
+  const [statusDropdown, setStatusDropdown] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
-  const [order, setOrder] = useState(initialOrder);
-  const [localStatus, setLocalStatus] = useState(initialOrder.status);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+
+  // Edit state
+  const [editData, setEditData] = useState({
+    shipping: { ...order.shipping },
+    paymentStatus: order.paymentStatus,
+    status: order.status,
+  });
 
   useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  const StatusIcon = statusIcons[order.status] || Clock;
-  const statusColor = statusColors[order.status] || statusColors.PENDING;
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    fetch(`/api/orders/${order._id}/events`).then(r => r.json()).then(d => {
+      if (d.events) setTimeline(d.events);
     });
-  };
+  }, [order._id]);
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'BDT',
-      minimumFractionDigits: 0,
-    }).format(price);
-  };
-
-  const handleStatusUpdate = async (newStatus: string) => {
-    const originalStatus = localStatus;
-    setLocalStatus(newStatus);
-    setIsUpdating(true);
-
-    try {
-      const response = await fetch(`/api/orders/${order._id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          orderId: order.orderId,
-          status: newStatus,
-          note: `Order status updated to ${newStatus}`
-        }),
-      });
-
-      if (!response.ok) {
-        setLocalStatus(originalStatus);
-        throw new Error('Failed to update');
-      }
-
-      const result = await response.json();
-      
-      if (result.success) {
-        setOrder(prev => ({
-          ...prev,
-          status: newStatus,
-          timeline: [...prev.timeline, {
-            status: newStatus,
-            note: `Order status updated to ${newStatus}`,
-            createdAt: new Date().toISOString(),
-          }]
-        }));
-        
-        toast.success(`Order status updated to ${newStatus}`);
-        
-        // Dispatch event for any other components listening
-        window.dispatchEvent(new CustomEvent('orderUpdated', { 
-          detail: { orderId: order._id, newStatus } 
-        }));
-      } else {
-        setLocalStatus(originalStatus);
-        toast.error(result.error || 'Failed to update order status');
-      }
-    } catch (error) {
-      setLocalStatus(originalStatus);
-      toast.error('Failed to update order status');
-    } finally {
-      setIsUpdating(false);
-    }
+  const fetchFraud = async () => {
+    const res = await fetch(`/api/orders/${order._id}/fraud`);
+    const data = await res.json();
+    if (data.fraud) setFraud(data.fraud);
   };
 
   const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      toast.error('Please allow pop-ups to print');
-      return;
-    }
-
-    const styles = document.querySelectorAll('style, link[rel="stylesheet"]');
-    let stylesHtml = '';
-    styles.forEach((style) => {
-      stylesHtml += style.outerHTML;
-    });
-
-    const subtotal = order.pricing.subtotal;
-    const deliveryCharge = order.pricing.deliveryCharge;
-    const discount = order.pricing.discount;
-    const total = order.pricing.total;
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Invoice #${order.orderId}</title>
-          ${stylesHtml}
-          <style>
-            @media print {
-              @page { size: A4; margin: 0.5in; }
-              body { background: white; font-family: system-ui, sans-serif; }
-              .no-print { display: none !important; }
-              .shadow-lg { box-shadow: none !important; }
-            }
-            body { font-family: system-ui, -apple-system, sans-serif; }
-            .invoice-container { max-width: 800px; margin: 0 auto; padding: 20px; }
-            .text-center { text-align: center; }
-            .text-right { text-align: right; }
-            .mb-4 { margin-bottom: 16px; }
-            .mb-6 { margin-bottom: 24px; }
-            .border { border: 1px solid #e5e7eb; }
-            .border-b { border-bottom: 1px solid #e5e7eb; }
-            .rounded-lg { border-radius: 8px; }
-            .p-4 { padding: 16px; }
-            .p-3 { padding: 12px; }
-            .bg-gray-50 { background-color: #f9fafb; }
-            .font-bold { font-weight: 700; }
-            .font-semibold { font-weight: 600; }
-            .text-gray-600 { color: #4b5563; }
-            .text-gray-500 { color: #6b7280; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
-            th { background-color: #f9fafb; font-weight: 600; }
-          </style>
-        </head>
-        <body>
-          <div class="invoice-container">
-            <div class="text-center mb-6">
-              <h1 class="text-3xl font-bold" style="margin-bottom: 8px;">INVOICE</h1>
-              <p class="text-gray-600">Order #${order.orderId}</p>
-              <p class="text-gray-600">Date: ${new Date(order.createdAt).toLocaleDateString()}</p>
-            </div>
-
-            <div class="text-center mb-6">
-              <p class="font-semibold">Your Store Name</p>
-              <p class="text-gray-600">support@yourstore.com | ${order.shipping.phone}</p>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
-              <div class="border rounded-lg p-4">
-                <h3 class="font-semibold mb-2" style="border-bottom: 1px solid #e5e7eb; padding-bottom: 4px;">Bill To:</h3>
-                <p class="font-medium">${order.shipping.name}</p>
-                <p>📞 ${order.shipping.phone}</p>
-                <p class="mt-2">📍 ${order.shipping.address}</p>
-                <p>${order.shipping.area}, ${order.shipping.city}</p>
-              </div>
-
-              <div class="border rounded-lg p-4">
-                <h3 class="font-semibold mb-2" style="border-bottom: 1px solid #e5e7eb; padding-bottom: 4px;">Invoice Details:</h3>
-                <p>Order ID: ${order.orderId}</p>
-                <p>Payment: ${order.payment.method}</p>
-                <p>Status: ${order.status}</p>
-                <p>Delivery: ${order.delivery.type === 'INSIDE_DHAKA' ? 'Inside Dhaka' : 'Outside Dhaka'}</p>
-              </div>
-            </div>
-
-            <div class="border rounded-lg mb-6">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Product</th>
-                    <th>SKU</th>
-                    <th>Price</th>
-                    <th>Qty</th>
-                    <th>Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${order.items.map(item => `
-                    <tr>
-                      <td>${item.name}</td>
-                      <td>${item.sku || 'N/A'}</td>
-                      <td>${formatPrice(item.price)}</td>
-                      <td>${item.quantity}</td>
-                      <td>${formatPrice(item.price * item.quantity)}</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            </div>
-
-            <div style="display: flex; justify-content: flex-end; margin-bottom: 24px;">
-              <div style="width: 256px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px;">
-                <div style="display: flex; justify-content: space-between;">
-                  <span>Subtotal:</span>
-                  <span>${formatPrice(subtotal)}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between;">
-                  <span>Delivery Fee:</span>
-                  <span>${formatPrice(deliveryCharge)}</span>
-                </div>
-                ${discount > 0 ? `
-                  <div style="display: flex; justify-content: space-between; color: #16a34a;">
-                    <span>Discount:</span>
-                    <span>-${formatPrice(discount)}</span>
-                  </div>
-                ` : ''}
-                <div style="border-top: 1px solid #e5e7eb; padding-top: 8px; margin-top: 8px;">
-                  <div style="display: flex; justify-content: space-between; font-weight: bold;">
-                    <span>Total:</span>
-                    <span>${formatPrice(total)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="text-center text-gray-500 mt-6 pt-4" style="border-top: 1px solid #e5e7eb;">
-              <p>Thank you for your business!</p>
-            </div>
-          </div>
-          <script>window.onload = () => { window.print(); window.close(); };</script>
-        </body>
-      </html>
-    `);
-
-    printWindow.document.close();
+    const style = document.createElement('style');
+    style.innerHTML = PRINT_STYLES;
+    document.head.appendChild(style);
+    window.print();
+    setTimeout(() => document.head.removeChild(style), 1000);
   };
 
-  // Don't render until after hydration
-  if (!isMounted) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-amber-600 border-t-transparent" />
-      </div>
-    );
-  }
+  const handleStatusChange = async (status: OrderStatus) => {
+    setStatusDropdown(false);
+    try {
+      const res = await fetch(`/api/orders/${order._id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json();
+      if (data.success || data.order) {
+        setOrder(o => ({ ...o, status }));
+        toast.success(`Status → ${STATUS_CONFIG[status].label}`);
+        // Refresh timeline
+        fetch(`/api/orders/${order._id}/events`).then(r => r.json()).then(d => { if (d.events) setTimeline(d.events); });
+      } else toast.error(data.error || 'Update failed');
+    } catch { toast.error('Failed'); }
+    finally { router.refresh();}
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/orders/${order._id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shipping: editData.shipping,
+          paymentStatus: editData.paymentStatus,
+        }),
+      });
+      const data = await res.json();
+      if (data.success || data.order) {
+        setOrder(o => ({ ...o, shipping: editData.shipping, paymentStatus: editData.paymentStatus }));
+        setEditMode(false);
+        toast.success('Order updated');
+      } else toast.error(data.error || 'Failed');
+    } catch { toast.error('Failed to save'); }
+    finally {
+       setSaving(false); 
+       router.refresh();
+    }
+  };
+
+  const handleAddNote = async () => {
+    if (!noteText.trim()) return;
+    setAddingNote(true);
+    try {
+      const res = await fetch(`/api/orders/${order._id}/note`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: noteText }),
+      });
+      const data = await res.json();
+      if (data.success || data.order) {
+        toast.success('Note added');
+        setNoteText('');
+        setShowNoteInput(false);
+        // Refresh order
+        const oRes = await fetch(`/api/orders/${order._id}`);
+        const oData = await oRes.json();
+        if (oData.data?.order) setOrder(oData.data.order);
+      } else toast.error(data.error || 'Failed');
+    } catch { toast.error('Failed'); }
+    finally {
+       setAddingNote(false); 
+       router.refresh();
+    }
+  };
+
+  const statusCfg = STATUS_CONFIG[order.status];
+  const nextStatuses = STATUS_TRANSITIONS[order.status] || [];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between no-print">
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition"
-        >
-          <ArrowLeft size={20} />
-          Back to Orders
-        </button>
-
-        <div className="flex gap-3">
-          <button
-            onClick={() => router.refresh()}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition"
-          >
-            <RefreshCw size={18} />
-            Refresh
-          </button>
-          <button
-            onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition"
-          >
-            <Printer size={18} />
-            Print Invoice
-          </button>
+    <>
+      {/* Print Invoice (hidden until print) */}
+      <div id="invoice-print" style={{ display: 'none' }} ref={printRef}>
+        <div style={{ fontFamily: 'serif', maxWidth: 600, margin: '0 auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: 16, marginBottom: 24 }}>
+            <div>
+              <h1 style={{ fontSize: 24, fontWeight: 'bold', margin: 0 }}>{process.env.NEXT_PUBLIC_STORE_NAME || 'Store'}</h1>
+              <p style={{ color: '#666', margin: '4px 0 0' }}>{process.env.NEXT_PUBLIC_STORE_EMAIL || ''}</p>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <h2 style={{ fontSize: 18, fontWeight: 'bold', margin: 0 }}>INVOICE</h2>
+              <p style={{ margin: '4px 0 0', color: '#666' }}>#{order.orderId}</p>
+              <p style={{ margin: '2px 0 0', color: '#666', fontSize: 12 }}>{format(new Date(order.createdAt), 'dd MMMM yyyy')}</p>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
+            <div>
+              <p style={{ fontWeight: 'bold', marginBottom: 8 }}>Bill To:</p>
+              <p style={{ margin: 0 }}>{order.shipping.name}</p>
+              <p style={{ margin: '2px 0', color: '#666' }}>{order.shipping.phone}</p>
+              {order.shipping.email && <p style={{ margin: '2px 0', color: '#666' }}>{order.shipping.email}</p>}
+              <p style={{ margin: '2px 0', color: '#666' }}>{order.shipping.address}, {order.shipping.area}, {order.shipping.city}</p>
+            </div>
+            <div>
+              <p style={{ fontWeight: 'bold', marginBottom: 8 }}>Order Info:</p>
+              <p style={{ margin: 0 }}>Status: {STATUS_CONFIG[order.status].label}</p>
+              <p style={{ margin: '2px 0', color: '#666' }}>Payment: {order.paymentMethod}</p>
+              <p style={{ margin: '2px 0', color: '#666' }}>Delivery: {order.delivery.type.replace('_', ' ')}</p>
+            </div>
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 24 }}>
+            <thead>
+              <tr style={{ backgroundColor: '#f5f5f5' }}>
+                {['Product', 'SKU', 'Qty', 'Unit Price', 'Total'].map(h => (
+                  <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: 12, fontWeight: 'bold', borderBottom: '1px solid #ddd' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {order.items.map((item, i) => (
+                <tr key={i} style={{ borderBottom: '1px solid #eee' }}>
+                  <td style={{ padding: '10px 12px', fontSize: 13 }}>{item.snapshot.name}</td>
+                  <td style={{ padding: '10px 12px', fontSize: 12, color: '#666' }}>{item.snapshot.sku || '—'}</td>
+                  <td style={{ padding: '10px 12px', fontSize: 13 }}>{item.quantity}</td>
+                  <td style={{ padding: '10px 12px', fontSize: 13 }}>৳{item.price.sale.toLocaleString()}</td>
+                  <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 'bold' }}>৳{item.total.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 24 }}>
+            <div style={{ width: 240 }}>
+              {[
+                { label: 'Subtotal', value: order.pricing.subtotal },
+                { label: 'Delivery', value: order.pricing.deliveryCharge },
+                { label: 'Discount', value: -(order.pricing.couponDiscount + order.pricing.campaignDiscount) },
+                { label: 'Tax', value: order.pricing.tax },
+              ].map(({ label, value }) => (
+                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
+                  <span style={{ color: '#666' }}>{label}</span>
+                  <span>৳{value.toLocaleString()}</span>
+                </div>
+              ))}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '2px solid #000', marginTop: 8, fontWeight: 'bold', fontSize: 16 }}>
+                <span>Total</span>
+                <span>৳{order.pricing.total.toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+          <div style={{ borderTop: '1px solid #eee', paddingTop: 16, textAlign: 'center', color: '#999', fontSize: 11 }}>
+            Thank you for your order! · {process.env.NEXT_PUBLIC_APP_URL || ''}
+          </div>
         </div>
       </div>
 
-      {/* Order Detail */}
-      <div ref={printRef} className="space-y-6">
-        {/* Status Banner */}
-        <div className={`p-6 rounded-2xl ${statusColor}`}>
-          <div className="flex items-center justify-between flex-wrap gap-4">
+      {/* Main page */}
+      <div className="min-h-screen bg-[#F8F7F4]">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-100 px-6 py-4 sticky top-0 z-30">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <StatusIcon size={32} />
+              <button onClick={() => router.back()}
+                className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-500 transition-colors">
+                <ArrowLeft className="w-4 h-4" />
+              </button>
               <div>
-                <h2 className="text-xl font-bold">Order #{order.orderId}</h2>
-                <p className="text-sm opacity-75">
-                  Status: {order.status} • Last updated: {formatDate(order.updatedAt)}
-                </p>
-                {order.customStatus && (
-                  <p className="text-sm mt-1 font-medium">Custom Status: {order.customStatus}</p>
-                )}
+                <div className="flex items-center gap-2">
+                  <h1 className="text-lg font-bold text-gray-900">#{order.orderId}</h1>
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${statusCfg.bg} ${statusCfg.color} ${statusCfg.border}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
+                    {statusCfg.label}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400 mt-0.5">{format(new Date(order.createdAt), 'dd MMMM yyyy, h:mm a')}</p>
               </div>
             </div>
-
-            <select
-              value={localStatus}
-              onChange={(e) => handleStatusUpdate(e.target.value)}
-              disabled={isUpdating}
-              className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none disabled:opacity-50"
-            >
-              {statusOptions.map(option => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2">
+              {/* Status change dropdown */}
+              {nextStatuses.length > 0 && !editMode && (
+                <div className="relative">
+                  <button onClick={() => setStatusDropdown(!statusDropdown)}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                    Update Status <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                  {statusDropdown && (
+                    <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden py-1">
+                      {nextStatuses.map(s => {
+                        const c = STATUS_CONFIG[s];
+                        return (
+                          <button key={s} onClick={() => handleStatusChange(s)}
+                            className={`w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2 hover:bg-gray-50 ${c.color}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} /> {c.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+              <button onClick={handlePrint}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                <Printer className="w-4 h-4" /> Print Invoice
+              </button>
+              {editMode ? (
+                <>
+                  <button onClick={() => setEditMode(false)}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                    <X className="w-4 h-4" /> Cancel
+                  </button>
+                  <button onClick={handleSave} disabled={saving}
+                    className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-violet-600 rounded-xl hover:bg-violet-700 disabled:opacity-50 transition-colors">
+                    <Save className="w-4 h-4" /> {saving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </>
+              ) : (
+                <button onClick={() => setEditMode(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-violet-600 rounded-xl hover:bg-violet-700 transition-colors">
+                  <Edit2 className="w-4 h-4" /> Edit Order
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Items & Timeline */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Order Items */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Package size={20} className="text-amber-600" />
-                  Order Items ({order.items.length})
-                </h3>
+        <div className="px-6 py-6 grid grid-cols-3 gap-5">
+          {/* Left col (2/3) */}
+          <div className="col-span-2 space-y-5">
+            {/* Items */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+                <Package className="w-4 h-4 text-gray-400" />
+                <h2 className="text-sm font-bold text-gray-700">Order Items</h2>
+                <span className="text-xs text-gray-400">({order.items.length})</span>
               </div>
-
-              <div className="divide-y divide-gray-100 dark:divide-gray-700">
-                {order.items.map((item, index) => (
-                  <div key={index} className="p-4 flex gap-4">
-                    {item.image && (
-                      <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden flex-shrink-0">
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = '/placeholder-image.jpg';
-                          }}
-                        />
+              <div className="divide-y divide-gray-50">
+                {order.items.map((item, i) => (
+                  <div key={i} className="flex items-start gap-4 px-5 py-4">
+                    {item.snapshot.image ? (
+                      <img src={item.snapshot.image} alt={item.snapshot.name}
+                        className="w-14 h-14 rounded-xl object-cover border border-gray-100 flex-shrink-0" />
+                    ) : (
+                      <div className="w-14 h-14 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0">
+                        <Package className="w-6 h-6 text-gray-200" />
                       </div>
                     )}
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-900 dark:text-white">{item.name}</div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                        SKU: {item.sku || 'N/A'}
-                        {item.variantId && <span className="ml-2">Variant: {item.variantId}</span>}
-                      </div>
-                      <div className="flex justify-between items-center mt-2">
-                        <span className="text-gray-600 dark:text-gray-400">
-                          {formatPrice(item.price)} × {item.quantity}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-800">{item.snapshot.name}</p>
+                      {item.snapshot.sku && <p className="text-xs text-gray-400 mt-0.5">SKU: {item.snapshot.sku}</p>}
+                      {item.variantKey && <p className="text-xs text-gray-400">Variant: {item.variantKey}</p>}
+                      {item.snapshot.attributes && Object.entries(item.snapshot.attributes).map(([k, v]) => (
+                        <span key={k} className="inline-block mr-2 mt-1 px-2 py-0.5 bg-gray-100 rounded text-[11px] text-gray-600">
+                          {k}: {v}
                         </span>
-                        <span className="font-semibold text-gray-900 dark:text-white">
-                          {formatPrice(item.price * item.quantity)}
-                        </span>
-                      </div>
+                      ))}
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-sm font-bold text-gray-900">৳{item.total.toLocaleString()}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">৳{item.price.sale.toLocaleString()} × {item.quantity}</p>
+                      {item.price.original > item.price.sale && (
+                        <p className="text-xs text-gray-300 line-through">৳{item.price.original.toLocaleString()}</p>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
-
-              {/* Pricing Summary */}
-              <div className="bg-gray-50 dark:bg-gray-800/50 px-6 py-4 border-t border-gray-100 dark:border-gray-700">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                    <span>Subtotal</span>
-                    <span>{formatPrice(order.pricing.subtotal)}</span>
+              {/* Pricing summary */}
+              <div className="px-5 py-4 border-t border-gray-100 bg-gray-50/50">
+                {[
+                  { label: 'Subtotal', value: order.pricing.subtotal },
+                  { label: 'Delivery Charge', value: order.pricing.deliveryCharge },
+                  ...(order.pricing.couponDiscount ? [{ label: `Coupon (${order.coupon?.code})`, value: -order.pricing.couponDiscount }] : []),
+                  ...(order.pricing.campaignDiscount ? [{ label: 'Campaign Discount', value: -order.pricing.campaignDiscount }] : []),
+                  ...(order.pricing.tax ? [{ label: 'Tax', value: order.pricing.tax }] : []),
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex items-center justify-between py-1">
+                    <span className="text-sm text-gray-500">{label}</span>
+                    <span className={`text-sm ${value < 0 ? 'text-green-600' : 'text-gray-700'}`}>
+                      {value < 0 ? '−' : ''}৳{Math.abs(value).toLocaleString()}
+                    </span>
                   </div>
-                  <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                    <span>Delivery Charge</span>
-                    <span>{formatPrice(order.pricing.deliveryCharge)}</span>
-                  </div>
-                  {order.pricing.discount > 0 && (
-                    <div className="flex justify-between text-green-600">
-                      <span>Discount</span>
-                      <span>-{formatPrice(order.pricing.discount)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between text-lg font-bold text-gray-900 dark:text-white pt-2 border-t border-gray-200 dark:border-gray-700">
-                    <span>Total</span>
-                    <span className="text-amber-600">{formatPrice(order.pricing.total)}</span>
-                  </div>
+                ))}
+                <div className="flex items-center justify-between pt-3 border-t border-gray-200 mt-2">
+                  <span className="text-base font-bold text-gray-900">Total</span>
+                  <span className="text-xl font-bold text-gray-900">৳{order.pricing.total.toLocaleString()}</span>
                 </div>
               </div>
             </div>
 
-            {/* Order Timeline */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <Calendar size={20} className="text-amber-600" />
-                Order Timeline
-              </h3>
+            {/* Shipping (editable) */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-gray-400" />
+                <h2 className="text-sm font-bold text-gray-700">Shipping Address</h2>
+              </div>
+              <div className="p-5">
+                {editMode ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { label: 'Full Name', key: 'name', type: 'text' },
+                      { label: 'Phone', key: 'phone', type: 'text' },
+                      { label: 'Email', key: 'email', type: 'email' },
+                      { label: 'Address', key: 'address', type: 'text' },
+                      { label: 'Area', key: 'area', type: 'text' },
+                      { label: 'City', key: 'city', type: 'text' },
+                      { label: 'Postcode', key: 'postcode', type: 'text' },
+                      { label: 'Division', key: 'division', type: 'text' },
+                      { label: 'Landmark', key: 'landmark', type: 'text' },
+                    ].map(({ label, key, type }) => (
+                      <div key={key} className={key === 'address' ? 'col-span-2' : ''}>
+                        <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">{label}</label>
+                        <input type={type}
+                          value={(editData.shipping as Record<string, string>)[key] || ''}
+                          onChange={(e) => setEditData(d => ({ ...d, shipping: { ...d.shipping, [key]: e.target.value } }))}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    {[
+                      { icon: User, label: 'Name', value: order.shipping.name },
+                      { icon: Phone, label: 'Phone', value: order.shipping.phone },
+                      { icon: Mail, label: 'Email', value: order.shipping.email },
+                      { icon: MapPin, label: 'Address', value: `${order.shipping.address}, ${order.shipping.area}, ${order.shipping.city}` },
+                      { icon: MapPin, label: 'Division', value: order.shipping.division },
+                      { icon: MapPin, label: 'Landmark', value: order.shipping.landmark },
+                    ].filter(f => f.value).map(({ icon: Icon, label, value }) => (
+                      <div key={label}>
+                        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">{label}</p>
+                        <div className="flex items-center gap-1.5">
+                          <Icon className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
+                          <p className="text-sm text-gray-700">{value}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
 
-              <div className="space-y-4">
-                {order.timeline.map((event, index) => {
-                  const EventIcon = statusIcons[event.status] || Clock;
-                  return (
-                    <div key={index} className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
-                        <EventIcon size={14} className="text-amber-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white capitalize">
-                          {event.status.toLowerCase()}
-                        </p>
-                        {event.note && (
-                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                            {event.note}
-                          </p>
-                        )}
-                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                          {formatDate(event.createdAt)}
-                        </p>
-                      </div>
+            {/* Timeline */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+                <Clock className="w-4 h-4 text-gray-400" />
+                <h2 className="text-sm font-bold text-gray-700">Order Timeline</h2>
+              </div>
+              <div className="p-5">
+                {timeline.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-4">No timeline events yet</p>
+                ) : (
+                  <div className="relative">
+                    <div className="absolute left-3.5 top-3 bottom-3 w-px bg-gray-100" />
+                    <div className="space-y-4">
+                      {timeline.map((event, i) => {
+                        const isFirst = i === 0;
+                        const cfg = STATUS_CONFIG[event.status as OrderStatus];
+                        return (
+                          <div key={event._id} className="flex items-start gap-4 relative">
+                            <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center flex-shrink-0 z-10 ${isFirst ? `border-violet-500 bg-violet-50` : 'border-gray-200 bg-white'}`}>
+                              <div className={`w-2 h-2 rounded-full ${isFirst ? 'bg-violet-500' : cfg?.dot || 'bg-gray-300'}`} />
+                            </div>
+                            <div className="flex-1 pb-1">
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm font-semibold text-gray-800">
+                                  {cfg?.label || event.status}
+                                </p>
+                                <span className="text-[11px] text-gray-400">
+                                  {format(new Date(event.createdAt), 'dd MMM, h:mm a')}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[11px] text-gray-400 uppercase font-medium">{event.source}</span>
+                                {event.note && <span className="text-xs text-gray-500">· {event.note}</span>}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Right Column - Info */}
-          <div className="space-y-6">
-            {/* Customer Information */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <User size={20} className="text-amber-600" />
-                Customer Information
-              </h3>
-
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-amber-600 to-amber-400 flex items-center justify-center text-white font-semibold text-lg">
-                    {order.shipping.name?.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="font-medium text-lg text-gray-900 dark:text-white">
-                      {order.shipping.name}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                    <Phone size={16} className="text-amber-600" />
-                    <span>{order.shipping.phone}</span>
-                  </div>
-                </div>
+          {/* Right col (1/3) */}
+          <div className="space-y-5">
+            {/* Payment */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-gray-400" />
+                <h2 className="text-sm font-bold text-gray-700">Payment</h2>
               </div>
-            </div>
-
-            {/* Shipping Address */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <MapPin size={20} className="text-amber-600" />
-                Shipping Address
-              </h3>
-
-              <div className="space-y-3">
-                <div className="flex items-start gap-2">
-                  <Globe size={16} className="text-amber-600 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">
-                      {order.shipping.city}
-                    </p>
-                  </div>
-                </div>
-                <div className="pl-6">
-                  <p className="text-sm bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg text-gray-700 dark:text-gray-300">
-                    {order.shipping.address}, {order.shipping.area}, {order.shipping.city}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Delivery Type</p>
-                  <p className="font-medium text-gray-900 dark:text-white mt-0.5 flex items-center gap-2">
-                    <Truck size={14} />
-                    {order.delivery.type === 'INSIDE_DHAKA' ? 'Inside Dhaka' : 'Outside Dhaka'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Payment Information */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <DollarSign size={20} className="text-amber-600" />
-                Payment Information
-              </h3>
-
-              <div className="space-y-3">
-                <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Method</p>
-                  <p className="font-medium text-gray-900 dark:text-white flex items-center gap-2 mt-0.5">
-                    <CreditCard size={14} />
-                    {order.payment.method}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</p>
-                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium mt-1 ${
-                    order.payment.status === 'PAID' 
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                      : order.payment.status === 'FAILED'
-                      ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                      : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                  }`}>
-                    {order.payment.status}
+              <div className="p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Method</span>
+                  <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${order.paymentMethod === 'COD' ? 'bg-gray-100 text-gray-600' : 'bg-blue-100 text-blue-700'}`}>
+                    {order.paymentMethod}
                   </span>
                 </div>
-                {order.payment.transactionId && (
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Transaction ID</p>
-                    <p className="font-mono text-sm text-gray-900 dark:text-white mt-0.5 break-all">
-                      {order.payment.transactionId}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Status</span>
+                  {editMode ? (
+                    <select value={editData.paymentStatus}
+                      onChange={(e) => setEditData(d => ({ ...d, paymentStatus: e.target.value as typeof d.paymentStatus }))}
+                      className="px-2 py-1 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-violet-400">
+                      {['PENDING', 'PAID', 'FAILED', 'REFUNDED'].map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  ) : (
+                    <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${
+                      order.paymentStatus === 'PAID' ? 'bg-green-100 text-green-700' :
+                      order.paymentStatus === 'FAILED' ? 'bg-red-100 text-red-700' :
+                      order.paymentStatus === 'REFUNDED' ? 'bg-gray-100 text-gray-600' :
+                      'bg-amber-100 text-amber-700'
+                    }`}>{order.paymentStatus}</span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                  <span className="text-sm font-semibold text-gray-700">Total</span>
+                  <span className="text-lg font-bold text-gray-900">৳{order.pricing.total.toLocaleString()}</span>
+                </div>
+                {order.coupon && (
+                  <div className="bg-green-50 rounded-lg px-3 py-2">
+                    <p className="text-xs font-semibold text-green-700">🏷 {order.coupon.code}</p>
+                    <p className="text-[11px] text-green-600 mt-0.5">
+                      {order.coupon.type === 'PERCENTAGE' ? `${order.coupon.value}% off` :
+                       order.coupon.type === 'FREE_SHIPPING' ? 'Free shipping' : `৳${order.coupon.value} off`}
+                      {' '}· Saved ৳{order.pricing.couponDiscount.toLocaleString()}
                     </p>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Courier Tracking */}
-            {order.delivery.trackingId && (
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <Truck size={20} className="text-amber-600" />
-                  Tracking Information
-                </h3>
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Courier</p>
-                    <p className="font-medium text-gray-900 dark:text-white mt-0.5">{order.delivery.courier || 'N/A'}</p>
+            {/* Marketing Source */}
+            {order.marketing?.source && (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100">
+                  <h2 className="text-sm font-bold text-gray-700">Traffic Source</h2>
+                </div>
+                <div className="p-5 space-y-2">
+                  {[
+                    { label: 'Source', value: order.marketing.source },
+                    { label: 'Medium', value: order.marketing.medium },
+                    { label: 'Campaign', value: order.marketing.campaign },
+                    { label: 'Referrer', value: order.marketing.referrer },
+                  ].filter(f => f.value).map(({ label, value }) => (
+                    <div key={label} className="flex items-center justify-between">
+                      <span className="text-xs text-gray-400">{label}</span>
+                      <span className="text-xs font-semibold text-gray-700 capitalize">{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Courier */}
+            {order.shipment && (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+                  <Truck className="w-4 h-4 text-gray-400" />
+                  <h2 className="text-sm font-bold text-gray-700">Courier</h2>
+                </div>
+                <div className="p-5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-400">Provider</span>
+                    <span className="text-xs font-semibold text-gray-700">{order.shipment.provider}</span>
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Tracking ID</p>
-                    <code className="text-sm bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded-lg block mt-1 break-all">
-                      {order.delivery.trackingId}
-                    </code>
+                  {order.shipment.trackingId && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-400">Tracking ID</span>
+                      <span className="text-xs font-mono font-semibold text-gray-700">{order.shipment.trackingId}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-400">Status</span>
+                    <span className="text-xs font-semibold text-blue-600">{order.shipment.status}</span>
                   </div>
-                  {order.delivery.courier && (
-                    <button
-                      onClick={() => window.open(`https://${order.delivery.courier?.toLowerCase()}.com/tracking/${order.delivery.trackingId}`, '_blank')}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-                    >
-                      Track Order
-                    </button>
+                  {order.shipment.trackingUrl && (
+                    <a href={order.shipment.trackingUrl} target="_blank" rel="noreferrer"
+                      className="flex items-center gap-1 text-xs text-violet-500 hover:underline font-medium mt-1">
+                      Track parcel <ExternalLink className="w-3 h-3" />
+                    </a>
                   )}
                 </div>
               </div>
             )}
+
+            {/* Fraud Score */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                <div className="flex items-center gap-2"> 
+                  <Shield className="w-4 h-4 text-gray-400" />
+                  <h2 className="text-sm font-bold text-gray-700">Fraud Detection</h2>
+                </div>
+                {!fraud && (
+                  <button onClick={fetchFraud} className="text-xs text-violet-500 hover:underline font-medium">
+                    Check now
+                  </button>
+                )}
+              </div>
+              <div className="p-5">
+                {fraud ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Risk Score</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full transition-all ${
+                            fraud.risk === 'high' ? 'bg-red-500' : fraud.risk === 'medium' ? 'bg-amber-500' : 'bg-green-500'
+                          }`} style={{ width: `${fraud.score}%` }} />
+                        </div>
+                        <span className={`text-sm font-bold ${
+                          fraud.risk === 'high' ? 'text-red-600' : fraud.risk === 'medium' ? 'text-amber-600' : 'text-green-600'
+                        }`}>{fraud.score}/100</span>
+                      </div>
+                    </div>
+                    <div className={`px-3 py-2 rounded-lg text-xs font-semibold ${
+                      fraud.risk === 'high' ? 'bg-red-50 text-red-700' :
+                      fraud.risk === 'medium' ? 'bg-amber-50 text-amber-700' :
+                      'bg-green-50 text-green-700'
+                    }`}>
+                      {fraud.risk === 'high' ? '🚨 High Risk' : fraud.risk === 'medium' ? '⚠️ Medium Risk' : '✅ Low Risk'}
+                    </div>
+                    {fraud.flags.length > 0 && (
+                      <div className="space-y-1.5">
+                        {fraud.flags.map((f, i) => (
+                          <div key={i} className={`flex items-start gap-1.5 text-[11px] ${
+                            f.severity === 'high' ? 'text-red-600' : f.severity === 'medium' ? 'text-amber-600' : 'text-gray-500'
+                          }`}>
+                            <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                            {f.message}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 text-center py-2">Click &quot;Check now&quot; to analyse this order</p>
+                )}
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-gray-400" />
+                  <h2 className="text-sm font-bold text-gray-700">Internal Notes</h2>
+                </div>
+                <button onClick={() => setShowNoteInput(!showNoteInput)}
+                  className="w-6 h-6 flex items-center justify-center rounded-lg bg-violet-50 text-violet-600 hover:bg-violet-100 transition-colors">
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="p-5 space-y-3">
+                {showNoteInput && (
+                  <div className="space-y-2">
+                    <textarea value={noteText} onChange={(e) => setNoteText(e.target.value)}
+                      placeholder="Write a note..."
+                      rows={3}
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-violet-400 resize-none" />
+                    <div className="flex justify-end gap-2">
+                      <button onClick={() => { setShowNoteInput(false); setNoteText(''); }}
+                        className="px-3 py-1.5 text-xs text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                      <button onClick={handleAddNote} disabled={!noteText.trim() || addingNote}
+                        className="px-3 py-1.5 text-xs font-semibold text-white bg-violet-600 rounded-lg hover:bg-violet-700 disabled:opacity-50">
+                        {addingNote ? 'Adding...' : 'Add Note'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {order.notes?.length > 0 ? order.notes.map((note) => (
+                  <div key={note._id} className="bg-gray-50 rounded-xl p-3">
+                    <p className="text-sm text-gray-700 leading-relaxed">{note.text}</p>
+                    <p className="text-[11px] text-gray-400 mt-1.5">{format(new Date(note.createdAt), 'dd MMM yyyy, h:mm a')}</p>
+                  </div>
+                )) : (
+                  !showNoteInput && <p className="text-xs text-gray-400 text-center py-2">No notes yet</p>
+                )}
+              </div>
+            </div>
+
+            {/* Meta Info */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100">
+                <h2 className="text-sm font-bold text-gray-700">Order Meta</h2>
+              </div>
+              <div className="p-5 space-y-2">
+                {[
+                  { label: 'IP Address', value: order.meta?.ip },
+                  { label: 'Device', value: order.meta?.device },
+                  { label: 'Platform', value: order.meta?.platform },
+                  { label: 'Delivery', value: order.delivery.type.replace('_', ' ') },
+                  { label: 'SMS Sent', value: order.notifications.sms ? '✓' : '✗' },
+                  { label: 'WhatsApp', value: order.notifications.whatsapp ? '✓' : '✗' },
+                ].filter(f => f.value).map(({ label, value }) => (
+                  <div key={label} className="flex items-center justify-between">
+                    <span className="text-[11px] text-gray-400 uppercase tracking-wider font-semibold">{label}</span>
+                    <span className="text-xs text-gray-600 font-medium">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
