@@ -6,11 +6,12 @@ import { successResponse, errorResponse } from '@/lib/api-response';
 // GET /api/shipments/track/[id]
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
-    const result = await trackShipment(params.id);
+    const { id } = await params;
+    const result = await trackShipment(id);
     return successResponse(result);
   } catch (err) {
     console.error('[GET /api/shipments/track/[id]]', err);

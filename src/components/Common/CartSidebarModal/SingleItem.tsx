@@ -13,9 +13,13 @@ interface SingleItemProps {
 const SingleItem = ({ item, onRemove }: SingleItemProps) => {
   const productImage = item.image || "/images/placeholder.jpg";
   
-  const variantInfo = item.attributes?.length 
-    ? item.attributes.map(attr => `${attr.key}: ${attr.value}`).join(', ')
-    : null;
+  const variantInfo = Array.isArray(item.attributes) && item.attributes.length
+    ? item.attributes
+        .map((attr: { key?: string; value?: string }) => `${attr.key ?? ""}: ${attr.value ?? ""}`)
+        .join(", ")
+    : typeof item.attributes === "string" && item.attributes
+      ? item.attributes
+      : null;
 
   return (
     <div className="flex items-center justify-between gap-5">

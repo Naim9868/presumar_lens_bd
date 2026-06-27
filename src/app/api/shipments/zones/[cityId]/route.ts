@@ -5,10 +5,11 @@ import { successResponse, errorResponse } from '@/lib/api-response';
 // GET /api/shipments/zones/[cityId]
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { cityId: string } }
+  { params }: { params: Promise<{ cityId: string }> }
 ) {
   try {
-    const zones = await getPathaoZoneList(Number(params.cityId));
+    const { cityId } = await params;
+    const zones = await getPathaoZoneList(Number(cityId));
     return successResponse({ zones });
   } catch (err) {
     console.error('[GET /api/shipments/zones/[cityId]]', err);

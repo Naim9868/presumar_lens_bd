@@ -42,7 +42,12 @@ const SingleWishlistItem = ({ item }: SingleWishlistItemProps) => {
 
     await addToCart(
       productForCart as any,
-      item.selectedVariant || undefined,
+      item.selectedVariant?.variantKey
+        ? ({
+            ...item.selectedVariant,
+            variantKey: item.selectedVariant.variantKey,
+          } as any)
+        : undefined,
       item.quantity || 1
     );
 

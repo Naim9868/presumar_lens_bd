@@ -7,6 +7,9 @@ export interface ApplyCouponInput {
   userId?: string;
   productIds?: string[];
   categories?: string[];
+  // Per-line totals: [{ productId, lineTotal }] — used to scope
+  // product-specific coupons to the qualifying items only.
+  lines?: Array<{ productId: string; lineTotal: number }>;
 }
 
 export interface CouponResult {
@@ -19,6 +22,7 @@ export interface CouponResult {
 
 export interface GetCouponsFilters {
   active?: boolean;
+  search?: string;
   page?: number;
   limit?: number;
 }
@@ -26,6 +30,8 @@ export interface GetCouponsFilters {
 export interface GetCouponsResult {
   coupons: Partial<ICoupon>[];
   total: number;
+  page: number;
+  limit: number;
 }
 
 export async function applyCoupon(input: ApplyCouponInput): Promise<CouponResult> {
@@ -55,6 +61,57 @@ export async function applyCoupon(input: ApplyCouponInput): Promise<CouponResult
     if (!isAllowed) return { valid: false, discountAmount: 0, freeShipping: false, message: 'Coupon not valid for your account' };
   }
 
+  // Product/category restriction check
+  if (input.productIds && input.productIds.length > 0) {
+    const productRestrictions = coupon.allowedProducts && coupon.allowedProducts.length > 0;
+    if (productRestrictions) {
+      const allowed = coupon.allowedProducts!.some((id) =>
+        input.productIds!.includes(id.toString())
+      );
+      if (!allowed) {
+        return {
+          valid: false,
+          discountAmount: 0,
+          freeShipping: false,
+          message: 'Coupon not valid for items in your cart',
+        };
+      }
+    }
+
+    if (coupon.allowedCategories && coupon.allowedCategories.length > 0 && input.categories && input.categories.length > 0) {
+      const catMatch = input.categories.some((c) => coupon.allowedCategories!.includes(c));
+      if (!catMatch) {
+        return {
+          valid: false,
+          discountAmount: 0,
+          freeShipping: false,
+          message: 'Coupon not valid for items in your cart',
+        };
+      }
+    }
+  }
+
+  // Calculate the discountable subtotal.
+  // - For product-specific coupons, only the qualifying line totals count.
+  // - Otherwise the entire subtotal counts.
+  let discountable: number = input.subtotal;
+
+  if (coupon.allowedProducts && coupon.allowedProducts.length > 0 && input.lines && input.lines.length > 0) {
+    const allowedIds = new Set(coupon.allowedProducts.map((id) => id.toString()));
+    discountable = input.lines
+      .filter((l) => allowedIds.has(l.productId))
+      .reduce((sum, l) => sum + (Number(l.lineTotal) || 0), 0);
+
+    if (discountable <= 0) {
+      return {
+        valid: false,
+        discountAmount: 0,
+        freeShipping: false,
+        message: 'Coupon not valid for items in your cart',
+      };
+    }
+  }
+
   // Free shipping coupon
   if (coupon.type === 'FREE_SHIPPING') {
     return { valid: true, discountAmount: 0, freeShipping: true, coupon: coupon.toObject() };
@@ -63,7 +120,7 @@ export async function applyCoupon(input: ApplyCouponInput): Promise<CouponResult
   let discountAmount: number = 0;
 
   if (coupon.type === 'PERCENTAGE') {
-    discountAmount = (input.subtotal * coupon.value) / 100;
+    discountAmount = (discountable * coupon.value) / 100;
     if (coupon.maxDiscount) discountAmount = Math.min(discountAmount, coupon.maxDiscount);
   } else if (coupon.type === 'FIXED') {
     discountAmount = coupon.value;
@@ -87,15 +144,26 @@ export async function createCoupon(data: Partial<ICoupon>): Promise<ICoupon> {
 
 export async function getCoupons(filters: GetCouponsFilters): Promise<GetCouponsResult> {
   await connectDB();
-  const { active, page = 1, limit = 20 }: GetCouponsFilters = filters;
+  const { active, search, page = 1, limit = 20 }: GetCouponsFilters = filters;
   const query: Record<string, unknown> = {};
   if (typeof active === 'boolean') query.active = active;
+  if (search) {
+    query.$or = [
+      { code: { $regex: search, $options: 'i' } },
+      { description: { $regex: search, $options: 'i' } },
+    ];
+  }
 
   const [coupons, total] = await Promise.all([
     Coupon.find(query).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
     Coupon.countDocuments(query),
   ]);
-  return { coupons, total };
+  return { coupons, total, page, limit };
+}
+
+export async function getCouponById(id: string): Promise<ICoupon | null> {
+  await connectDB();
+  return Coupon.findById(id).lean();
 }
 
 export async function updateCoupon(id: string, data: Partial<ICoupon>): Promise<ICoupon | null> {

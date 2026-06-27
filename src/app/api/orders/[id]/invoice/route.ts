@@ -5,12 +5,12 @@ import { generateInvoicePDF } from '@/utils/pdf-generator';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
-
-    const order = await Order.findById(params.id);
+    const { id } = await params;
+    const order = await Order.findById(id);
     if (!order) {
       return NextResponse.json(
         { error: 'Order not found' },

@@ -15,7 +15,7 @@ type LeanProduct = {
   _id?: Stringable | string;
   name?: string;
   slug?: string;
-  thumbnail?: string;
+  thumbnail?: string; 
   status?: string;
 };
 
