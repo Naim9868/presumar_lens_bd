@@ -178,7 +178,7 @@ export default function AdminSidebar({ isOpen, onClose, isMobile }: AdminSidebar
   };
 
   const sidebarClasses = `
-    fixed top-0 left-0 z-30 h-full bg-gradient-to-b from-gray-900 to-gray-800 
+    fixed top-0 left-0 z-30 h-full flex flex-col bg-gradient-to-b from-gray-900 to-gray-800 
     transition-all duration-300 ease-in-out shadow-xl
     ${isMobile ? 'w-72' : 'w-64 lg:w-72'}
     ${isOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -196,7 +196,7 @@ export default function AdminSidebar({ isOpen, onClose, isMobile }: AdminSidebar
       
       <aside className={sidebarClasses}>
         {/* Logo Area */}
-        <div className="flex h-16 items-center justify-between px-5 border-b border-gray-700">
+        <div className="flex h-16 shrink-0 items-center justify-between px-5 border-b border-gray-700">
           <Link href="/admin" className="flex items-center gap-2" onClick={handleLinkClick}>
             <Camera className="h-7 w-7 text-amber-500" />
             <span className="text-xl font-bold text-white">Lens<span className="text-amber-500">Admin</span></span>
@@ -215,7 +215,7 @@ export default function AdminSidebar({ isOpen, onClose, isMobile }: AdminSidebar
         </div>
         
         {/* Navigation - Scrollable */}
-        <nav className="flex-1 overflow-y-auto py-4 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
+        <nav className="flex-1 min-h-0 overflow-y-auto py-4 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
           <div className="px-3 space-y-1">
             {menuItems.map((item) => (
               <div key={item.href}>
@@ -253,28 +253,32 @@ export default function AdminSidebar({ isOpen, onClose, isMobile }: AdminSidebar
                     {/* Submenu */}
                     <div
                       className={`
-                        ml-4 mt-1 space-y-1 overflow-hidden transition-all duration-300 ease-in-out
-                        ${openSubmenus[item.href] ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}
+                        grid transition-all duration-300 ease-in-out
+                        ${openSubmenus[item.href] ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}
                       `}
                     >
-                      {item.submenu.map((subItem) => (
-                        <Link
-                          key={subItem.href}
-                          href={subItem.href}
-                          onClick={handleLinkClick}
-                          className={`
-                            flex items-center px-3 py-2 text-sm rounded-lg
-                            transition-all duration-200 pl-11
-                            ${pathname === subItem.href
-                              ? 'bg-gray-700 text-white'
-                              : 'text-gray-400 hover:bg-gray-700 hover:text-white'
-                            }
-                          `}
-                        >
-                          <subItem.icon className="mr-3 h-4 w-4 flex-shrink-0" />
-                          {subItem.name}
-                        </Link>
-                      ))}
+                      <div className="overflow-hidden">
+                        <div className="ml-4 mt-1 space-y-1">
+                          {item.submenu.map((subItem) => (
+                            <Link
+                              key={subItem.href}
+                              href={subItem.href}
+                              onClick={handleLinkClick}
+                              className={`
+                                flex items-center px-3 py-2 text-sm rounded-lg
+                                transition-all duration-200 pl-11
+                                ${pathname === subItem.href
+                                  ? 'bg-gray-700 text-white'
+                                  : 'text-gray-400 hover:bg-gray-700 hover:text-white'
+                                }
+                              `}
+                            >
+                              <subItem.icon className="mr-3 h-4 w-4 flex-shrink-0" />
+                              {subItem.name}
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -307,7 +311,7 @@ export default function AdminSidebar({ isOpen, onClose, isMobile }: AdminSidebar
         </nav>
         
         {/* Footer - Logout */}
-        <div className="border-t border-gray-700 p-4">
+        <div className="shrink-0 border-t border-gray-700 p-4">
           <button
             onClick={() => {
               localStorage.removeItem('admin_token');

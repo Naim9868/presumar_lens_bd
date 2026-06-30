@@ -1,0 +1,124 @@
+﻿
+> presumar-lense-bd@0.1.0 build
+> next build
+
+Γû▓ Next.js 16.2.9 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+Γ£ô Compiled successfully in 31.2s
+  Running TypeScript ...
+  Finished TypeScript in 42s ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/60) ...
+  Generating static pages using 7 workers (15/60) 
+  Generating static pages using 7 workers (30/60) 
+  Generating static pages using 7 workers (45/60) 
+MongoDB connected successfully
+MongoDB connected successfully
+Γ£ô Generating static pages using 7 workers (60/60) in 4.7s
+  Finalizing page optimization ...
+
+Route (app)
+Γöî Γùï /
+Γö£ Γùï /_not-found
+Γö£ Γùï /admin
+Γö£ Γùï /admin/analytics/customers
+Γö£ Γùï /admin/analytics/inventory
+Γö£ Γùï /admin/analytics/product_performance
+Γö£ Γùï /admin/analytics/sales
+Γö£ Γùï /admin/brands
+Γö£ Γùï /admin/categories
+Γö£ Γùï /admin/coupons
+Γö£ ╞Æ /admin/customers
+Γö£ ╞Æ /admin/orders
+Γö£ ╞Æ /admin/orders/[id]
+Γö£ ╞Æ /admin/products
+Γö£ ╞Æ /admin/products/[id]
+Γö£ ╞Æ /admin/products/[id]/edit
+Γö£ Γùï /admin/products/create
+Γö£ Γùï /admin/reviews
+Γö£ ╞Æ /api/admin/analytics/customers
+Γö£ ╞Æ /api/admin/analytics/inventory
+Γö£ ╞Æ /api/admin/analytics/marketing
+Γö£ ╞Æ /api/admin/analytics/orders
+Γö£ ╞Æ /api/admin/analytics/overview
+Γö£ ╞Æ /api/admin/analytics/products
+Γö£ ╞Æ /api/admin/analytics/sales
+Γö£ ╞Æ /api/admin/coupons
+Γö£ ╞Æ /api/admin/coupons/[id]
+Γö£ ╞Æ /api/admin/products/search
+Γö£ ╞Æ /api/brands
+Γö£ ╞Æ /api/brands/[id]
+Γö£ ╞Æ /api/categories
+Γö£ ╞Æ /api/categories/[id]
+Γö£ ╞Æ /api/coupons/apply
+Γö£ ╞Æ /api/courier/pathao
+Γö£ ╞Æ /api/courier/redx
+Γö£ ╞Æ /api/customers
+Γö£ ╞Æ /api/customers/[id]
+Γö£ ╞Æ /api/customers/[id]/notes
+Γö£ ╞Æ /api/customers/[id]/orders
+Γö£ ╞Æ /api/customers/[id]/sms
+Γö£ ╞Æ /api/customers/bulk-sms
+Γö£ ╞Æ /api/debug/products
+Γö£ ╞Æ /api/notifications/send
+Γö£ ╞Æ /api/orders
+Γö£ ╞Æ /api/orders/[id]
+Γö£ ╞Æ /api/orders/[id]/cancel
+Γö£ ╞Æ /api/orders/[id]/events
+Γö£ ╞Æ /api/orders/[id]/fraud
+Γö£ ╞Æ /api/orders/[id]/invoice
+Γö£ ╞Æ /api/orders/[id]/note
+Γö£ ╞Æ /api/orders/[id]/status
+Γö£ ╞Æ /api/orders/[id]/timeline
+Γö£ ╞Æ /api/orders/[id]/tracking
+Γö£ ╞Æ /api/orders/bulk
+Γö£ ╞Æ /api/orders/stats
+Γö£ ╞Æ /api/payments
+Γö£ ╞Æ /api/payments/bkash/callback
+Γö£ ╞Æ /api/payments/refund
+Γö£ ╞Æ /api/payments/ssl/fail
+Γö£ ╞Æ /api/payments/ssl/ipn
+Γö£ ╞Æ /api/payments/ssl/success
+Γö£ ╞Æ /api/payments/sslcommerz/cancel
+Γö£ ╞Æ /api/payments/sslcommerz/fail
+Γö£ ╞Æ /api/payments/sslcommerz/init
+Γö£ ╞Æ /api/payments/sslcommerz/success
+Γö£ ╞Æ /api/payments/webhook
+Γö£ ╞Æ /api/products
+Γö£ ╞Æ /api/products/[id]
+Γö£ ╞Æ /api/products/[id]/availability
+Γö£ ╞Æ /api/products/[id]/duplicate
+Γö£ ╞Æ /api/products/[id]/featured
+Γö£ ╞Æ /api/products/batch
+Γö£ ╞Æ /api/products/bulk-delete
+Γö£ ╞Æ /api/products/bulk-status
+Γö£ ╞Æ /api/products/search
+Γö£ ╞Æ /api/redis/stats
+Γö£ ╞Æ /api/reviews
+Γö£ ╞Æ /api/reviews/[id]
+Γö£ ╞Æ /api/search-products
+Γö£ ╞Æ /api/shipments/book
+Γö£ ╞Æ /api/shipments/cities
+Γö£ ╞Æ /api/shipments/track/[id]
+Γö£ ╞Æ /api/shipments/webhook/pathao
+Γö£ ╞Æ /api/shipments/webhook/redx
+Γö£ ╞Æ /api/shipments/webhook/steadfast
+Γö£ ╞Æ /api/shipments/zones/[cityId]
+Γö£ ╞Æ /api/track
+Γö£ ╞Æ /api/upload
+Γö£ ╞Æ /api/webhooks/telegram
+Γö£ ╞Æ /api/webhooks/whatsapp
+Γö£ ╞Æ /api/websocket
+Γö£ Γùï /categories
+Γö£ ╞Æ /categories/[slug]
+Γö£ Γùï /checkout
+Γö£ ╞Æ /product/[slug]
+Γö£ ╞Æ /products
+Γöö ╞Æ /products/[slug]
+
+
+Γùï  (Static)   prerendered as static content
+╞Æ  (Dynamic)  server-rendered on demand
+

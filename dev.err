@@ -1,0 +1,76 @@
+[browser] Image with src "/images/logo/prosumer_logo (1).png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "/images/logo/prosumer_logo (1).png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[POST /api/orders] TypeError: Cannot read properties of undefined (reading 'sale')
+    at <unknown> (src\services\order.service.ts:94:39)
+    at Array.reduce (<anonymous>)
+    at createOrder (src\services\order.service.ts:93:34)
+    at async POST (src\app\api\orders\route.ts:83:19)
+  92 |     // Calculate pricing
+  93 |     const subtotal = input.items.reduce(
+> 94 |       (sum, item) => sum + item.price.sale * item.quantity,
+     |                                       ^
+  95 |       0
+  96 |     );
+  97 |
+[POST /api/orders] SyntaxError: Unterminated string in JSON at position 196 (line 1 column 197)
+    at JSON.parse (<anonymous>)
+[browser] Uncaught Error: ./src/lib/analytics/mock.ts:571:33
+Expected ';', '}' or <eof>
+  569 |   preset: string;
+  570 |   comparePrevious: boolean;
+> 571 | }): MarketingResponse {DateRange   { id: 'c4', name: 'Google Search â€“ Zoom', channel: 'Google', sent:...
+      |                                 ^
+  572 |     { id: 'c5', name: 'Newsletter June', channel: 'Email', sent: 9_400, delivered: 9_100, opened: 3_400...
+  573 |     { id: 'c6', name: 'Flash Sale 50%', channel: 'SMS', sent: 4_200, delivered: 4_080, opened: 0, click...
+  574 |   ];
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/lib/analytics/mock.ts [Client Component Browser]
+    ./src/lib/analytics/adapter.ts [Client Component Browser]
+    ./src/context/AnalyticsContext.tsx [Client Component Browser]
+    ./src/app/admin/analytics/sales/page.tsx [Client Component Browser]
+    ./src/app/admin/analytics/sales/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/lib/analytics/mock.ts [Client Component SSR]
+    ./src/lib/analytics/adapter.ts [Client Component SSR]
+    ./src/context/AnalyticsContext.tsx [Client Component SSR]
+    ./src/app/admin/analytics/sales/page.tsx [Client Component SSR]
+    ./src/app/admin/analytics/sales/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./src/lib/analytics/mock.ts:571:33)
+    at <unknown> (Error: (./src/lib/analytics/mock.ts:571:33)
+[browser] Uncaught Error: ./src/lib/analytics/mock.ts:571:33
+Expected ';', '}' or <eof>
+  569 |   preset: string;
+  570 |   comparePrevious: boolean;
+> 571 | }): MarketingResponse {DateRange   { id: 'c4', name: 'Google Search â€“ Zoom', channel: 'Google', sent:...
+      |                                 ^
+  572 |     { id: 'c5', name: 'Newsletter June', channel: 'Email', sent: 9_400, delivered: 9_100, opened: 3_400...
+  573 |     { id: 'c6', name: 'Flash Sale 50%', channel: 'SMS', sent: 4_200, delivered: 4_080, opened: 0, click...
+  574 |   ];
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/lib/analytics/mock.ts [Client Component Browser]
+    ./src/lib/analytics/adapter.ts [Client Component Browser]
+    ./src/context/AnalyticsContext.tsx [Client Component Browser]
+    ./src/app/admin/analytics/sales/page.tsx [Client Component Browser]
+    ./src/app/admin/analytics/sales/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/lib/analytics/mock.ts [Client Component SSR]
+    ./src/lib/analytics/adapter.ts [Client Component SSR]
+    ./src/context/AnalyticsContext.tsx [Client Component SSR]
+    ./src/app/admin/analytics/sales/page.tsx [Client Component SSR]
+    ./src/app/admin/analytics/sales/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./src/lib/analytics/mock.ts:571:33)
+    at <unknown> (Error: (./src/lib/analytics/mock.ts:571:33)

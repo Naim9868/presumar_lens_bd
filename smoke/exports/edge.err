@@ -1,0 +1,118 @@
+[12264:1096:0629/195719.587:ERROR:components\edge_ess\vbs_encoder.cc:100] LoadEnclaveImageW failed, error code 577
+[12264:1096:0629/195719.637:WARNING:chrome\browser\extensions\activity_log\activity_log_policy.cc:71] Scheduling init
+[12264:1096:0629/195719.637:WARNING:chrome\browser\extensions\activity_log\activity_log_policy.cc:71] Scheduling init
+[12264:11692:0629/195720.051:INFO:chrome\common\importer\edge_chrome_importer_utils_win.cc:34] Google chrome user data path not found.
+[12264:14132:0629/195720.802:INFO:components\edge_auth\oneauth\oneauth_config.cc:179] EventName: TransactionMicrosoftEdgeWin32
+[12264:14132:0629/195720.804:INFO:components\edge_auth\oneauth\oneauth_config.cc:180] SessionId: 5c180dd4-cbeb-43fd-b2e1-0e8513c22a8d
+[12264:14132:0629/195720.805:INFO:components\edge_auth\oneauth\oneauth_config.cc:181] RecommendedTelemetryRegion: GLOBAL
+[12264:14132:0629/195720.806:INFO:components\edge_auth\oneauth\oneauth_config.cc:183] IsInstrumentationError: 0
+[12264:14132:0629/195720.806:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: SamplingRate, value: 0.25
+[12264:14132:0629/195720.807:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: eventtype, value: authentication
+[12264:14132:0629/195720.808:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: sessionid, value: 5c180dd4-cbeb-43fd-b2e1-0e8513c22a8d
+[12264:14132:0629/195720.808:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: deviceprofiletelemetryid, value: 2912b3c5c3cd64d0e75d1b64fa79498a732585df00fdf55b520a5e0b2c390ce2
+[12264:14132:0629/195720.810:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: oneauth_MsaAccountCount, value: 0
+[12264:14132:0629/195720.810:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: appname, value: MicrosoftEdge
+[12264:14132:0629/195720.811:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: identityservice, value: Unknown
+[12264:14132:0629/195720.811:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: oneauth_GenericAccountCount, value: 0
+[12264:14132:0629/195720.811:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: oneauth_AppId, value: com.microsoft.Edge
+[12264:14132:0629/195720.812:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: authoutcome, value: failed
+[12264:14132:0629/195720.812:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: error, value: 2
+[12264:14132:0629/195720.813:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: oneauth_SubStatus, value: 6201
+[12264:14132:0629/195720.813:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: oneauth_ActiveFlights, value: {"1005":1,"1012":1,"1018":1,"1040":1,"1041":1,"1048":1,"1053":1,"31":1,"42":1,"44":1}
+[12264:14132:0629/195720.813:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: oneauth_version, value: 9.3.3
+[12264:14132:0629/195720.815:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: appaudience, value: production
+[12264:14132:0629/195720.815:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: correlationid, value: d4d008c9-a5a1-4adf-baec-598555d23c25
+[12264:14132:0629/195720.816:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: oneauth_Domain, value: com.microsoft.oneauth
+[12264:14132:0629/195720.817:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: oneauth_Tag, value: 513z3
+[12264:14132:0629/195720.822:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: oneauth_SystemErrorCode, value: 2147943717
+[12264:14132:0629/195720.822:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: oneauth_ExecutionFlow, value: {"de":0,"ef":[{"t":"9zkae","tid":2,"ts":0,"l":2},{"t":"4p5fw","tid":2,"ts":0,"l":2},{"t":"4p5fv","tid":2,"ts":0,"l":2},{"t":"4p5fv","tid":2,"ts":0,"l":2},{"t":"646u1","tid":2,"ts":1,"l":2},{"t":"5k14z","tid":2,"ts":1,"l":2},{"t":"4s7uc","tid":2,"ts":1,"l":2},{"t":"4sufd","tid":2,"ts":1,"s":2,"l":2},{"t":"4swgg","tid":2,"ts":1,"s":1,"l":2},{"t":"4swgf","tid":2,"ts":1,"s":1,"l":2},{"t":"4swgi","tid":4,"ts":1,"s":1,"l":2},{"t":"8b2yn","tid":4,"ts":1,"l":2},{"t":"8dqkx","tid":4,"ts":1,"l":2},{"t":"8dqil","tid":4,"ts":1,"l":2},{"t":"8b2hr","tid":4,"ts":1,"l":2},{"t":"8b2hs","tid":4,"ts":1,"l":2},{"t":"5b8fg","tid":4,"ts":1,"l":2},{"t":"694nj","tid":4,"ts":1,"l":2,"a":10,"ie":0},{"t":"4dwil","tid":4,"ts":1,"l":2},{"t":"4wqnh","tid":4,"ts":2,"l":2},{"t":"4vw1c","tid":4,"ts":35,"l":2},{"t":"4vw1b","tid":4,"ts":35,"l":2},{"t":"4ittz","tid":4,"ts":35,"l":2},{"t":"4wqni","tid":4,"ts":35,"l":2},{"t":"4wqnf","tid":4,"ts":222,"l":2},{"t":"4vw1a","tid":4,"ts":253,"l":2},{"t":"4wqm5","tid":4,"ts":253,"l":2},{"t":"4wqm7","tid":4,"ts":253,"l":2},{"t":"4umml","tid":4,"ts":661,"l":2},{"t":"4wqnf","tid":4,"ts":661,"l":2},{"t":"6m025","tid":4,"ts":861,"l":2},{"t":"694nk","tid":4,"ts":861,"l":2,"a":10,"ie":1},{"t":"8dqk1","tid":4,"ts":861,"l":2},{"t":"646u1","tid":4,"ts":861,"l":2},{"t":"4c10b","tid":4,"ts":861,"l":2},{"t":"4c10a","tid":4,"ts":861,"l":2},{"t":"6b224","tid":4,"ts":861,"l":2},{"t":"49ayy","tid":4,"ts":861,"l":2},{"t":"513z3","tid":4,"ts":861,"e":1200,"l":4},{"t":"9zkad","tid":4,"ts":862,"l":2}],"t":[{"a":0,"t":2},{"a":10,"t":860,"c":1}]}
+[12264:14132:0629/195720.823:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: oneauth_AadAccountCount, value: 0
+[12264:14132:0629/195720.824:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: oneauth_ErrorCode, value: 1200
+[12264:14132:0629/195720.825:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: uploadid, value: 1b169701-559f-4e16-91a8-b60b3a3ca848
+[12264:14132:0629/195720.826:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: actiontype, value: oneauthtransaction
+[12264:14132:0629/195720.827:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: appver, value: 149.0.4022.98
+[12264:14132:0629/195720.827:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: oneauth_api, value: signinsilently
+[12264:14132:0629/195720.827:INFO:components\edge_auth\oneauth\oneauth_config.cc:202] Integer type data key: platform, value: 0
+[12264:14132:0629/195720.827:INFO:components\edge_auth\oneauth\oneauth_config.cc:202] Integer type data key: count, value: 1
+[12264:14132:0629/195720.827:INFO:components\edge_auth\oneauth\oneauth_config.cc:211] Integer64 type data key: duration_min, value: 862
+[12264:14132:0629/195720.827:INFO:components\edge_auth\oneauth\oneauth_config.cc:211] Integer64 type data key: duration_max, value: 862
+[12264:14132:0629/195720.827:INFO:components\edge_auth\oneauth\oneauth_config.cc:211] Integer64 type data key: endtime, value: 1782741440801
+[12264:14132:0629/195720.827:INFO:components\edge_auth\oneauth\oneauth_config.cc:211] Integer64 type data key: duration_sum, value: 862
+[12264:14132:0629/195720.827:INFO:components\edge_auth\oneauth\oneauth_config.cc:211] Integer64 type data key: starttime, value: 1782741439939
+[12264:14132:0629/195720.827:INFO:components\edge_auth\oneauth\oneauth_config.cc:220] Bool type data key: FullDataClient, value: 1
+[12264:14132:0629/195720.827:INFO:components\edge_auth\oneauth\oneauth_config.cc:220] Bool type data key: issilent, value: 1
+[12264:14132:0629/195720.832:INFO:components\edge_auth\oneauth\oneauth_config.cc:179] EventName: ActionMicrosoftEdgeWin32
+[12264:14132:0629/195720.832:INFO:components\edge_auth\oneauth\oneauth_config.cc:180] SessionId: 5c180dd4-cbeb-43fd-b2e1-0e8513c22a8d
+[12264:14132:0629/195720.832:INFO:components\edge_auth\oneauth\oneauth_config.cc:181] RecommendedTelemetryRegion: GLOBAL
+[12264:14132:0629/195720.833:INFO:components\edge_auth\oneauth\oneauth_config.cc:183] IsInstrumentationError: 0
+[12264:14132:0629/195720.833:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: eventtype, value: authentication
+[12264:14132:0629/195720.833:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: sessionid, value: 5c180dd4-cbeb-43fd-b2e1-0e8513c22a8d
+[12264:14132:0629/195720.837:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: appver, value: 149.0.4022.98
+[12264:14132:0629/195720.838:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: appname, value: MicrosoftEdge
+[12264:14132:0629/195720.838:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: appaudience, value: production
+[12264:14132:0629/195720.839:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: identityservice, value: Unknown
+[12264:14132:0629/195720.839:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: MSAL_api_name, value: SignInSilently
+[12264:14132:0629/195720.840:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: MSAL_msal_version, value: 9.3.3
+[12264:14132:0629/195720.840:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: MSAL_start_time, value: 2026-06-29T13:57:19.000Z
+[12264:14132:0629/195720.841:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: oneauth_version, value: 9.3.3
+[12264:14132:0629/195720.841:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: MSAL_api_error_context, value: (pii)
+[12264:14132:0629/195720.842:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: WAM_correlation_id, value: d4d008c9-a5a1-4adf-baec-598555d23c25
+[12264:14132:0629/195720.842:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: MSAL_is_successful, value: false
+[12264:14132:0629/195720.843:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: MSAL_auth_flow, value: Broker
+[12264:14132:0629/195720.844:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: MSAL_original_authority, value: https://login.microsoftonline.com/consumers
+[12264:14132:0629/195720.844:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: MSAL_broker_app_used, value: true
+[12264:14132:0629/195720.844:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: MSAL_request_eligible_for_broker, value: true
+[12264:14132:0629/195720.844:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: WAM_ui_allowed, value: false
+[12264:14132:0629/195720.844:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: actiontype, value: msal
+[12264:14132:0629/195720.844:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: WAM_silent_code, value: 0
+[12264:14132:0629/195720.844:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: MSAL_request_duration, value: 860
+[12264:14132:0629/195720.844:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: WAM_ui_visible, value: false
+[12264:14132:0629/195720.844:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: oneauth_ExecutionFlow, value: {"de":0,"ef":[{"t":"9zkae","tid":2,"ts":0,"l":2},{"t":"4p5fw","tid":2,"ts":0,"l":2},{"t":"4p5fv","tid":2,"ts":0,"l":2},{"t":"4p5fv","tid":2,"ts":0,"l":2},{"t":"646u1","tid":2,"ts":1,"l":2},{"t":"5k14z","tid":2,"ts":1,"l":2},{"t":"4s7uc","tid":2,"ts":1,"l":2},{"t":"4sufd","tid":2,"ts":1,"s":2,"l":2},{"t":"4swgg","tid":2,"ts":1,"s":1,"l":2},{"t":"4swgf","tid":2,"ts":1,"s":1,"l":2},{"t":"4swgi","tid":4,"ts":1,"s":1,"l":2},{"t":"8b2yn","tid":4,"ts":1,"l":2},{"t":"8dqkx","tid":4,"ts":1,"l":2},{"t":"8dqil","tid":4,"ts":1,"l":2},{"t":"8b2hr","tid":4,"ts":1,"l":2},{"t":"8b2hs","tid":4,"ts":1,"l":2},{"t":"5b8fg","tid":4,"ts":1,"l":2},{"t":"694nj","tid":4,"ts":1,"l":2,"a":10,"ie":0},{"t":"4dwil","tid":4,"ts":1,"l":2},{"t":"4wqnh","tid":4,"ts":2,"l":2},{"t":"4vw1c","tid":4,"ts":35,"l":2},{"t":"4vw1b","tid":4,"ts":35,"l":2},{"t":"4ittz","tid":4,"ts":35,"l":2},{"t":"4wqni","tid":4,"ts":35,"l":2},{"t":"4wqnf","tid":4,"ts":222,"l":2},{"t":"4vw1a","tid":4,"ts":253,"l":2},{"t":"4wqm5","tid":4,"ts":253,"l":2},{"t":"4wqm7","tid":4,"ts":253,"l":2},{"t":"4umml","tid":4,"ts":661,"l":2},{"t":"4wqnf","tid":4,"ts":661,"l":2},{"t":"6m025","tid":4,"ts":861,"l":2},{"t":"694nk","tid":4,"ts":861,"l":2,"a":10,"ie":1},{"t":"8dqk1","tid":4,"ts":861,"l":2},{"t":"646u1","tid":4,"ts":861,"l":2},{"t":"4c10b","tid":4,"ts":861,"l":2},{"t":"4c10a","tid":4,"ts":861,"l":2},{"t":"6b224","tid":4,"ts":861,"l":2},{"t":"49ayy","tid":4,"ts":861,"l":2},{"t":"513z3","tid":4,"ts":861,"e":1200,"l":4},{"t":"9zkad","tid":4,"ts":862,"l":2}],"t":[{"a":0,"t":2},{"a":10,"t":860,"c":1}]}
+[12264:14132:0629/195720.847:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: WAM_server_error_code, value: -2147188724
+[12264:14132:0629/195720.847:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: WAM_prompt_behavior, value: none
+[12264:14132:0629/195720.847:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: WAM_client_id, value: 82864fa0-ed49-4711-8395-a0e6003dca1f
+[12264:14132:0629/195720.848:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: WAM_is_cached, value: 0
+[12264:14132:0629/195720.848:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: error, value: 1200
+[12264:14132:0629/195720.848:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: MSAL_all_error_tags, value: 513z3|513z3
+[12264:14132:0629/195720.848:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: WAM_api_error_code, value: -2147023579
+[12264:14132:0629/195720.849:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: WAM_client_binary_version, value: 24
+[12264:14132:0629/195720.849:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: MSAL_authorization_type, value: WindowsIntegratedAuth
+[12264:14132:0629/195720.849:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: MSAL_broker_error_location, value: 513z3
+[12264:14132:0629/195720.850:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: oneauth_api, value: signinsilently
+[12264:14132:0629/195720.850:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: MSAL_additional_query_parameters_count, value: 1
+[12264:14132:0629/195720.850:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: deviceprofiletelemetryid, value: 2912b3c5c3cd64d0e75d1b64fa79498a732585df00fdf55b520a5e0b2c390ce2
+[12264:14132:0629/195720.850:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: MSAL_correlation_id, value: d4d008c9-a5a1-4adf-baec-598555d23c25
+[12264:14132:0629/195720.851:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: WAM_silent_status, value: 0
+[12264:14132:0629/195720.851:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: WAM_authority, value: consumers
+[12264:14132:0629/195720.852:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: SamplingRate, value: 0.25
+[12264:14132:0629/195720.853:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: MSAL_authority_type, value: Unknown
+[12264:14132:0629/195720.853:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: MSAL_api_error_tag, value: 513z3
+[12264:14132:0629/195720.854:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: MSAL_api_status_code, value: StatusInternal::InteractionRequired
+[12264:14132:0629/195720.854:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: WAM_broker_version, value: 10.0.19041.6033
+[12264:14132:0629/195720.855:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: authoutcome, value: failed
+[12264:14132:0629/195720.855:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: WAM_provider_id, value: https://login.microsoft.com
+[12264:14132:0629/195720.855:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: WAM_wam_account_on_start, value: not_supplied
+[12264:14132:0629/195720.856:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: promptreasoncorrelationid, value: 
+[12264:14132:0629/195720.856:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: MSAL_was_request_throttled, value: false
+[12264:14132:0629/195720.856:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: errordescription, value: 
+[12264:14132:0629/195720.856:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: WAM_wam_blob_version, value: 1
+[12264:14132:0629/195720.857:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: WAM_silent_bi_sub_code, value: 0
+[12264:14132:0629/195720.857:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: MSAL_api_error_code, value: 2147943717
+[12264:14132:0629/195720.857:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: uploadid, value: ed7f7314-9984-443c-b24f-b6692e21e971
+[12264:14132:0629/195720.857:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: oneauth_transactionuploadid, value: 1b169701-559f-4e16-91a8-b60b3a3ca848
+[12264:14132:0629/195720.858:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: MSAL_client_id, value: 82864fa0-ed49-4711-8395-a0e6003dca1f
+[12264:14132:0629/195720.858:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: correlationid, value: d4d008c9-a5a1-4adf-baec-598555d23c25
+[12264:14132:0629/195720.858:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: errorsource, value: none
+[12264:14132:0629/195720.858:INFO:components\edge_auth\oneauth\oneauth_config.cc:193] String type data key: MSAL_stop_time, value: 2026-06-29T13:57:20.000Z
+[12264:14132:0629/195720.859:INFO:components\edge_auth\oneauth\oneauth_config.cc:202] Integer type data key: platform, value: 0
+[12264:14132:0629/195720.859:INFO:components\edge_auth\oneauth\oneauth_config.cc:202] Integer type data key: count, value: 1
+[12264:14132:0629/195720.859:INFO:components\edge_auth\oneauth\oneauth_config.cc:211] Integer64 type data key: duration_min, value: 861
+[12264:14132:0629/195720.860:INFO:components\edge_auth\oneauth\oneauth_config.cc:211] Integer64 type data key: duration_max, value: 861
+[12264:14132:0629/195720.860:INFO:components\edge_auth\oneauth\oneauth_config.cc:211] Integer64 type data key: endtime, value: 1782741440800
+[12264:14132:0629/195720.860:INFO:components\edge_auth\oneauth\oneauth_config.cc:211] Integer64 type data key: duration_sum, value: 861
+[12264:14132:0629/195720.861:INFO:components\edge_auth\oneauth\oneauth_config.cc:211] Integer64 type data key: starttime, value: 1782741439939
+[12264:14132:0629/195720.861:INFO:components\edge_auth\oneauth\oneauth_config.cc:220] Bool type data key: FullDataClient, value: 1
+[12264:14132:0629/195720.861:INFO:components\edge_auth\oneauth\oneauth_config.cc:220] Bool type data key: from_cache, value: 0
+[12264:1096:0629/195721.149:INFO:CONSOLE:287] "[harness] autorun pdf click", source: http://localhost:3000/smoke/pdf-harness.html?autorun=pdf&sink=http://127.0.0.1:3737 (287)
+[12264:1096:0629/195721.150:INFO:CONSOLE:280] "[harness] pdf TypeError: window.html2canvas is not a function", source: http://localhost:3000/smoke/pdf-harness.html?autorun=pdf&sink=http://127.0.0.1:3737 (280)
+[12264:1096:0629/195726.192:WARNING:chrome\browser\edge_underside\underside_helper.cc:1173] If test does not need FrontLoad, this may be expected. SetFrontLoadDecision: 3

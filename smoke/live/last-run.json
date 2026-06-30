@@ -1,0 +1,659 @@
+{
+  "before": {
+    "range": {
+      "from": "2026-06-29",
+      "to": "2026-06-30",
+      "preset": "custom",
+      "comparePrevious": true,
+      "previous": {
+        "from": "2026-06-27",
+        "to": "2026-06-28"
+      }
+    },
+    "generatedAt": "2026-06-29T15:49:51.761Z",
+    "kpis": [
+      {
+        "key": "revenue",
+        "label": "Total Revenue",
+        "value": 670605,
+        "display": "৳6,70,605",
+        "iconKey": "revenue",
+        "delta": {
+          "current": 670605,
+          "previous": 634338,
+          "changePct": 5.717298979408454,
+          "trend": "up"
+        },
+        "accent": "emerald",
+        "hint": "152 orders"
+      },
+      {
+        "key": "orders",
+        "label": "Total Orders",
+        "value": 152,
+        "display": "152",
+        "iconKey": "orders",
+        "delta": {
+          "current": 152,
+          "previous": 145,
+          "changePct": 4.827586206896552,
+          "trend": "up"
+        },
+        "accent": "amber",
+        "hint": "224 units sold"
+      },
+      {
+        "key": "aov",
+        "label": "Avg Order Value",
+        "value": 4412,
+        "display": "৳4,412",
+        "iconKey": "aov",
+        "delta": {
+          "current": 4412,
+          "previous": 4375,
+          "changePct": 0.8457142857142858,
+          "trend": "up"
+        },
+        "accent": "sky"
+      },
+      {
+        "key": "customers",
+        "label": "Customers",
+        "value": 141,
+        "display": "141",
+        "iconKey": "customers",
+        "delta": {
+          "current": 141,
+          "previous": 132,
+          "changePct": 6.8181818181818175,
+          "trend": "up"
+        },
+        "accent": "violet"
+      }
+    ],
+    "revenueTrend": [
+      {
+        "label": "Jun 29",
+        "date": "2026-06-29",
+        "revenue": 304704,
+        "orders": 69,
+        "customers": 64,
+        "units": 102
+      },
+      {
+        "label": "Jun 30",
+        "date": "2026-06-30",
+        "revenue": 365901,
+        "orders": 83,
+        "customers": 77,
+        "units": 122
+      }
+    ],
+    "categoryShare": [
+      {
+        "name": "Prime Lenses",
+        "value": 38,
+        "color": "#f59e0b"
+      },
+      {
+        "name": "Zoom Lenses",
+        "value": 28,
+        "color": "#3b82f6"
+      },
+      {
+        "name": "Macro Lenses",
+        "value": 14,
+        "color": "#10b981"
+      },
+      {
+        "name": "Wide Angle",
+        "value": 11,
+        "color": "#8b5cf6"
+      },
+      {
+        "name": "Accessories",
+        "value": 9,
+        "color": "#ef4444"
+      }
+    ],
+    "statusFunnel": [
+      {
+        "step": "PENDING",
+        "count": 5,
+        "conversionPct": 100
+      }
+    ],
+    "recentOrders": [
+      {
+        "id": "ORD-OZQNARXARQ",
+        "customer": "Smoke Tester",
+        "amount": 1560,
+        "status": "PENDING",
+        "date": "2026-06-29T14:48:06.017Z"
+      },
+      {
+        "id": "ORD-2FQEHFZ5NU",
+        "customer": "Smoke Tester",
+        "amount": 1560,
+        "status": "PENDING",
+        "date": "2026-06-29T14:40:28.568Z"
+      },
+      {
+        "id": "ORD-WGHCXZJSB7",
+        "customer": "Smoke Tester",
+        "amount": 1560,
+        "status": "PENDING",
+        "date": "2026-06-29T14:38:28.856Z"
+      },
+      {
+        "id": "ORD-CLTSQVFVV9",
+        "customer": "Smoke Tester",
+        "amount": 1560,
+        "status": "PENDING",
+        "date": "2026-06-29T14:36:31.754Z"
+      },
+      {
+        "id": "ORD-IQQQOKE5X_",
+        "customer": "Smoke Tester",
+        "amount": 1560,
+        "status": "PENDING",
+        "date": "2026-06-29T14:30:10.618Z"
+      }
+    ],
+    "topProducts": [
+      {
+        "id": "p1",
+        "name": "Canon 50mm f/1.8 STM",
+        "category": "Prime",
+        "brand": "Canon",
+        "sales": 145,
+        "revenue": 181250,
+        "rating": 4.7,
+        "stock": 28
+      },
+      {
+        "id": "p2",
+        "name": "Sony 24-70mm f/2.8 GM",
+        "category": "Zoom",
+        "brand": "Sony",
+        "sales": 89,
+        "revenue": 222500,
+        "rating": 4.9,
+        "stock": 12
+      },
+      {
+        "id": "p3",
+        "name": "Nikon 35mm f/1.8 DX",
+        "category": "Prime",
+        "brand": "Nikon",
+        "sales": 76,
+        "revenue": 95000,
+        "rating": 4.6,
+        "stock": 41
+      },
+      {
+        "id": "p4",
+        "name": "Fujifilm 23mm f/2",
+        "category": "Prime",
+        "brand": "Fujifilm",
+        "sales": 54,
+        "revenue": 54000,
+        "rating": 4.5,
+        "stock": 22
+      },
+      {
+        "id": "p5",
+        "name": "Sigma 85mm f/1.4 Art",
+        "category": "Prime",
+        "brand": "Sigma",
+        "sales": 48,
+        "revenue": 144000,
+        "rating": 4.8,
+        "stock": 9
+      }
+    ],
+    "acquisitionChannels": [
+      {
+        "channel": "Facebook",
+        "orders": 420,
+        "revenue": 540000
+      },
+      {
+        "channel": "Google",
+        "orders": 380,
+        "revenue": 612000
+      },
+      {
+        "channel": "Direct",
+        "orders": 290,
+        "revenue": 412000
+      },
+      {
+        "channel": "TikTok",
+        "orders": 220,
+        "revenue": 280000
+      },
+      {
+        "channel": "Email",
+        "orders": 110,
+        "revenue": 165000
+      },
+      {
+        "channel": "Referral",
+        "orders": 70,
+        "revenue": 92000
+      }
+    ],
+    "liveOrdersTicker": [
+      {
+        "id": "ORD-OZQNARXARQ",
+        "customer": "Smoke Tester",
+        "amount": 1560,
+        "city": "Dhaka",
+        "placedAt": "2026-06-29T14:48:06.017Z"
+      },
+      {
+        "id": "ORD-2FQEHFZ5NU",
+        "customer": "Smoke Tester",
+        "amount": 1560,
+        "city": "Dhaka",
+        "placedAt": "2026-06-29T14:40:28.568Z"
+      },
+      {
+        "id": "ORD-WGHCXZJSB7",
+        "customer": "Smoke Tester",
+        "amount": 1560,
+        "city": "Dhaka",
+        "placedAt": "2026-06-29T14:38:28.856Z"
+      },
+      {
+        "id": "ORD-CLTSQVFVV9",
+        "customer": "Smoke Tester",
+        "amount": 1560,
+        "city": "Dhaka",
+        "placedAt": "2026-06-29T14:36:31.754Z"
+      },
+      {
+        "id": "ORD-IQQQOKE5X_",
+        "customer": "Smoke Tester",
+        "amount": 1560,
+        "city": "Dhaka",
+        "placedAt": "2026-06-29T14:30:10.618Z"
+      }
+    ]
+  },
+  "post": {
+    "status": 201,
+    "body": {
+      "success": true,
+      "data": {
+        "order": {
+          "orderId": "ORD-STQUUPY3LI",
+          "guestEmail": "smoke+1782748191945@example.com",
+          "items": [
+            {
+              "productId": "6a1373fc9d978e20e70f7862",
+              "snapshot": {
+                "name": "Apexel 20-40x New Telephoto Lens",
+                "slug": "smoke-1782748191945"
+              },
+              "price": {
+                "original": 1500,
+                "sale": 1500
+              },
+              "quantity": 1,
+              "total": 1500,
+              "_id": "6a42942051bafb9cd083f754"
+            }
+          ],
+          "pricing": {
+            "subtotal": 1500,
+            "itemDiscount": 0,
+            "couponDiscount": 0,
+            "campaignDiscount": 0,
+            "deliveryCharge": 60,
+            "tax": 0,
+            "total": 1560,
+            "currency": "BDT"
+          },
+          "status": "PENDING",
+          "shipping": {
+            "name": "Smoke Tester",
+            "phone": "01748191945",
+            "address": "Smoke Lane 1",
+            "area": "Dhanmondi",
+            "city": "Dhaka"
+          },
+          "delivery": {
+            "type": "INSIDE_DHAKA"
+          },
+          "inventory": {
+            "reserved": true,
+            "released": false,
+            "itemsReserved": [
+              {
+                "productId": "6a1373fc9d978e20e70f7862",
+                "quantity": 1,
+                "_id": "6a42942051bafb9cd083f755"
+              }
+            ]
+          },
+          "meta": {
+            "ip": "::1",
+            "userAgent": "node",
+            "device": "desktop"
+          },
+          "notifications": {
+            "sms": false,
+            "email": false,
+            "whatsapp": false
+          },
+          "paymentMethod": "COD",
+          "paymentStatus": "PENDING",
+          "_id": "6a42942051bafb9cd083f753",
+          "notes": [],
+          "createdAt": "2026-06-29T15:49:52.229Z",
+          "updatedAt": "2026-06-29T15:49:52.229Z",
+          "__v": 0
+        }
+      }
+    }
+  },
+  "after": {
+    "range": {
+      "from": "2026-06-29",
+      "to": "2026-06-30",
+      "preset": "custom",
+      "comparePrevious": true,
+      "previous": {
+        "from": "2026-06-27",
+        "to": "2026-06-28"
+      }
+    },
+    "generatedAt": "2026-06-29T15:49:52.896Z",
+    "kpis": [
+      {
+        "key": "revenue",
+        "label": "Total Revenue",
+        "value": 670605,
+        "display": "৳6,70,605",
+        "iconKey": "revenue",
+        "delta": {
+          "current": 670605,
+          "previous": 634338,
+          "changePct": 5.717298979408454,
+          "trend": "up"
+        },
+        "accent": "emerald",
+        "hint": "152 orders"
+      },
+      {
+        "key": "orders",
+        "label": "Total Orders",
+        "value": 152,
+        "display": "152",
+        "iconKey": "orders",
+        "delta": {
+          "current": 152,
+          "previous": 145,
+          "changePct": 4.827586206896552,
+          "trend": "up"
+        },
+        "accent": "amber",
+        "hint": "224 units sold"
+      },
+      {
+        "key": "aov",
+        "label": "Avg Order Value",
+        "value": 4412,
+        "display": "৳4,412",
+        "iconKey": "aov",
+        "delta": {
+          "current": 4412,
+          "previous": 4375,
+          "changePct": 0.8457142857142858,
+          "trend": "up"
+        },
+        "accent": "sky"
+      },
+      {
+        "key": "customers",
+        "label": "Customers",
+        "value": 141,
+        "display": "141",
+        "iconKey": "customers",
+        "delta": {
+          "current": 141,
+          "previous": 132,
+          "changePct": 6.8181818181818175,
+          "trend": "up"
+        },
+        "accent": "violet"
+      }
+    ],
+    "revenueTrend": [
+      {
+        "label": "Jun 29",
+        "date": "2026-06-29",
+        "revenue": 304704,
+        "orders": 69,
+        "customers": 64,
+        "units": 102
+      },
+      {
+        "label": "Jun 30",
+        "date": "2026-06-30",
+        "revenue": 365901,
+        "orders": 83,
+        "customers": 77,
+        "units": 122
+      }
+    ],
+    "categoryShare": [
+      {
+        "name": "Prime Lenses",
+        "value": 38,
+        "color": "#f59e0b"
+      },
+      {
+        "name": "Zoom Lenses",
+        "value": 28,
+        "color": "#3b82f6"
+      },
+      {
+        "name": "Macro Lenses",
+        "value": 14,
+        "color": "#10b981"
+      },
+      {
+        "name": "Wide Angle",
+        "value": 11,
+        "color": "#8b5cf6"
+      },
+      {
+        "name": "Accessories",
+        "value": 9,
+        "color": "#ef4444"
+      }
+    ],
+    "statusFunnel": [
+      {
+        "step": "PENDING",
+        "count": 6,
+        "conversionPct": 100
+      }
+    ],
+    "recentOrders": [
+      {
+        "id": "ORD-STQUUPY3LI",
+        "customer": "Smoke Tester",
+        "amount": 1560,
+        "status": "PENDING",
+        "date": "2026-06-29T15:49:52.229Z"
+      },
+      {
+        "id": "ORD-OZQNARXARQ",
+        "customer": "Smoke Tester",
+        "amount": 1560,
+        "status": "PENDING",
+        "date": "2026-06-29T14:48:06.017Z"
+      },
+      {
+        "id": "ORD-2FQEHFZ5NU",
+        "customer": "Smoke Tester",
+        "amount": 1560,
+        "status": "PENDING",
+        "date": "2026-06-29T14:40:28.568Z"
+      },
+      {
+        "id": "ORD-WGHCXZJSB7",
+        "customer": "Smoke Tester",
+        "amount": 1560,
+        "status": "PENDING",
+        "date": "2026-06-29T14:38:28.856Z"
+      },
+      {
+        "id": "ORD-CLTSQVFVV9",
+        "customer": "Smoke Tester",
+        "amount": 1560,
+        "status": "PENDING",
+        "date": "2026-06-29T14:36:31.754Z"
+      },
+      {
+        "id": "ORD-IQQQOKE5X_",
+        "customer": "Smoke Tester",
+        "amount": 1560,
+        "status": "PENDING",
+        "date": "2026-06-29T14:30:10.618Z"
+      }
+    ],
+    "topProducts": [
+      {
+        "id": "p1",
+        "name": "Canon 50mm f/1.8 STM",
+        "category": "Prime",
+        "brand": "Canon",
+        "sales": 145,
+        "revenue": 181250,
+        "rating": 4.7,
+        "stock": 28
+      },
+      {
+        "id": "p2",
+        "name": "Sony 24-70mm f/2.8 GM",
+        "category": "Zoom",
+        "brand": "Sony",
+        "sales": 89,
+        "revenue": 222500,
+        "rating": 4.9,
+        "stock": 12
+      },
+      {
+        "id": "p3",
+        "name": "Nikon 35mm f/1.8 DX",
+        "category": "Prime",
+        "brand": "Nikon",
+        "sales": 76,
+        "revenue": 95000,
+        "rating": 4.6,
+        "stock": 41
+      },
+      {
+        "id": "p4",
+        "name": "Fujifilm 23mm f/2",
+        "category": "Prime",
+        "brand": "Fujifilm",
+        "sales": 54,
+        "revenue": 54000,
+        "rating": 4.5,
+        "stock": 22
+      },
+      {
+        "id": "p5",
+        "name": "Sigma 85mm f/1.4 Art",
+        "category": "Prime",
+        "brand": "Sigma",
+        "sales": 48,
+        "revenue": 144000,
+        "rating": 4.8,
+        "stock": 9
+      }
+    ],
+    "acquisitionChannels": [
+      {
+        "channel": "Facebook",
+        "orders": 420,
+        "revenue": 540000
+      },
+      {
+        "channel": "Google",
+        "orders": 380,
+        "revenue": 612000
+      },
+      {
+        "channel": "Direct",
+        "orders": 290,
+        "revenue": 412000
+      },
+      {
+        "channel": "TikTok",
+        "orders": 220,
+        "revenue": 280000
+      },
+      {
+        "channel": "Email",
+        "orders": 110,
+        "revenue": 165000
+      },
+      {
+        "channel": "Referral",
+        "orders": 70,
+        "revenue": 92000
+      }
+    ],
+    "liveOrdersTicker": [
+      {
+        "id": "ORD-STQUUPY3LI",
+        "customer": "Smoke Tester",
+        "amount": 1560,
+        "city": "Dhaka",
+        "placedAt": "2026-06-29T15:49:52.229Z"
+      },
+      {
+        "id": "ORD-OZQNARXARQ",
+        "customer": "Smoke Tester",
+        "amount": 1560,
+        "city": "Dhaka",
+        "placedAt": "2026-06-29T14:48:06.017Z"
+      },
+      {
+        "id": "ORD-2FQEHFZ5NU",
+        "customer": "Smoke Tester",
+        "amount": 1560,
+        "city": "Dhaka",
+        "placedAt": "2026-06-29T14:40:28.568Z"
+      },
+      {
+        "id": "ORD-WGHCXZJSB7",
+        "customer": "Smoke Tester",
+        "amount": 1560,
+        "city": "Dhaka",
+        "placedAt": "2026-06-29T14:38:28.856Z"
+      },
+      {
+        "id": "ORD-CLTSQVFVV9",
+        "customer": "Smoke Tester",
+        "amount": 1560,
+        "city": "Dhaka",
+        "placedAt": "2026-06-29T14:36:31.754Z"
+      },
+      {
+        "id": "ORD-IQQQOKE5X_",
+        "customer": "Smoke Tester",
+        "amount": 1560,
+        "city": "Dhaka",
+        "placedAt": "2026-06-29T14:30:10.618Z"
+      }
+    ]
+  }
+}

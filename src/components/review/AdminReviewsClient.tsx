@@ -264,12 +264,12 @@ export default function AdminReviewsClient() {
       setFormProductsLoading(true);
       fetchProductOptions(formProductSearch, 30)
         .then((items) => {
-          const selectedProduct = form.productId 
-            ? formProducts.find(p => p._id === form.productId) 
+          const selectedProduct = form.productId
+            ? formProducts.find(p => p._id === form.productId)
             : null;
-          
+
           const reviewProduct = selectedReview?.product ? [selectedReview.product] : [];
-          
+
           setFormProducts(mergeProductOptions(
             selectedProduct ? [selectedProduct] : [],
             reviewProduct,
@@ -301,8 +301,8 @@ export default function AdminReviewsClient() {
 
     setFormProductSearch(selectedFilterProduct?.name || '');
     setFormProductResultsOpen(false);
-    const initialProducts = selectedFilterProduct 
-      ? [selectedFilterProduct] 
+    const initialProducts = selectedFilterProduct
+      ? [selectedFilterProduct]
       : products.length > 0 ? products : [];
     setFormProducts(initialProducts);
     setForm({
@@ -359,8 +359,8 @@ export default function AdminReviewsClient() {
   };
 
   const handleImageUpload = (url: string, publicId?: string) => {
-    setForm(prev => ({ 
-      ...prev, 
+    setForm(prev => ({
+      ...prev,
       image: url,
       imagePublicId: publicId || ''
     }));
@@ -371,8 +371,8 @@ export default function AdminReviewsClient() {
   const handleImageLinkChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const url = e.target.value;
     setCurrentImageUrl(url);
-    setForm(prev => ({ 
-      ...prev, 
+    setForm(prev => ({
+      ...prev,
       image: url,
       imagePublicId: '' // Clear publicId when using external link
     }));
@@ -556,32 +556,36 @@ export default function AdminReviewsClient() {
         ))}
       </div>
 
-      <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
-        <div className="grid gap-3 xl:grid-cols-[1fr_170px_minmax(280px,360px)_120px]">
-          <div className='flex flex-row justify-between gap-2'>
+      {/* //search bar */}
+      <div className="rounded-lg border border-gray-100 bg-white p-3 sm:p-4 shadow-sm">
+        <div className="grid gap-3">
+          {/* First row - Search and Status Filter */}
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-5">
             <div className="relative w-full">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search reviewer, email, or comment"
-              className="w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-10 pr-3 text-sm text-gray-900 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-            />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search reviewer, email, or comment"
+                className="w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-10 pr-3 text-sm text-gray-900 outline-none transition focus:border-amber-400 focus:ring-1 focus:ring-amber-100"
+              />
+            </div>
+            <select
+              value={statusFilter}
+              onChange={(event) => {
+                setStatusFilter(event.target.value as 'all' | ReviewStatus);
+                setPagination((current) => ({ ...current, page: 1 }));
+              }}
+              className="w-full sm:w-auto rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+            >
+              <option value="all">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
           </div>
-          <select
-            value={statusFilter}
-            onChange={(event) => {
-              setStatusFilter(event.target.value as 'all' | ReviewStatus);
-              setPagination((current) => ({ ...current, page: 1 }));
-            }}
-            className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-          >
-            <option value="all">All statuses</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-          </select>
-          </div>
+
+          {/* Second row - Product Search */}
           <div className="relative">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -594,7 +598,7 @@ export default function AdminReviewsClient() {
                 }}
                 onFocus={() => setProductResultsOpen(true)}
                 placeholder="Search and select product"
-                className="w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-10 pr-9 text-sm text-gray-900 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                className="w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-10 pr-9 text-sm text-gray-900 outline-none transition focus:border-amber-400 focus:ring-1 focus:ring-amber-100"
               />
               {productFilter !== 'all' && (
                 <button
@@ -608,8 +612,9 @@ export default function AdminReviewsClient() {
               )}
             </div>
 
+            {/* Product Results Dropdown */}
             {productResultsOpen && (
-              <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-xl">
+              <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-60 sm:max-h-72 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-xl">
                 <button
                   type="button"
                   onMouseDown={(event) => {
@@ -647,14 +652,15 @@ export default function AdminReviewsClient() {
               </div>
             )}
 
-            <div className="mt-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+            {/* Selected Product Display */}
+            <div className="mt-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-600 break-all sm:break-normal">
               Selected product: <span className="font-semibold text-gray-900">{productFilter === 'all' ? 'All products' : selectedFilterProductName || 'Product selected'}</span>
             </div>
           </div>
-         
         </div>
       </div>
 
+      {/* //review table */}
       <div className="overflow-hidden rounded-lg border border-gray-100 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
           <p className="text-sm text-gray-500">
@@ -662,23 +668,23 @@ export default function AdminReviewsClient() {
           </p>
           <div className='flex flex-row gap-2'>
             <p className="text-sm text-gray-500">Rows per page:</p>
-           <select
-            value={pagination.limit}
-            onChange={(event) => {
-              setPagination((current) => ({
-                ...current,
-                page: 1,
-                limit: Number(event.target.value),
-              }));
-            }}
-            className="rounded-lg border border-gray-200 bg-white py-1 text-sm text-gray-700 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-          >
-            {[10, 20, 30, 50, 100].map((limit) => (
-              <option key={limit} value={limit}>
-                {limit} rows
-              </option>
-            ))}
-          </select>
+            <select
+              value={pagination.limit}
+              onChange={(event) => {
+                setPagination((current) => ({
+                  ...current,
+                  page: 1,
+                  limit: Number(event.target.value),
+                }));
+              }}
+              className="rounded-lg border border-gray-200 bg-white py-1 text-sm text-gray-700 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+            >
+              {[10, 20, 30, 50, 100].map((limit) => (
+                <option key={limit} value={limit}>
+                  {limit} rows
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -917,7 +923,7 @@ export default function AdminReviewsClient() {
                         className="w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-10 pr-3 text-sm text-gray-900 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
                       />
                     </div>
-                    
+
                     {formProductResultsOpen && (
                       <div className="relative z-10">
                         <div className="absolute left-0 right-0 top-0 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">

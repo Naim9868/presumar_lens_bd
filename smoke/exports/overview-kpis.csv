@@ -1,0 +1,5 @@
+metric,key,value,display,hint,trend,changePct,previous
+Total Revenue,revenue,2672244,"৳26,72,244",604 orders,up,20.81,2212011
+Total Orders,orders,604,604,890 units sold,up,19.60,505
+Avg Order Value,aov,4424,"৳4,424",,up,1.00,4380
+Customers,customers,559,559,,up,21.26,461

@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>PDF export smoke</title>
+    <script src="../../node_modules/jspdf/dist/jspdf.umd.min.js"></script>
+    <script src="../../node_modules/html2canvas/dist/html2canvas.min.js"></script>
+    <style>
+      :root { color-scheme: light; }
+      body {
+        margin: 0;
+        background: #f8fafc;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        color: #1e293b;
+      }
+      .toolbar {
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        z-index: 50;
+        display: flex;
+        gap: 8px;
+      }
+      .btn {
+        background: #3C50E0;
+        color: white;
+        border: 0;
+        padding: 8px 14px;
+        font-size: 12px;
+        font-weight: 600;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      .btn.alt { background: #22AD5C; }
+      #capture {
+        max-width: 1100px;
+        margin: 32px auto;
+        padding: 24px;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+      }
+      h1 { margin: 0 0 4px; font-size: 24px; }
+      .sub { color: #64748b; font-size: 13px; margin-bottom: 18px; }
+      .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+      .kpi {
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 14px;
+        background: #fff;
+      }
+      .kpi .label { color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+      .kpi .val { font-size: 22px; font-weight: 700; margin: 4px 0; }
+      .kpi .hint { color: #64748b; font-size: 11px; }
+      .up   { color: #16a34a; }
+      .down { color: #dc2626; }
+      table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 12px; }
+      th, td { padding: 8px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+      th { color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 10px; letter-spacing: 0.04em; }
+      td.num { text-align: right; font-variant-numeric: tabular-nums; }
+      .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        font-size: 10px;
+        font-weight: 600;
+        border-radius: 999px;
+        background: #e0f2fe;
+        color: #075985;
+      }
+      h2 { font-size: 16px; margin: 24px 0 8px; }
+      .status {
+        position: fixed;
+        bottom: 12px;
+        left: 12px;
+        background: #0f172a;
+        color: white;
+        font: 12px/1.4 monospace;
+        padding: 8px 12px;
+        border-radius: 8px;
+        max-width: 460px;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="toolbar">
+      <button class="btn alt" id="btn-csv">Export CSV</button>
+      <button class="btn" id="btn-pdf">Export PDF</button>
+    </div>
+
+    <div id="capture">
+      <h1>Sales Report</h1>
+      <div class="sub">2026-06-23 → 2026-06-29 · BDT ৳26,72,244 across 604 orders</div>
+
+      <h2>KPIs</h2>
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="label">Total Revenue</div>
+          <div class="val">৳26,72,244</div>
+          <div class="hint"><span class="up">▲ 20.81%</span> · 604 orders</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Total Orders</div>
+          <div class="val">604</div>
+          <div class="hint"><span class="up">▲ 19.60%</span> · 890 units sold</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Avg Order Value</div>
+          <div class="val">৳4,424</div>
+          <div class="hint"><span class="up">▲ 1.00%</span></div>
+        </div>
+        <div class="kpi">
+          <div class="label">Customers</div>
+          <div class="val">559</div>
+          <div class="hint"><span class="up">▲ 21.26%</span></div>
+        </div>
+      </div>
+
+      <h2>Daily orders</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th class="num">Orders</th>
+            <th class="num">Revenue</th>
+            <th class="num">AOV</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>2026-06-23</td><td class="num">76</td><td class="num">৳3,29,427</td><td class="num">৳4,335</td></tr>
+          <tr><td>2026-06-24</td><td class="num">97</td><td class="num">৳4,18,844</td><td class="num">৳4,318</td></tr>
+          <tr><td>2026-06-25</td><td class="num">91</td><td class="num">৳3,94,341</td><td class="num">৳4,333</td></tr>
+          <tr><td>2026-06-26</td><td class="num">72</td><td class="num">৳3,09,931</td><td class="num">৳4,305</td></tr>
+          <tr><td>2026-06-27</td><td class="num">51</td><td class="num">৳2,21,428</td><td class="num">৳4,342</td></tr>
+          <tr><td>2026-06-28</td><td class="num">52</td><td class="num">৳2,26,121</td><td class="num">৳4,348</td></tr>
+          <tr><td>2026-06-29</td><td class="num">80</td><td class="num">৳3,45,733</td><td class="num">৳4,322</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Recent orders</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Order</th>
+            <th>Customer</th>
+            <th>Status</th>
+            <th class="num">Amount</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody id="recent-orders">
+          <tr><td colspan="5" style="text-align:center;color:#64748b">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="status" id="status">Ready.</div>
+
+    <script>
+      // Same escaper used by downloadCSV (src/lib/analytics/export.ts).
+      function esc(v) {
+        if (v === null || v === undefined) return '';
+        const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+        if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+        return s;
+      }
+      function toCsv(rows) {
+        if (!rows.length) return '';
+        const headers = Object.keys(rows[0]);
+        return [
+          headers.join(','),
+          ...rows.map((r) => headers.map((h) => esc(r[h])).join(',')),
+        ].join('\n');
+      }
+
+      async function loadRecent() {
+        try {
+          const res = await fetch('/api/admin/analytics/overview?preset=7d');
+          const json = await res.json();
+          const rows = (json.recentOrders ?? []).map((o) => ({
+            order: o.id, customer: o.customer, status: o.status,
+            amount: '\u09F3' + new Intl.NumberFormat('en-IN').format(o.amount),
+            date: new Date(o.date).toLocaleDateString(),
+          }));
+          const tbody = document.getElementById('recent-orders');
+          tbody.innerHTML = rows.map((r) =>
+            '<tr>' +
+              '<td>' + r.order + '</td>' +
+              '<td>' + r.customer + '</td>' +
+              '<td><span class="badge">' + r.status + '</span></td>' +
+              '<td class="num">' + r.amount + '</td>' +
+              '<td>' + r.date + '</td>' +
+            '</tr>'
+          ).join('');
+          window.__recentRows = rows;
+          setStatus('Loaded ' + rows.length + ' recent orders.');
+        } catch (e) {
+          setStatus('Failed to load orders: ' + e.message);
+        }
+      }
+
+      function downloadCSV(filename, rows) {
+        const csv = toCsv(rows);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      async function exportElementToPDF(element, filename) {
+        const canvas = await window.html2canvas(element, {
+          scale: 2,
+          backgroundColor: '#ffffff',
+          useCORS: true,
+          logging: false,
+        });
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+        const pageW = pdf.internal.pageSize.getWidth();
+        const pageH = pdf.internal.pageSize.getHeight();
+        const ratio = Math.min(pageW / canvas.width, pageH / canvas.height);
+        const w = canvas.width * ratio;
+        const h = canvas.height * ratio;
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', (pageW - w) / 2, 20, w, h);
+        pdf.save(filename);
+        return { width: canvas.width, height: canvas.height };
+      }
+
+      function setStatus(msg) {
+        document.getElementById('status').textContent = msg;
+        window.__status = msg;
+      }
+
+      document.getElementById('btn-csv').addEventListener('click', () => {
+        const rows = window.__recentRows ?? [];
+        if (!rows.length) { setStatus('No rows.'); return; }
+        downloadCSV('sales-report.csv', rows);
+        setStatus('CSV downloaded (' + rows.length + ' rows).');
+      });
+
+      document.getElementById('btn-pdf').addEventListener('click', async () => {
+        try {
+          setStatus('Rendering…');
+          const el = document.getElementById('capture');
+          const canvas = await window.html2canvas(el, {
+            scale: 2,
+            backgroundColor: '#ffffff',
+            useCORS: true,
+            logging: false,
+          });
+          setStatus('Canvas ready ' + canvas.width + 'x' + canvas.height);
+          const { jsPDF } = window.jspdf;
+          const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+          const pageW = pdf.internal.pageSize.getWidth();
+          const pageH = pdf.internal.pageSize.getHeight();
+          const ratio = Math.min(pageW / canvas.width, pageH / canvas.height);
+          const w = canvas.width * ratio;
+          const h = canvas.height * ratio;
+          pdf.addImage(canvas.toDataURL('image/png'), 'PNG', (pageW - w) / 2, 20, w, h);
+
+          const sink = new URLSearchParams(location.search).get('sink');
+          if (sink) {
+            // Headless mode: POST the PDF bytes to a local sink instead of triggering download.
+            console.log('[harness] uploading to ' + sink);
+            const blob = pdf.output('blob');
+            const fd = new FormData();
+            fd.append('pdf', blob, 'sales-report.pdf');
+            const r = await fetch(sink + '/upload', { method: 'POST', body: fd });
+            const json = await r.json();
+            setStatus('PDF POSTed: ' + JSON.stringify(json));
+            console.log('[harness] upload done ' + JSON.stringify(json));
+          } else {
+            pdf.save('sales-report.pdf');
+            setStatus('PDF saved (download triggered).');
+          }
+        } catch (e) {
+          setStatus('PDF error: ' + e.message);
+          console.error('[harness] pdf', e);
+        }
+      });
+
+      loadRecent().then(() => {
+        const params = new URLSearchParams(location.search);
+        if (params.get('autorun') === 'pdf') {
+          console.log('[harness] autorun pdf click');
+          document.getElementById('btn-pdf').click();
+        } else if (params.get('autorun') === 'csv') {
+          document.getElementById('btn-csv').click();
+        }
+      }).catch((e) => {
+        setStatus('loadRecent failed: ' + e.message);
+        console.error('[harness] loadRecent', e);
+      });
+    </script>
+  </body>
+</html>
