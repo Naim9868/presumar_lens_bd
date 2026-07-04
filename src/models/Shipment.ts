@@ -1,3 +1,4 @@
+// /src/models/shipment.ts
 import mongoose, { Schema, Document } from 'mongoose';
 
 export type CourierProvider = 'PATHAO' | 'REDX' | 'STEADFAST' | 'PAPERFLY' | 'SUNDARBAN';

@@ -98,34 +98,95 @@ interface FormData {
   notes: string;
 }
 
+// Helper to convert any value (including ObjectId, Date, populated doc) to a plain string
+const toPlainString = (val: any): string => {
+  if (val == null) return '';
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+  if (val instanceof Date) return val.toISOString();
+  // Mongoose ObjectId has a toString() that returns the hex
+  if (typeof val.toString === 'function') {
+    const s = val.toString();
+    // Avoid "[object Object]" fallbacks
+    if (s && s !== '[object Object]') return s;
+  }
+  return '';
+};
+
+// Recursively strip ObjectIds/Mongoose objects so data is plain-JSON safe for client components
+const toPlain = (val: any): any => {
+  if (val == null) return val;
+  if (Array.isArray(val)) return val.map(toPlain);
+  if (val instanceof Date) return val.toISOString();
+  if (typeof val === 'object') {
+    // Mongoose ObjectId (or any object with a non-default toJSON)
+    if (typeof (val as any).toJSON === 'function' && !(val as any).toJSON.toString().includes('Object')) {
+      // If it's just an ObjectId-shaped object, convert to hex string
+      const hex = toPlainString(val);
+      if (hex) return hex;
+    }
+    const out: Record<string, any> = {};
+    for (const k of Object.keys(val)) {
+      out[k] = toPlain(val[k]);
+    }
+    return out;
+  }
+  return val;
+};
+
 // Helper to ensure order has all required fields for Invoice
 const normalizeOrderData = (order: any) => {
   console.log('Normalizing order data:', order);
-  
-  // Ensure the order has all required fields
+
+  const safeId = toPlainString(order?._id) || order?.orderId || order?.id || '';
+
+  const items = Array.isArray(order?.items) ? order.items.map((it: any) => ({
+    snapshot: {
+      name: it?.snapshot?.name ?? '',
+      image: it?.snapshot?.image,
+    },
+    price: {
+      original: Number(it?.price?.original ?? 0),
+      sale: Number(it?.price?.sale ?? 0),
+    },
+    quantity: Number(it?.quantity ?? 0),
+    total: Number(it?.total ?? 0),
+  })) : [];
+
+  const pricingSrc = order?.pricing || {};
+  const shippingSrc = order?.shipping || {};
+
   return {
-    _id: order._id || order.orderId || order.id,
-    orderId: order.orderId || order._id || order.id,
-    status: order.status || 'CONFIRMED',
-    createdAt: order.createdAt || new Date().toISOString(),
-    items: order.items || [],
-    pricing: order.pricing || {
-      subtotal: 0,
-      couponDiscount: 0,
-      deliveryCharge: 0,
-      total: 0,
-      currency: 'BDT'
+    _id: safeId,
+    orderId: order?.orderId || safeId,
+    status: order?.status || 'CONFIRMED',
+    createdAt: order?.createdAt instanceof Date
+      ? order.createdAt.toISOString()
+      : (order?.createdAt || new Date().toISOString()),
+    items,
+    pricing: {
+      subtotal: Number(pricingSrc.subtotal ?? 0),
+      couponDiscount: Number(pricingSrc.couponDiscount ?? 0),
+      deliveryCharge: Number(pricingSrc.deliveryCharge ?? 0),
+      total: Number(pricingSrc.total ?? 0),
+      currency: pricingSrc.currency || 'BDT',
     },
-    shipping: order.shipping || {
-      name: '',
-      phone: '',
-      address: '',
-      area: '',
-      city: ''
+    shipping: {
+      name: shippingSrc.name ?? '',
+      phone: shippingSrc.phone ?? '',
+      email: shippingSrc.email,
+      address: shippingSrc.address ?? '',
+      area: shippingSrc.area ?? '',
+      city: shippingSrc.city ?? '',
+      postcode: shippingSrc.postcode,
+      division: shippingSrc.division,
     },
-    paymentMethod: order.paymentMethod || 'COD',
-    paymentStatus: order.paymentStatus || 'PENDING'
+    paymentMethod: order?.paymentMethod || 'COD',
+    paymentStatus: order?.paymentStatus || 'PENDING',
   };
+
+  // Reference kept for any callers that need to deep-walk fields
+  void toPlain;
 };
 
 export default function OrderForm({

@@ -148,6 +148,7 @@ export async function trackShipment(shipmentId: string) {
   return { shipment, trackingData };
 }
 
+
 export async function handleCourierWebhook(
   provider: CourierProvider,
   payload: Record<string, unknown>
@@ -194,10 +195,119 @@ export async function handleCourierWebhook(
   }
 }
 
+
 export async function getPathaoCityList() {
   return getPathaoCities();
 }
 
+
 export async function getPathaoZoneList(cityId: number) {
   return getPathaoZones(cityId);
 }
+
+
+
+// services/shipment.service.ts (add these methods)
+
+export async function getShipmentStats() {
+  await connectDB();
+
+  const total = await Shipment.countDocuments();
+  const pending = await Shipment.countDocuments({ status: 'BOOKED' });
+  const inTransit = await Shipment.countDocuments({ status: { $in: ['PICKED', 'IN_TRANSIT'] } });
+  const delivered = await Shipment.countDocuments({ status: 'DELIVERED' });
+
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+
+  const thisMonth = await Shipment.countDocuments({
+    createdAt: { $gte: startOfMonth }
+  });
+
+  return { total, pending, inTransit, delivered, thisMonth };
+}
+
+export async function getRecentShipments(limit: number = 5) {
+  await connectDB();
+  return Shipment.find()
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .populate('orderId', 'orderId')
+    .lean();
+}
+
+export async function getShipments({
+  page = 1,
+  limit = 10,
+  status,
+  provider,
+  search
+}: {
+  page?: number;
+  limit?: number;
+  status?: string;
+  provider?: string;
+  search?: string;
+}) {
+  await connectDB();
+
+  const query: any = {};
+  if (status) query.status = status;
+  if (provider) query.provider = provider;
+  if (search) {
+    query.$or = [
+      { trackingId: { $regex: search, $options: 'i' } },
+      { 'orderId.orderId': { $regex: search, $options: 'i' } }
+    ];
+  }
+
+  const skip = (page - 1) * limit;
+  const [shipments, total] = await Promise.all([
+    Shipment.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate('orderId', 'orderId')
+      .lean(),
+    Shipment.countDocuments(query)
+  ]);
+
+  return {
+    shipments,
+    total,
+    totalPages: Math.ceil(total / limit),
+    currentPage: page
+  };
+}
+
+export async function getOrdersForShipping() {
+  await connectDB();
+  return Order.find({
+    status: { $in: ['PLACED', 'PROCESSING', 'CONFIRMED'] },
+    'shipping.phone': { $exists: true, $ne: '' }
+  })
+    .select('orderId shipping pricing')
+    .limit(50)
+    .lean();
+}
+
+export async function getAllShipments({ limit = 100 }: { limit?: number }) {
+  await connectDB();
+  return Shipment.find()
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .populate('orderId', 'orderId')
+    .lean();
+}
+
+export async function getShipmentById(id: string) {
+  await connectDB();
+  const shipment = await Shipment.findById(id)
+    .populate('orderId')
+    .lean();
+  
+  if (!shipment) throw new Error('Shipment not found');
+  return shipment;
+}
+

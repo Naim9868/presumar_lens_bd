@@ -1,3 +1,4 @@
+// /api/shipments/book
 import { NextRequest } from 'next/server';
 import { connectDB } from '@/lib/dbConnect';
 import { bookShipment } from '@/services/shipment.service';
