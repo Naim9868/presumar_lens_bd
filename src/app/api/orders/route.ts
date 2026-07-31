@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
     const {
       userId, guestEmail, items, pricing, coupon,
       shipping, deliveryType, paymentMethod, marketing,
+      notes,
     } = body;
 
     // Basic validation
@@ -90,6 +91,7 @@ export async function POST(req: NextRequest) {
       deliveryType,
       paymentMethod,
       marketing,
+      notes,
       meta: { ip, userAgent, device: userAgent.includes('Mobile') ? 'mobile' : 'desktop' },
     });
 

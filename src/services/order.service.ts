@@ -80,6 +80,10 @@ export interface CreateOrderInput {
     device?: string;
     platform?: string;
   };
+  notes?: Array<{
+    text: string;
+    createdBy?: string;
+  }>;
 }
 
 export async function createOrder(input: CreateOrderInput): Promise<IOrder> {
@@ -192,6 +196,13 @@ export async function createOrder(input: CreateOrderInput): Promise<IOrder> {
 
         paymentMethod: input.paymentMethod,
         paymentStatus: 'PENDING',
+
+        notes: input.notes?.length
+          ? input.notes.map((n) => ({
+              text: n.text,
+              createdAt: new Date(),
+            }))
+          : [],
       }],
       { session }
     );
