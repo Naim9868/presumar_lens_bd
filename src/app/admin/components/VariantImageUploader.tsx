@@ -116,6 +116,7 @@ export default function VariantImageUploader({
                 alt={`Variant ${idx + 1}`}
                 fill
                 className="object-cover"
+                unoptimized
               />
             </div>
             <button
@@ -143,7 +144,7 @@ export default function VariantImageUploader({
             <input
               type="file"
               multiple
-              accept="image/jpeg,image/png,image/webp,image/gif"
+              accept="image/*"
               onChange={handleImageUpload}
               className="hidden"
               disabled={uploading}
@@ -157,7 +158,7 @@ export default function VariantImageUploader({
       )}
       
       <p className="text-xs text-gray-500">
-        {images.length}/{maxImages} images - Supports JPG, PNG, GIF, WebP
+        {images.length}/{maxImages} images - Supports all image formats
       </p>
     </div>
   );

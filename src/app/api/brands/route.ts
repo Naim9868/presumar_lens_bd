@@ -43,8 +43,8 @@ export async function POST(request: NextRequest) {
     await connectDB();
     
     // Check if brand already exists
-    const existingBrand = await Brand.findOne({ 
-      name: { $regex: new RegExp(`^${body.name}$`, 'i') } 
+    const existingBrand = await Brand.findOne({
+      name: { $regex: new RegExp(`^${body.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
     });
     
     if (existingBrand) {

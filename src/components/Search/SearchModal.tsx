@@ -144,6 +144,7 @@ const SearchModal = ({
                                                                     alt={product.name}
                                                                     fill
                                                                     className="object-cover transition-transform duration-300 group-hover:scale-110"
+                                                                    sizes="64px"
                                                                 />
                                                             ) : (
                                                                 <div className="w-full h-full flex items-center justify-center">

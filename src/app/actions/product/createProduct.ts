@@ -163,8 +163,6 @@ export async function createProduct(data: ICreateProduct & {
       ratingCount: 0,
     };
 
-    console.log('Saving product with spec groups:', JSON.stringify(cleanedSpecGroups, null, 2));
-
     const product = new Product(productData);
     await product.save();
 

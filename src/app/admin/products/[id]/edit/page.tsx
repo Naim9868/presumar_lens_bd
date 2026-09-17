@@ -421,8 +421,6 @@ export default function EditProductPage() {
     // Add hasVariants flag to the data
     mergedData.hasVariants = hasVariants;
 
-    console.log('Merged data to save:', mergedData);
-
     try {
       const response = await fetch(`/api/products/${productId}`, {
         method: 'PUT',

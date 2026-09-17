@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updateOrderStatusSchema } from '@/lib/validations/order.validation';
 import { connectDB } from '@/lib/dbConnect';
-import { OrderService } from '@/lib/services/order.service';
+import { updateOrderStatus } from '@/services/order.service';
+import mongoose from 'mongoose';
 
 export async function POST(
   req: NextRequest,
@@ -12,31 +12,30 @@ export async function POST(
 
     const { id } = await params;
 
-    const body = await req.json();
-
-    const validation = updateOrderStatusSchema.safeParse(body);
-
-    if (!validation.success) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
-        { success: false, error: validation.error },
+        { success: false, error: 'Invalid order ID' },
         { status: 400 }
       );
     }
 
-    const order = await OrderService.updateOrderStatus(
-      id,
-      validation.data.status,
-      validation.data.note
-    );
+    const body = await req.json();
+    const { status, note } = body;
 
-    // ✅ WebSocket emit (safe access)
-    const wsServer = (req as any)?.socket?.server?.wsServer;
+    if (!status) {
+      return NextResponse.json(
+        { success: false, error: 'Status is required' },
+        { status: 400 }
+      );
+    }
 
-    if (wsServer) {
-      wsServer.emitOrderUpdate(id, {
-        status: order.status,
-        timeline: order.timeline,
-      });
+    const order = await updateOrderStatus(id, status, undefined, note);
+
+    if (!order) {
+      return NextResponse.json(
+        { success: false, error: 'Order not found' },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json({

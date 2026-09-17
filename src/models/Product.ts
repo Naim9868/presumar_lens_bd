@@ -183,12 +183,26 @@ const ProductImageGroupSchema = new Schema({
   type: {
     type: String,
     enum: [
+      "primary",
       "product",
+      "detail",
+      "diagram",
       "package",
-      "sample",
+      "contents",
       "lifestyle",
-      "installation",
+      "usage",
+      "scale",
+      "dimensions",
+      "features",
+      "infographic",
       "comparison",
+      "result",
+      "installation",
+      "instruction",
+      "cover",
+      "gallery",
+      "variant",
+      "custom",
       "other"
     ],
     required: true

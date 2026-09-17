@@ -81,7 +81,7 @@ export async function PUT(
     if (body.name && body.name !== brand.name) {
       // Check if new name conflicts
       const existingBrand = await Brand.findOne({
-        name: { $regex: new RegExp(`^${body.name}$`, 'i') },
+        name: { $regex: new RegExp(`^${body.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
         _id: { $ne: brand._id }
       });
 

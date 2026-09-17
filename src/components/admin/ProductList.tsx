@@ -583,6 +583,7 @@ export default function ProductList({
                               alt={product.name}
                               fill
                               className="object-cover"
+                              sizes="40px"
                             />
                           )}
                         </div>

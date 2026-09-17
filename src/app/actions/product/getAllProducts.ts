@@ -102,6 +102,7 @@ export async function getAllProducts(filters: any = {}) {
       brandId: product.brandId?.toString() || '',
       categoryId: product.categoryId?.toString() || '',
       subcategoryId: product.subcategoryId?.toString() || null,
+      relatedProducts: (product.relatedProducts || []).map((rp: any) => rp?.toString?.() || rp),
       // Ensure inventorySummary exists
       inventorySummary: product.inventorySummary || {
         available: 0,
@@ -112,6 +113,7 @@ export async function getAllProducts(filters: any = {}) {
       // Ensure variants have proper inventory
       variants: (product.variants || []).map((variant: any) => ({
         ...variant,
+        _id: variant._id?.toString?.() || variant._id,
         inventory: variant.inventory || 0,
       })),
       // Ensure lowestPrice exists
@@ -119,8 +121,8 @@ export async function getAllProducts(filters: any = {}) {
       // Ensure totalInventory exists
       totalInventory: product.totalInventory || 0,
       // Convert dates to strings
-      createdAt: product.createdAt?.toString() || new Date().toISOString(),
-      updatedAt: product.updatedAt?.toString() || new Date().toISOString(),
+      createdAt: product.createdAt instanceof Date ? product.createdAt.toISOString() : product.createdAt?.toString() || new Date().toISOString(),
+      updatedAt: product.updatedAt instanceof Date ? product.updatedAt.toISOString() : product.updatedAt?.toString() || new Date().toISOString(),
     }));
 
     return {
@@ -175,11 +177,20 @@ export async function getProductById(productId: string) {
     const formattedProduct = {
       ...product,
       _id: product._id.toString(),
-      brandId: product.brandId || { _id: '', name: 'Unknown Brand' },
-      categoryId: product.categoryId || { _id: '', name: 'Unknown Category' },
-      subcategoryId: product.subcategoryId || null,
-      createdAt: product.createdAt?.toString(),
-      updatedAt: product.updatedAt?.toString(),
+      brandId: product.brandId ? {
+        _id: product.brandId._id?.toString?.() || product.brandId._id,
+        name: product.brandId.name,
+        slug: product.brandId.slug,
+      } : { _id: '', name: 'Unknown Brand' },
+      categoryId: product.categoryId ? {
+        _id: product.categoryId._id?.toString?.() || product.categoryId._id,
+        name: product.categoryId.name,
+        slug: product.categoryId.slug,
+      } : { _id: '', name: 'Unknown Category' },
+      subcategoryId: product.subcategoryId?._id?.toString?.() || product.subcategoryId?.toString?.() || null,
+      relatedProducts: (product.relatedProducts || []).map((rp: any) => rp?.toString?.() || rp),
+      createdAt: product.createdAt instanceof Date ? product.createdAt.toISOString() : product.createdAt,
+      updatedAt: product.updatedAt instanceof Date ? product.updatedAt.toISOString() : product.updatedAt,
     };
     
     return { success: true, product: formattedProduct };
@@ -228,6 +239,7 @@ export async function getRelatedProducts(productId: string, categoryId: string, 
       brandId: product.brandId?.toString() || '',
       categoryId: product.categoryId?.toString() || '',
       subcategoryId: product.subcategoryId?.toString() || null,
+      relatedProducts: (product.relatedProducts || []).map((rp: any) => rp?.toString?.() || rp),
       inventorySummary: product.inventorySummary || {
         available: 0,
         reserved: 0,
@@ -236,8 +248,11 @@ export async function getRelatedProducts(productId: string, categoryId: string, 
       },
       variants: (product.variants || []).map((variant: any) => ({
         ...variant,
+        _id: variant._id?.toString?.() || variant._id,
         inventory: variant.inventory || 0,
       })),
+      createdAt: product.createdAt instanceof Date ? product.createdAt.toISOString() : product.createdAt,
+      updatedAt: product.updatedAt instanceof Date ? product.updatedAt.toISOString() : product.updatedAt,
     }));
     
     return { success: true, products: formattedProducts };

@@ -21,16 +21,34 @@ export type SpecificationType =
   | "multiselect";
 
 export type ImageGroupType =
+  | "primary"
   | "product"
+  | "detail"
+  | "diagram"
   | "package"
-  | "sample"
+  | "contents"
   | "lifestyle"
-  | "installation"
+  | "usage"
+  | "scale"
+  | "dimensions"
+  | "features"
+  | "infographic"
   | "comparison"
+  | "result"
+  | "installation"
+  | "instruction"
+  | "cover"
+  | "gallery"
+  | "variant"
+  | "custom"
   | "other";
 
 export type VideoPlatform =
   | "youtube"
+  | "facebook"
+  | "instagram"
+  | "tiktok"
+  | "twitter"
   | "vimeo"
   | "other";
 

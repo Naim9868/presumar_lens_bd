@@ -249,9 +249,6 @@ export default function CreateProductPage() {
     // Add hasVariants flag
     mergedData.hasVariants = hasVariants;
 
-    // Log cleaned data for debugging
-    console.log('Cleaned product data to be sent to API:', mergedData);
-
     try {
       const response = await fetch('/api/products', {
         method: 'POST',
@@ -260,7 +257,6 @@ export default function CreateProductPage() {
       });
 
       const data = await response.json();
-      console.log('API response:', data);
 
       if (data.success) {
         toast.success('Product created successfully');

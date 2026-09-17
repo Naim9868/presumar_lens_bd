@@ -8,12 +8,21 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_MIME_TYPES = [
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'image/avif',
+];
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const folder = formData.get('folder') as string || 'drc';
-    // const oldPublicId = formData.get('oldPublicId') as string;
+    const folder = (formData.get('folder') as string) || 'drc';
 
     if (!file) {
       return NextResponse.json(
@@ -22,27 +31,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // If there's an old image, delete it first
-    // if (oldPublicId) {
-    //   try {
-    //     await cloudinary.uploader.destroy(oldPublicId);
-    //   } catch (error) {
-    //     console.error('Error deleting old image:', error);
-    //     // Continue with upload even if delete fails
-    //   }
-    // }
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: 'File size exceeds 10MB limit' },
+        { status: 400 }
+      );
+    }
 
-    // Convert file to buffer
+    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+      return NextResponse.json(
+        { error: `Unsupported file type: ${file.type}. Allowed: ${ALLOWED_MIME_TYPES.join(', ')}` },
+        { status: 400 }
+      );
+    }
+
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-
-    // Convert buffer to base64
     const fileBase64 = `data:${file.type};base64,${buffer.toString('base64')}`;
 
-    // Upload to Cloudinary
     const result = await cloudinary.uploader.upload(fileBase64, {
       folder,
-      resource_type: 'auto',
+      resource_type: 'image',
     });
 
     return NextResponse.json({
@@ -70,9 +79,8 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Delete from Cloudinary
     const result = await cloudinary.uploader.destroy(publicId);
-    
+
     if (result.result === 'ok') {
       return NextResponse.json({ success: true, result: result.result });
     } else {

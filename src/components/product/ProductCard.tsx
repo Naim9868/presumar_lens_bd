@@ -102,17 +102,6 @@ const ProductCard = ({ product, priority = false }: ProductCardProps) => {
     const isInStock = isActive && hasStock && isNotDeleted;
     const isLowStock = isInStock && availableStock <= (product.inventorySummary?.lowStockThreshold || 5);
 
-    // Debug logging - remove in production
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`Product ${product.name}:`, {
-        status: product.status,
-        availableStock,
-        isInStock,
-        inventorySummary: product.inventorySummary,
-        variantsCount: product.variants?.length
-      });
-    }
-
     return {
       isInStock,
       isLowStock,

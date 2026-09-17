@@ -78,9 +78,6 @@ export async function POST(request: NextRequest) {
       body.specificationGroups = [];
     }
     
-     console.log('BODY BADGES:', body.badges);
-    // console.log('Creating product with data:', JSON.stringify(body, null, 2));
-    
     const result = await createProduct(body);
     
     if (result.success) {

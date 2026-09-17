@@ -98,23 +98,42 @@ export default function ProductDetailsPage() {
   const [activeImageTab, setActiveImageTab] = useState<string>('all');
 
   useEffect(() => {
-    fetchProduct();
+    if (productId) {
+      fetchProduct();
+    }
   }, [productId]);
 
   const fetchProduct = async () => {
+    if (!productId) {
+      router.push('/admin/products');
+      return;
+    }
+
     try {
+      setLoading(true);
       const response = await fetch(`/api/products/${productId}`);
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          toast.error('Product not found');
+        } else {
+          toast.error('Failed to load product');
+        }
+        router.push('/admin/products');
+        return;
+      }
+
       const data = await response.json();
-      console.log('Fetched product data:', data);
       if (data.success) {
         setProduct(data.product);
       } else {
-        toast.error('Failed to load product');
+        toast.error(data.error || 'Failed to load product');
         router.push('/admin/products');
       }
     } catch (error) {
       console.error('Error loading product:', error);
       toast.error('Failed to load product');
+      router.push('/admin/products');
     } finally {
       setLoading(false);
     }
@@ -248,7 +267,9 @@ export default function ProductDetailsPage() {
     // Add images from groups
     product?.imageGroups?.forEach((group) => {
       group.images?.forEach((img: any) => {
-        images.push({ url: img.url, alt: img.alt || group.title, group: group.title });
+        if (img.url && img.url !== '') {
+          images.push({ url: img.url, alt: img.alt || group.title, group: group.title });
+        }
       });
     });
 
@@ -525,7 +546,7 @@ export default function ProductDetailsPage() {
                               ))}
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">${variant.price.toFixed(2)}</td>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">${(variant.price || 0).toFixed(2)}</td>
                           <td className="px-4 py-3 text-sm text-gray-500">
                             {variant.compareAtPrice ? `$${variant.compareAtPrice.toFixed(2)}` : '-'}
                           </td>
@@ -555,6 +576,8 @@ export default function ProductDetailsPage() {
                       alt={product.name}
                       fill
                       className="object-cover"
+                      sizes="(max-width: 768px) 100vw, 400px"
+                      unoptimized
                     />
                   </div>
                 </div>
@@ -576,7 +599,7 @@ export default function ProductDetailsPage() {
                     <div className="flex items-center gap-2">
                       {product.brand.logo && (
                         <div className="w-6 h-6 relative rounded overflow-hidden">
-                          <Image src={product.brand.logo} alt={product.brand.name} fill className="object-contain" />
+                           <Image src={product.brand.logo} alt={product.brand.name} fill className="object-contain" sizes="24px" unoptimized />
                         </div>
                       )}
                       <span className="text-sm font-medium text-gray-900">{product.brand.name}</span>
@@ -747,6 +770,7 @@ export default function ProductDetailsPage() {
                           width={200}
                           height={200}
                           className="w-full h-full object-cover"
+                          unoptimized
                         />
                       </div>
                       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -791,6 +815,8 @@ export default function ProductDetailsPage() {
                             alt={video.title || 'Video thumbnail'}
                             fill
                             className="object-cover"
+                            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                            unoptimized
                           />
                         )}
                         <div className="absolute inset-0 flex items-center justify-center bg-black/40">

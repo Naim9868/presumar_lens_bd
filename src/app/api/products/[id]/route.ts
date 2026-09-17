@@ -22,7 +22,7 @@ export async function GET(
       );
     }
 
-    const product = await Product.findById(id)
+    const product = await Product.findOne({ _id: id, deletedAt: null })
       .populate('brandId', 'name slug logo logoPublicId')
       .populate('categoryId', 'name slug image imagePublicId')
       .populate('subcategoryId', 'name slug')
@@ -41,14 +41,31 @@ export async function GET(
       ...product,
       _id: product._id.toString(),
       brandId: product.brandId?._id?.toString() || product.brandId,
-      brand: product.brandId,
+      brand: product.brandId ? {
+        _id: product.brandId._id?.toString?.() || '',
+        name: product.brandId.name,
+        slug: product.brandId.slug,
+        logo: product.brandId.logo,
+        logoPublicId: product.brandId.logoPublicId,
+      } : null,
       categoryId: product.categoryId?._id?.toString() || product.categoryId,
-      category: product.categoryId,
+      category: product.categoryId ? {
+        _id: product.categoryId._id?.toString?.() || '',
+        name: product.categoryId.name,
+        slug: product.categoryId.slug,
+        image: product.categoryId.image,
+        imagePublicId: product.categoryId.imagePublicId,
+      } : null,
       subcategoryId: product.subcategoryId?._id?.toString() || product.subcategoryId,
-      subcategory: product.subcategoryId,
+      subcategory: product.subcategoryId ? {
+        _id: product.subcategoryId._id?.toString?.() || '',
+        name: product.subcategoryId.name,
+        slug: product.subcategoryId.slug,
+      } : null,
       // Ensure variants have proper structure
       variants: product.variants?.map((variant: any) => ({
         ...variant,
+        _id: variant._id?.toString?.() || variant._id,
         variantKey: variant.variantKey || 'default',
         sku: variant.sku || '',
         attributes: variant.attributes || [],
@@ -59,8 +76,10 @@ export async function GET(
       videos: product.videos || [],
       tags: product.tags || [],
       badges: product.badges || [],
-      relatedProducts: product.relatedProducts || [],
+      relatedProducts: (product.relatedProducts || []).map((rp: any) => rp?.toString?.() || rp),
       seo: product.seo || {},
+      createdAt: product.createdAt instanceof Date ? product.createdAt.toISOString() : product.createdAt,
+      updatedAt: product.updatedAt instanceof Date ? product.updatedAt.toISOString() : product.updatedAt,
     };
 
    

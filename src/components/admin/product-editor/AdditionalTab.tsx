@@ -890,6 +890,8 @@ export default function AdditionalTab({ initialData, onDataChange }: AdditionalT
                     alt="OG Image Preview"
                     fill
                     className="object-cover"
+                    sizes="192px"
+                    unoptimized
                   />
                 </div>
                 <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1">

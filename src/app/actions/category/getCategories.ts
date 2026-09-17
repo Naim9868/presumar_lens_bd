@@ -15,8 +15,8 @@ export interface CategoryResponse {
   parentId: string | null;
   status: 'active' | 'inactive';
   children?: CategoryResponse[];
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: Date | string;
+  updatedAt: Date | string;
 }
 
 export async function getCategories(options?: {
@@ -56,8 +56,8 @@ export async function getCategories(options?: {
       description: cat.description,
       parentId: cat.parentId?.toString() || null,
       status: cat.status,
-      createdAt: cat.createdAt,
-      updatedAt: cat.updatedAt,
+      createdAt: cat.createdAt instanceof Date ? cat.createdAt.toISOString() : cat.createdAt,
+      updatedAt: cat.updatedAt instanceof Date ? cat.updatedAt.toISOString() : cat.updatedAt,
     }));
 
     // Build hierarchy
@@ -112,8 +112,8 @@ export async function getCategory(id: string) {
       description: category.description,
       parentId: category.parentId?.toString() || null,
       status: category.status,
-      createdAt: category.createdAt,
-      updatedAt: category.updatedAt,
+      createdAt: category.createdAt instanceof Date ? category.createdAt.toISOString() : category.createdAt,
+      updatedAt: category.updatedAt instanceof Date ? category.updatedAt.toISOString() : category.updatedAt,
     };
   } catch (error) {
     console.error('Error fetching category:', error);
@@ -137,8 +137,8 @@ export async function getCategoryBySlug(slug: string) {
       description: category.description,
       parentId: category.parentId?.toString() || null,
       status: category.status,
-      createdAt: category.createdAt,
-      updatedAt: category.updatedAt,
+      createdAt: category.createdAt instanceof Date ? category.createdAt.toISOString() : category.createdAt,
+      updatedAt: category.updatedAt instanceof Date ? category.updatedAt.toISOString() : category.updatedAt,
     };
   } catch (error) {
     console.error('Error fetching category by slug:', error);

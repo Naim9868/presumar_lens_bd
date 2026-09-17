@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/dbConnect';
-import { Product }from '@/models/Product';
+import { Product } from '@/models/Product';
+import { Types } from 'mongoose';
 
 export async function GET(
   req: NextRequest,
@@ -8,14 +9,21 @@ export async function GET(
 ) {
   try {
     await connectDB();
-    
+
     const { id } = await params;
+
+    if (!Types.ObjectId.isValid(id)) {
+      return NextResponse.json(
+        { error: 'Invalid product ID' },
+        { status: 400 }
+      );
+    }
+
     const searchParams = req.nextUrl.searchParams;
     const variantKey = searchParams.get('variantKey');
 
-    // Find the product
     const product = await Product.findById(id);
-    
+
     if (!product) {
       return NextResponse.json(
         { error: 'Product not found' },

@@ -177,8 +177,24 @@ export async function getProducts(
     products: products.map((p: any) => ({
       ...p,
       _id: p._id.toString(),
-      brand: p.brand ? { ...p.brand, _id: p.brand._id.toString() } : null,
-      category: p.category ? { ...p.category, _id: p.category._id.toString() } : null,
+      brandId: p.brandId?.toString?.() || p.brandId || null,
+      categoryId: p.categoryId?.toString?.() || p.categoryId || null,
+      relatedProducts: (p.relatedProducts || []).map((rp: any) => rp?.toString?.() || rp),
+      createdAt: p.createdAt instanceof Date ? p.createdAt.toISOString() : p.createdAt,
+      updatedAt: p.updatedAt instanceof Date ? p.updatedAt.toISOString() : p.updatedAt,
+      brand: p.brand ? {
+        ...p.brand,
+        _id: p.brand._id.toString(),
+        createdAt: p.brand.createdAt instanceof Date ? p.brand.createdAt.toISOString() : p.brand.createdAt,
+        updatedAt: p.brand.updatedAt instanceof Date ? p.brand.updatedAt.toISOString() : p.brand.updatedAt,
+      } : null,
+      category: p.category ? {
+        ...p.category,
+        _id: p.category._id.toString(),
+        parentId: p.category.parentId?.toString?.() || p.category.parentId || null,
+        createdAt: p.category.createdAt instanceof Date ? p.category.createdAt.toISOString() : p.category.createdAt,
+        updatedAt: p.category.updatedAt instanceof Date ? p.category.updatedAt.toISOString() : p.category.updatedAt,
+      } : null,
     })),
     pagination: {
       page,

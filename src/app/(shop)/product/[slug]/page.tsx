@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -20,7 +20,7 @@ import {
   Plus
 } from 'lucide-react';
 import BuyNowButton from '@/components/BuyNowButton';
-import { IProduct, IProductVariant, IVariantAttribute } from '@/types/product';
+import { IProduct, IProductVideo, IProductVariant, IVariantAttribute } from '@/types/product';
 import { useCartContext } from '@/app/context/CartContext';
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -51,6 +51,27 @@ const getVariantDisplayName = (variant: IProductVariant): string => {
   return variant.variantKey || 'Default';
 };
 
+// Helper to extract YouTube/Vimeo embed URL from a video URL
+const getEmbedUrl = (video: IProductVideo): string | null => {
+  const url = video.url;
+  if (!url) return null;
+
+  // YouTube
+  const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&?#]+)/);
+  if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
+
+  // Vimeo
+  const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+  if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+
+  // Facebook
+  const fbMatch = url.match(/facebook\.com\/.*\/videos\/(\d+)/);
+  if (fbMatch) return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}`;
+
+  // Direct video file or other - return as-is
+  return url;
+};
+
 export default function ProductPage({ params }: ProductPageProps) {
   const router = useRouter();
   const { addToCart } = useCartContext();
@@ -60,6 +81,32 @@ export default function ProductPage({ params }: ProductPageProps) {
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState<string>('');
   const [isAddingToCart, setIsAddingToCart] = useState(false);
+
+  // Compute display images: variant images if available, otherwise product imageGroups
+  const allImages = useMemo(() => {
+    if (!product) return [];
+
+    // If selected variant has images, use those
+    if (selectedVariant?.images?.length) {
+      return selectedVariant.images;
+    }
+
+    // Otherwise gather all images from imageGroups
+    const images: string[] = [];
+    product.imageGroups?.forEach((group) => {
+      group.images?.forEach((img) => {
+        const url = typeof img === 'string' ? img : img.url;
+        if (url) images.push(url);
+      });
+    });
+
+    // Fallback to thumbnail
+    if (images.length === 0 && product.thumbnail) {
+      images.push(product.thumbnail);
+    }
+
+    return images;
+  }, [product, selectedVariant]);
 
   // Fetch product data
   useEffect(() => {
@@ -83,6 +130,11 @@ export default function ProductPage({ params }: ProductPageProps) {
         } else if (data.imageGroups?.[0]?.images?.[0]) {
           const firstImage = data.imageGroups[0].images[0];
           setSelectedImage(typeof firstImage === 'string' ? firstImage : firstImage.url);
+        }
+
+        // If default variant has images, use first variant image
+        if (defaultVariant?.images?.length) {
+          setSelectedImage(defaultVariant.images[0]);
         }
       } catch (error) {
         console.error('Failed to fetch product:', error);
@@ -319,10 +371,47 @@ export default function ProductPage({ params }: ProductPageProps) {
 
   return (
     <div className="container py-8">
+      {/* Description & Specifications - Top */}
+      <div className="mb-12">
+        <Card>
+          <CardContent className="p-6">
+            <div className="space-y-6">
+              <div>
+                <h3 className="font-semibold text-lg mb-2">Description</h3>
+                <p className="text-muted-foreground">{product.description}</p>
+              </div>
+
+              {product.specificationGroups && product.specificationGroups.length > 0 && (
+                <div>
+                  <h3 className="font-semibold text-lg mb-2">Specifications</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {product.specificationGroups.map((group, index) => (
+                      <div key={index}>
+                        <h4 className="font-medium text-sm text-muted-foreground mb-2">
+                          {group.groupName}
+                        </h4>
+                        <div className="space-y-1">
+                          {group.specifications.map((spec, specIndex) => (
+                            <div key={specIndex} className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">{spec.label}</span>
+                              <span>{String(spec.value)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Product Images */}
         <div>
-          <div className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
+          <div className="relative aspect-[4/5] md:aspect-[3/4] bg-gray-100 rounded-lg overflow-hidden">
             {selectedImage ? (
               <img
                 src={selectedImage}
@@ -352,27 +441,24 @@ export default function ProductPage({ params }: ProductPageProps) {
           </div>
 
           {/* Thumbnails */}
-          {product.imageGroups && product.imageGroups.length > 0 && (
+          {allImages.length > 0 && (
             <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
-              {product.imageGroups[0]?.images.map((image, index) => {
-                const imageUrl = typeof image === 'string' ? image : image.url;
-                return (
-                  <button
-                    key={index}
-                    className={cn(
-                      "w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all",
-                      selectedImage === imageUrl ? "border-primary" : "border-transparent hover:border-gray-300"
-                    )}
-                    onClick={() => setSelectedImage(imageUrl)}
-                  >
-                    <img
-                      src={imageUrl}
-                      alt={typeof image === 'string' ? product.name : image.alt || product.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
-                );
-              })}
+              {allImages.map((imageUrl, index) => (
+                <button
+                  key={index}
+                  className={cn(
+                    "w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all",
+                    selectedImage === imageUrl ? "border-primary" : "border-transparent hover:border-gray-300"
+                  )}
+                  onClick={() => setSelectedImage(imageUrl)}
+                >
+                  <img
+                    src={imageUrl}
+                    alt={`${product.name} - ${index + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                </button>
+              ))}
             </div>
           )}
         </div>
@@ -479,6 +565,15 @@ export default function ProductPage({ params }: ProductPageProps) {
                             if (variant) {
                               setSelectedVariant(variant);
                               setQuantity(1);
+                              // Switch to variant image if available, else reset to first product image
+                              if (variant.images?.length) {
+                                setSelectedImage(variant.images[0]);
+                              } else if (product.thumbnail) {
+                                setSelectedImage(product.thumbnail);
+                              } else if (product.imageGroups?.[0]?.images?.[0]) {
+                                const first = product.imageGroups[0].images[0];
+                                setSelectedImage(typeof first === 'string' ? first : first.url);
+                              }
                             }
                           }}
                           disabled={!isAvailable}
@@ -587,42 +682,46 @@ export default function ProductPage({ params }: ProductPageProps) {
         </div>
       </div>
 
-      {/* Product Details Tabs */}
-      <div className="mt-12">
-        <Card>
-          <CardContent className="p-6">
-            <div className="space-y-6">
-              <div>
-                <h3 className="font-semibold text-lg mb-2">Description</h3>
-                <p className="text-muted-foreground">{product.description}</p>
-              </div>
+      {/* Videos - Full Width */}
+      {product.videos && product.videos.length > 0 && (
+        <div className="mt-12">
+          <h2 className="text-2xl font-bold mb-6">Videos</h2>
+          <div className="space-y-6">
+            {product.videos.map((video, index) => {
+              const embedUrl = getEmbedUrl(video);
+              if (!embedUrl) return null;
 
-              {product.specificationGroups && product.specificationGroups.length > 0 && (
-                <div>
-                  <h3 className="font-semibold text-lg mb-2">Specifications</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {product.specificationGroups.map((group, index) => (
-                      <div key={index}>
-                        <h4 className="font-medium text-sm text-muted-foreground mb-2">
-                          {group.groupName}
-                        </h4>
-                        <div className="space-y-1">
-                          {group.specifications.map((spec, specIndex) => (
-                            <div key={specIndex} className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">{spec.label}</span>
-                              <span>{String(spec.value)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+              const isDirectVideo = embedUrl.endsWith('.mp4') || embedUrl.endsWith('.webm') || embedUrl.endsWith('.ogg');
+
+              return (
+                <div key={index} className="w-full">
+                  {video.title && (
+                    <h3 className="text-lg font-medium mb-3">{video.title}</h3>
+                  )}
+                  {isDirectVideo ? (
+                    <video
+                      src={embedUrl}
+                      controls
+                      poster={video.thumbnail}
+                      className="w-full rounded-lg"
+                    />
+                  ) : (
+                    <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                      <iframe
+                        src={embedUrl}
+                        title={video.title || `Product video ${index + 1}`}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        className="absolute inset-0 w-full h-full rounded-lg"
+                      />
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

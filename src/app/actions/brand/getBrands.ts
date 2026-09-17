@@ -28,6 +28,8 @@ export async function getBrands(options?: { isActive?: boolean; search?: string 
   return brands.map(brand => ({
     ...brand,
     _id: brand._id.toString(),
+    createdAt: brand.createdAt instanceof Date ? brand.createdAt.toISOString() : brand.createdAt,
+    updatedAt: brand.updatedAt instanceof Date ? brand.updatedAt.toISOString() : brand.updatedAt,
   }));
 }
 
@@ -45,6 +47,8 @@ export async function getBrand(id: string) {
   return {
     ...brand,
     _id: brand._id.toString(),
+    createdAt: brand.createdAt instanceof Date ? brand.createdAt.toISOString() : brand.createdAt,
+    updatedAt: brand.updatedAt instanceof Date ? brand.updatedAt.toISOString() : brand.updatedAt,
   };
 }
 

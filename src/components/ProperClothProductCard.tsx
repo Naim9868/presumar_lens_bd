@@ -77,9 +77,7 @@ const ProperClothProductCard = ({
   };
 
   const onQuickView = (productId: string) => {
-    // Placeholder quick view handler. In a real app this could open a modal
-    // or trigger a dedicated quick view flow for the selected product.
-    console.log(`Quick view requested for product ${productId}`);
+    // Placeholder quick view handler
   };
 
   return (

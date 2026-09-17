@@ -28,7 +28,8 @@ export default function ImageSlider({
     setCurrentIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
   };
 
-  if (!images || images.length === 0) {
+  const currentImage = images[currentIndex];
+  if (!images || images.length === 0 || !currentImage) {
     return (
       <div className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center">
         <p className="text-gray-400">No image available</p>
@@ -40,10 +41,11 @@ export default function ImageSlider({
     <div className="relative group">
       <div className="relative aspect-square overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800">
         <Image
-          src={images[currentIndex]}
+          src={currentImage}
           alt={`Product image ${currentIndex + 1}`}
           fill
           className="object-cover"
+          sizes="(max-width: 768px) 100vw, 50vw"
           priority
         />
         

@@ -31,25 +31,26 @@ export async function getProductBySlug(slug: string) {
       brandId: product.brandId?._id?.toString() || '',
       categoryId: product.categoryId?._id?.toString() || '',
       subcategoryId: product.subcategoryId?._id?.toString() || null,
+      relatedProducts: (product.relatedProducts || []).map((rp: any) => rp?.toString?.() || rp),
       // Add populated brand and category for easy access
       brand: product.brandId ? {
-        _id: product.brandId._id.toString(),
+        _id: product.brandId._id?.toString?.() || '',
         name: product.brandId.name,
         slug: product.brandId.slug,
       } : null,
       category: product.categoryId ? {
-        _id: product.categoryId._id.toString(),
+        _id: product.categoryId._id?.toString?.() || '',
         name: product.categoryId.name,
         slug: product.categoryId.slug,
       } : null,
       subcategory: product.subcategoryId ? {
-        _id: product.subcategoryId._id.toString(),
+        _id: product.subcategoryId._id?.toString?.() || '',
         name: product.subcategoryId.name,
         slug: product.subcategoryId.slug,
       } : null,
       // Convert dates to ISO strings
-      createdAt: product.createdAt?.toISOString(),
-      updatedAt: product.updatedAt?.toISOString(),
+      createdAt: product.createdAt instanceof Date ? product.createdAt.toISOString() : product.createdAt,
+      updatedAt: product.updatedAt instanceof Date ? product.updatedAt.toISOString() : product.updatedAt,
     };
 
     return {

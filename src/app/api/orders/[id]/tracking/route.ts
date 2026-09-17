@@ -3,7 +3,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/dbConnect';
 import Order from '@/models/Order';
+import Shipment from '@/models/Shipment';
 import { courierService } from '@/lib/services/courier.service';
+import mongoose from 'mongoose';
 
 export async function GET(
   req: NextRequest,
@@ -13,6 +15,13 @@ export async function GET(
     await connectDB();
 
     const { id } = await params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid order ID' },
+        { status: 400 }
+      );
+    }
 
     const order = await Order.findById(id).lean();
 
@@ -25,23 +34,23 @@ export async function GET(
 
     let trackingInfo: unknown = null;
 
-    /* ===============================
-       🚚 COURIER TRACKING
-    =============================== */
-    if (order.delivery?.trackingId && order.delivery?.courier) {
-      try {
-        const courier = order.delivery.courier.toLowerCase();
+    // Find shipment for this order
+    const shipment = await Shipment.findOne({ orderId: order._id }).lean();
 
-        switch (courier) {
+    if (shipment?.trackingId && shipment?.provider) {
+      try {
+        const provider = shipment.provider.toLowerCase();
+
+        switch (provider) {
           case 'pathao':
             trackingInfo = await courierService.pathao.trackOrder(
-              order.delivery.trackingId
+              shipment.trackingId
             );
             break;
 
           case 'redx':
             trackingInfo = await courierService.redx.trackOrder(
-              order.delivery.trackingId
+              shipment.trackingId
             );
             break;
         }
@@ -50,20 +59,11 @@ export async function GET(
       }
     }
 
-    /* ===============================
-       📅 ESTIMATED DELIVERY
-    =============================== */
+    // Calculate estimated delivery
     let estimatedDelivery: Date | null = null;
 
-    if (order.status === 'SHIPPED') {
-      const shippedEvent = order.timeline?.find(
-        (t: any) => t.status === 'SHIPPED'
-      );
-
-      const shippingDate = new Date(
-        shippedEvent?.createdAt || order.updatedAt
-      );
-
+    if (order.status === 'SHIPPED' && shipment?.bookedAt) {
+      const shippingDate = new Date(shipment.bookedAt);
       const deliveryDays =
         order.delivery?.type === 'INSIDE_DHAKA' ? 2 : 4;
 
@@ -78,7 +78,6 @@ export async function GET(
       data: {
         orderId: order.orderId,
         status: order.status,
-        timeline: order.timeline || [],
         tracking: trackingInfo,
         estimatedDelivery,
         currentLocation:

@@ -10,11 +10,11 @@ export async function POST(
 ) {
   try {
     await connectDB();
-    
+
     const body = await req.json();
     const { text, createdBy } = body;
 
-    if (!text) {
+    if (!text || typeof text !== 'string' || !text.trim()) {
       return NextResponse.json(
         { error: 'Note text is required' },
         { status: 400 }
@@ -22,6 +22,14 @@ export async function POST(
     }
 
     const { id } = await params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return NextResponse.json(
+        { error: 'Invalid order ID' },
+        { status: 400 }
+      );
+    }
+
     const order = await Order.findById(id);
 
     if (!order) {
@@ -32,16 +40,18 @@ export async function POST(
     }
 
     order.notes.push({
-      text,
-      createdBy: createdBy ? new mongoose.Types.ObjectId(createdBy) : undefined,
+      text: text.trim(),
+      createdBy: createdBy && mongoose.Types.ObjectId.isValid(createdBy)
+        ? new mongoose.Types.ObjectId(createdBy)
+        : undefined,
       createdAt: new Date(),
     });
 
     await order.save();
 
-    return NextResponse.json({ 
-      success: true, 
-      note: order.notes[order.notes.length - 1] 
+    return NextResponse.json({
+      success: true,
+      note: order.notes[order.notes.length - 1]
     });
   } catch (error: any) {
     console.error('Add order note error:', error);

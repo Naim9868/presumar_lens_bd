@@ -461,6 +461,7 @@ const RelatedProducts = ({ products }: { products: IProduct[] }) => {
                     alt={product.name}
                     fill
                     className="object-cover group-hover:scale-105 transition-transform duration-500"
+                    sizes="(max-width: 768px) 100vw, 25vw"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">

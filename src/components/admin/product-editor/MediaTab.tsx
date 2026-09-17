@@ -7,8 +7,16 @@ import {
   Plus, Trash2, X, Video, Image as ImageIcon, 
   Upload, Link, FolderOpen, Settings as SettingsIcon, Play, Info,
   Layout, Grid, Eye, Star, Layers, GripVertical,
-  ExternalLink, CheckCircle, AlertCircle, RefreshCw
+  ExternalLink, CheckCircle, AlertCircle, RefreshCw,
+  Ruler, Maximize2, Sparkles, BarChart3, Wrench, BookOpen, Images, Copy,
+  Package, Box, Users, Settings, GitCompare,
 } from 'lucide-react';
+import {
+  FaFacebookF,
+  FaInstagram,
+  FaXTwitter,
+} from "react-icons/fa6";
+import { ImageGroupType, VideoPlatform } from '@/types/product';
 import Image from 'next/image';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import ImageUpload from '@/components/admin/ImageUploader';
@@ -18,7 +26,7 @@ interface MediaFormData {
   thumbnail: string;
   thumbnailPublicId?: string;
   imageGroups: Array<{
-    type: string;
+    type: ImageGroupType;
     title: string;
     description?: string;
     images: Array<{
@@ -32,7 +40,7 @@ interface MediaFormData {
     url: string;
     title?: string;
     thumbnail?: string;
-    platform?: string;
+    platform?: VideoPlatform;
   }>;
 }
 
@@ -41,17 +49,39 @@ interface MediaTabProps {
   onDataChange?: (data: any) => void;
 }
 
-const imageGroupTypes = [
+const imageGroupTypes: { value: ImageGroupType; label: string; icon: any; color: string; bg: string }[] = [
+  { value: 'primary', label: 'Primary', icon: Star, color: 'text-amber-600', bg: 'bg-amber-50' },
   { value: 'product', label: 'Product Images', icon: Package, color: 'text-blue-600', bg: 'bg-blue-50' },
+  { value: 'detail', label: 'Detail Shots', icon: Eye, color: 'text-teal-600', bg: 'bg-teal-50' },
+  { value: 'diagram', label: 'Diagrams', icon: Grid, color: 'text-cyan-600', bg: 'bg-cyan-50' },
   { value: 'package', label: 'Package Contents', icon: Box, color: 'text-green-600', bg: 'bg-green-50' },
-  { value: 'sample', label: 'Sample Images', icon: ImageIcon, color: 'text-purple-600', bg: 'bg-purple-50' },
+  { value: 'contents', label: 'What\'s Included', icon: Layers, color: 'text-emerald-600', bg: 'bg-emerald-50' },
   { value: 'lifestyle', label: 'Lifestyle', icon: Users, color: 'text-pink-600', bg: 'bg-pink-50' },
-  { value: 'installation', label: 'Installation', icon: Settings, color: 'text-orange-600', bg: 'bg-orange-50' },
+  { value: 'usage', label: 'Usage', icon: Settings, color: 'text-orange-600', bg: 'bg-orange-50' },
+  { value: 'scale', label: 'Scale Reference', icon: Ruler, color: 'text-purple-600', bg: 'bg-purple-50' },
+  { value: 'dimensions', label: 'Dimensions', icon: Maximize2, color: 'text-violet-600', bg: 'bg-violet-50' },
+  { value: 'features', label: 'Features', icon: Sparkles, color: 'text-amber-600', bg: 'bg-amber-50' },
+  { value: 'infographic', label: 'Infographic', icon: BarChart3, color: 'text-blue-600', bg: 'bg-blue-50' },
   { value: 'comparison', label: 'Comparison', icon: GitCompare, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+  { value: 'result', label: 'Results', icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50' },
+  { value: 'installation', label: 'Installation', icon: Wrench, color: 'text-orange-600', bg: 'bg-orange-50' },
+  { value: 'instruction', label: 'Instructions', icon: BookOpen, color: 'text-blue-600', bg: 'bg-blue-50' },
+  { value: 'cover', label: 'Cover Image', icon: ImageIcon, color: 'text-purple-600', bg: 'bg-purple-50' },
+  { value: 'gallery', label: 'Gallery', icon: Images, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+  { value: 'variant', label: 'Variant Images', icon: Copy, color: 'text-gray-600', bg: 'bg-gray-50' },
+  { value: 'custom', label: 'Custom', icon: FolderOpen, color: 'text-gray-600', bg: 'bg-gray-50' },
   { value: 'other', label: 'Other', icon: FolderOpen, color: 'text-gray-600', bg: 'bg-gray-50' },
 ];
 
-import { Package, Box, Users, Settings, GitCompare } from 'lucide-react';
+const videoPlatforms: { value: VideoPlatform; label: string; icon: any; color: string }[] = [
+  { value: 'youtube', label: 'YouTube', icon: Play, color: 'text-red-600' },
+  { value: 'facebook', label: 'Facebook', icon: FaFacebookF, color: 'text-blue-600' },
+  { value: 'instagram', label: 'Instagram', icon: FaInstagram, color: 'text-pink-600' },
+  { value: 'tiktok', label: 'TikTok', icon: Video, color: 'text-gray-900' },
+  { value: 'twitter', label: 'Twitter', icon: FaXTwitter, color: 'text-sky-500' },
+  { value: 'vimeo', label: 'Vimeo', icon: Video, color: 'text-blue-500' },
+  { value: 'other', label: 'Other', icon: Video, color: 'text-gray-600' },
+];
 
 export default function MediaTab({ initialData, onDataChange }: MediaTabProps) {
   const [showVideoModal, setShowVideoModal] = useState(false);
@@ -242,7 +272,7 @@ export default function MediaTab({ initialData, onDataChange }: MediaTabProps) {
     toast.success('Image reordered successfully');
   };
 
-  const handleAddVideo = (videoData: { url: string; title: string; platform: string }) => {
+  const handleAddVideo = (videoData: { url: string; title: string; platform: VideoPlatform }) => {
     const youtubeId = extractYouTubeId(videoData.url);
     appendVideo({
       ...videoData,
@@ -257,12 +287,11 @@ export default function MediaTab({ initialData, onDataChange }: MediaTabProps) {
     return (match && match[2].length === 11) ? match[2] : '';
   };
 
-  const getPlatformIcon = (platform: string) => {
-    switch (platform) {
-      case 'youtube': return <Play className="w-4 h-4 text-red-600" />;
-      case 'vimeo': return <Video className="w-4 h-4 text-blue-600" />;
-      default: return <Video className="w-4 h-4 text-gray-600" />;
-    }
+  const getPlatformIcon = (platform: VideoPlatform) => {
+    const config = videoPlatforms.find(p => p.value === platform);
+    const Icon = config?.icon || Video;
+    const color = config?.color || 'text-gray-600';
+    return <Icon className={`w-4 h-4 ${color}`} />;
   };
 
   const toggleGroupImageUseLink = (groupIndex: number, imageIndex: number) => {
@@ -316,9 +345,9 @@ export default function MediaTab({ initialData, onDataChange }: MediaTabProps) {
           <div className="flex flex-col md:flex-row gap-6">
             {/* Thumbnail Preview */}
             <div className="w-40 h-40 relative bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl overflow-hidden border-2 border-dashed border-gray-300 group">
-              {thumbnailPreview ? (
+              {thumbnailPreview && thumbnailPreview !== '' ? (
                 <>
-                  <Image src={thumbnailPreview} alt="Thumbnail" fill className="object-cover" />
+                  <Image src={thumbnailPreview} alt="Thumbnail" fill className="object-cover" sizes="160px" unoptimized />
                   <button
                     onClick={handleThumbnailRemove}
                     className="absolute bottom-2 right-2 p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all opacity-0 group-hover:opacity-100"
@@ -535,14 +564,7 @@ export default function MediaTab({ initialData, onDataChange }: MediaTabProps) {
                                       width={150}
                                       height={150}
                                       className="w-full h-full object-cover pointer-events-none"
-                                      onError={() => {
-                                        const key = `${groupIndex}-${imageIndex}`;
-                                        setGroupImagePreviews(prev => {
-                                          const newPreviews = { ...prev };
-                                          delete newPreviews[key];
-                                          return newPreviews;
-                                        });
-                                      }}
+                                      unoptimized
                                     />
                                   ) : (
                                     <div className="w-full h-full flex items-center justify-center">
@@ -661,12 +683,14 @@ export default function MediaTab({ initialData, onDataChange }: MediaTabProps) {
               {videos?.map((video, index) => (
                 <div key={index} className="border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow">
                   <div className="aspect-video bg-gradient-to-br from-gray-900 to-gray-800 relative group cursor-pointer">
-                    {video.thumbnail ? (
+                    {video.thumbnail && video.thumbnail !== '' ? (
                       <Image
                         src={video.thumbnail}
                         alt={video.title || 'Video thumbnail'}
                         fill
                         className="object-cover"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        unoptimized
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
@@ -731,7 +755,7 @@ export default function MediaTab({ initialData, onDataChange }: MediaTabProps) {
 function AddVideoModal({ onClose, onAdd }: { onClose: () => void; onAdd: (data: any) => void }) {
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
-  const [platform, setPlatform] = useState('youtube');
+  const [platform, setPlatform] = useState<VideoPlatform>('youtube');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -764,12 +788,12 @@ function AddVideoModal({ onClose, onAdd }: { onClose: () => void; onAdd: (data: 
             </label>
             <select
               value={platform}
-              onChange={(e) => setPlatform(e.target.value)}
+              onChange={(e) => setPlatform(e.target.value as VideoPlatform)}
               className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent text-gray-900"
             >
-              <option value="youtube">YouTube</option>
-              <option value="vimeo">Vimeo</option>
-              <option value="other">Other</option>
+              {videoPlatforms.map(p => (
+                <option key={p.value} value={p.value}>{p.label}</option>
+              ))}
             </select>
           </div>
           

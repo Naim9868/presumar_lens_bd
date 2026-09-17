@@ -413,8 +413,7 @@ export default function ImageUploader({
                     fill
                     sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
                     className="object-cover transition-transform duration-300 group-hover:scale-110"
-                    onError={() => handleImageError(image)}
-                    unoptimized={!image.includes('cloudinary.com')}
+                    unoptimized
                   />
                 </div>
               ) : (
@@ -516,7 +515,7 @@ export default function ImageUploader({
           ref={fileInputRef}
           type="file"
           multiple
-          accept="image/jpeg,image/png,image/webp,image/gif"
+          accept="image/*"
           onChange={handleFileSelect}
           className="absolute inset-0 cursor-pointer opacity-0"
           disabled={uploading || images.length >= maxImages}
@@ -537,7 +536,7 @@ export default function ImageUploader({
                 Drag & drop images here, or click to select
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                PNG, JPG, GIF, WebP up to 5MB each (Max {maxImages} images)
+                PNG, JPG, GIF, WebP, AVIF, HEIC and more up to 10MB each (Max {maxImages} images)
               </p>
               <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
                 Click &quot;Set as Thumbnail&quot; on any image to make it the main product image

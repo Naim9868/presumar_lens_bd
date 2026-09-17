@@ -220,9 +220,14 @@ export async function getProductsByCategory(
     const formattedProducts = products.map(product => ({
       ...product,
       _id: product._id.toString(),
-      brandId: product.brandId || { _id: '', name: 'Unknown Brand' },
-      categoryId: product.categoryId?.toString() || '',
-      subcategoryId: product.subcategoryId?.toString() || null,
+      brandId: product.brandId ? {
+        _id: product.brandId._id?.toString?.() || product.brandId._id,
+        name: product.brandId.name,
+        slug: product.brandId.slug,
+      } : { _id: '', name: 'Unknown Brand' },
+      categoryId: product.categoryId?._id?.toString?.() || product.categoryId?.toString?.() || '',
+      subcategoryId: product.subcategoryId?._id?.toString?.() || product.subcategoryId?.toString?.() || null,
+      relatedProducts: (product.relatedProducts || []).map((rp: any) => rp?.toString?.() || rp),
       // Ensure inventory data is properly formatted
       inventorySummary: product.inventorySummary || {
         available: 0,
@@ -232,8 +237,11 @@ export async function getProductsByCategory(
       },
       variants: (product.variants || []).map((variant: any) => ({
         ...variant,
+        _id: variant._id?.toString?.() || variant._id,
         inventory: variant.inventory || 0,
       })),
+      createdAt: product.createdAt instanceof Date ? product.createdAt.toISOString() : product.createdAt,
+      updatedAt: product.updatedAt instanceof Date ? product.updatedAt.toISOString() : product.updatedAt,
     }));
 
     // Extract filter data
