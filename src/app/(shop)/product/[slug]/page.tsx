@@ -17,8 +17,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Minus,
-  Plus
+  Plus,
+  Video
 } from 'lucide-react';
+import Image from 'next/image';
 import BuyNowButton from '@/components/BuyNowButton';
 import { IProduct, IProductVideo, IProductVariant, IVariantAttribute } from '@/types/product';
 import { useCartContext } from '@/app/context/CartContext';
@@ -51,7 +53,7 @@ const getVariantDisplayName = (variant: IProductVariant): string => {
   return variant.variantKey || 'Default';
 };
 
-// Helper to extract YouTube/Vimeo embed URL from a video URL
+// Helper to extract embed URL from a video URL for any platform
 const getEmbedUrl = (video: IProductVideo): string | null => {
   const url = video.url;
   if (!url) return null;
@@ -66,11 +68,90 @@ const getEmbedUrl = (video: IProductVideo): string | null => {
 
   // Facebook
   const fbMatch = url.match(/facebook\.com\/.*\/videos\/(\d+)/);
-  if (fbMatch) return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}`;
+  if (fbMatch) return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false&width=560`;
+
+  // Instagram Reels/Posts
+  const igMatch = url.match(/instagram\.com\/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/);
+  if (igMatch) return `https://www.instagram.com/p/${igMatch[1]}/embed/`;
+
+  // TikTok
+  const ttMatch = url.match(/tiktok\.com\/@[\w.]+\/video\/(\d+)/);
+  if (ttMatch) return `https://www.tiktok.com/embed/v2/${ttMatch[1]}`;
+
+  // Twitter/X
+  const twMatch = url.match(/(?:twitter\.com|x\.com)\/\w+\/status\/(\d+)/);
+  if (twMatch) return `https://platform.twitter.com/embed/Tweet.html?id=${twMatch[1]}`;
+
+  // Dailymotion
+  const dmMatch = url.match(/dailymotion\.com\/video\/(\w+)/);
+  if (dmMatch) return `https://www.dailymotion.com/embed/video/${dmMatch[1]}`;
+
+  // Wistia
+  const wiMatch = url.match(/wistia\.com\/medias\/(\w+)/);
+  if (wiMatch) return `https://fast.wistia.net/embed/iframe/${wiMatch[1]}`;
+
+  // Loom
+  const loomMatch = url.match(/loom\.com\/(?:share|watch)\/(\w+)/);
+  if (loomMatch) return `https://www.loom.com/embed/${loomMatch[1]}`;
 
   // Direct video file or other - return as-is
   return url;
 };
+
+function ShopVideoCard({ video, index, embedUrl, isDirectVideo }: { video: IProductVideo; index: number; embedUrl: string; isDirectVideo: boolean }) {
+  const [embedFailed, setEmbedFailed] = useState(false);
+
+  return (
+    <div className="w-full">
+      {video.title && (
+        <h3 className="text-lg font-medium mb-3">{video.title}</h3>
+      )}
+      {isDirectVideo ? (
+        <video
+          src={embedUrl}
+          controls
+          poster={video.thumbnail}
+          className="w-full rounded-lg"
+        />
+      ) : !embedFailed ? (
+        <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+          <iframe
+            src={embedUrl}
+            title={video.title || `Product video ${index + 1}`}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            className="absolute inset-0 w-full h-full rounded-lg"
+            onError={() => setEmbedFailed(true)}
+          />
+        </div>
+      ) : (
+        <a
+          href={video.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-gray-50 py-12 hover:bg-gray-100 transition-colors"
+        >
+          {video.thumbnail ? (
+            <div className="relative w-48 h-28 mb-4 rounded-lg overflow-hidden">
+              <Image
+                src={video.thumbnail}
+                alt={video.title || 'Video thumbnail'}
+                fill
+                className="object-cover"
+                sizes="192px"
+                unoptimized
+              />
+            </div>
+          ) : (
+            <Video className="w-12 h-12 text-gray-400 mb-4" />
+          )}
+          <p className="text-sm font-medium text-gray-700">Watch on {video.platform || 'platform'}</p>
+          <p className="text-xs text-gray-500 mt-1">{video.url}</p>
+        </a>
+      )}
+    </div>
+  );
+}
 
 export default function ProductPage({ params }: ProductPageProps) {
   const router = useRouter();
@@ -694,29 +775,13 @@ export default function ProductPage({ params }: ProductPageProps) {
               const isDirectVideo = embedUrl.endsWith('.mp4') || embedUrl.endsWith('.webm') || embedUrl.endsWith('.ogg');
 
               return (
-                <div key={index} className="w-full">
-                  {video.title && (
-                    <h3 className="text-lg font-medium mb-3">{video.title}</h3>
-                  )}
-                  {isDirectVideo ? (
-                    <video
-                      src={embedUrl}
-                      controls
-                      poster={video.thumbnail}
-                      className="w-full rounded-lg"
-                    />
-                  ) : (
-                    <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-                      <iframe
-                        src={embedUrl}
-                        title={video.title || `Product video ${index + 1}`}
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                        className="absolute inset-0 w-full h-full rounded-lg"
-                      />
-                    </div>
-                  )}
-                </div>
+                <ShopVideoCard
+                  key={index}
+                  video={video}
+                  index={index}
+                  embedUrl={embedUrl}
+                  isDirectVideo={isDirectVideo}
+                />
               );
             })}
           </div>

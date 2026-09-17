@@ -78,8 +78,11 @@ const videoPlatforms: { value: VideoPlatform; label: string; icon: any; color: s
   { value: 'facebook', label: 'Facebook', icon: FaFacebookF, color: 'text-blue-600' },
   { value: 'instagram', label: 'Instagram', icon: FaInstagram, color: 'text-pink-600' },
   { value: 'tiktok', label: 'TikTok', icon: Video, color: 'text-gray-900' },
-  { value: 'twitter', label: 'Twitter', icon: FaXTwitter, color: 'text-sky-500' },
+  { value: 'twitter', label: 'X (Twitter)', icon: FaXTwitter, color: 'text-sky-500' },
   { value: 'vimeo', label: 'Vimeo', icon: Video, color: 'text-blue-500' },
+  { value: 'dailymotion', label: 'Dailymotion', icon: Video, color: 'text-blue-400' },
+  { value: 'wistia', label: 'Wistia', icon: Video, color: 'text-amber-600' },
+  { value: 'loom', label: 'Loom', icon: Video, color: 'text-purple-600' },
   { value: 'other', label: 'Other', icon: Video, color: 'text-gray-600' },
 ];
 
@@ -273,10 +276,10 @@ export default function MediaTab({ initialData, onDataChange }: MediaTabProps) {
   };
 
   const handleAddVideo = (videoData: { url: string; title: string; platform: VideoPlatform }) => {
-    const youtubeId = extractYouTubeId(videoData.url);
+    const thumbnail = extractVideoThumbnail(videoData.url, videoData.platform);
     appendVideo({
       ...videoData,
-      thumbnail: youtubeId ? `https://img.youtube.com/vi/${youtubeId}/0.jpg` : '',
+      thumbnail,
     });
     setShowVideoModal(false);
   };
@@ -285,6 +288,116 @@ export default function MediaTab({ initialData, onDataChange }: MediaTabProps) {
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
     const match = url.match(regExp);
     return (match && match[2].length === 11) ? match[2] : '';
+  };
+
+  const extractFacebookId = (url: string): string | null => {
+    const patterns = [
+      /facebook\.com\/.*\/videos\/(\d+)/,
+      /facebook\.com\/reel\/(\d+)/,
+      /facebook\.com\/watch\/?\?v=(\d+)/,
+      /fb\.watch\/(\w+)/,
+      /facebook\.com\/share\/v\/(\d+)/,
+    ];
+    for (const pat of patterns) {
+      const m = url.match(pat);
+      if (m) return m[1];
+    }
+    return null;
+  };
+
+  const extractVideoThumbnail = (url: string, platform: VideoPlatform): string => {
+    if (!url) return '';
+
+    switch (platform) {
+      case 'youtube': {
+        const id = extractYouTubeId(url);
+        return id ? `https://img.youtube.com/vi/${id}/0.jpg` : '';
+      }
+      case 'vimeo': {
+        const match = url.match(/vimeo\.com\/(\d+)/);
+        if (match) {
+          return `https://vumbnail.com/${match[1]}.jpg`;
+        }
+        return '';
+      }
+      case 'facebook': {
+        const id = extractFacebookId(url);
+        if (id) {
+          return `https://graph.facebook.com/${id}/picture?type=large`;
+        }
+        return '';
+      }
+      case 'instagram': {
+        const match = url.match(/instagram\.com\/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/);
+        if (match) {
+          return `https://www.instagram.com/p/${match[1]}/media/?size=l`;
+        }
+        return '';
+      }
+      case 'tiktok': {
+        return '';
+      }
+      case 'twitter': {
+        return '';
+      }
+      default:
+        return '';
+    }
+  };
+
+  const getEmbedUrl = (url: string, platform: VideoPlatform): string | null => {
+    if (!url) return null;
+
+    switch (platform) {
+      case 'youtube': {
+        const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&?#]+)/);
+        return match ? `https://www.youtube.com/embed/${match[1]}` : null;
+      }
+      case 'vimeo': {
+        const match = url.match(/vimeo\.com\/(\d+)/);
+        return match ? `https://player.vimeo.com/video/${match[1]}` : null;
+      }
+      case 'facebook': {
+        const id = extractFacebookId(url);
+        if (id) return `https://www.facebook.com/plugins/video.php?href=https://www.facebook.com/video/${id}&show_text=false`;
+        return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false`;
+      }
+      case 'instagram': {
+        const match = url.match(/instagram\.com\/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/);
+        return match ? `https://www.instagram.com/p/${match[1]}/embed/` : null;
+      }
+      case 'tiktok': {
+        const match = url.match(/tiktok\.com\/@[\w.]+\/video\/(\d+)/);
+        return match ? `https://www.tiktok.com/embed/v2/${match[1]}` : null;
+      }
+      case 'twitter': {
+        const match = url.match(/(?:twitter\.com|x\.com)\/\w+\/status\/(\d+)/);
+        return match ? `https://platform.twitter.com/embed/Tweet.html?id=${match[1]}` : null;
+      }
+      case 'dailymotion': {
+        const match = url.match(/dailymotion\.com\/video\/(\w+)/);
+        return match ? `https://www.dailymotion.com/embed/video/${match[1]}` : null;
+      }
+      case 'wistia': {
+        const match = url.match(/wistia\.com\/medias\/(\w+)/);
+        return match ? `https://fast.wistia.net/embed/iframe/${match[1]}` : null;
+      }
+      case 'loom': {
+        const match = url.match(/loom\.com\/(?:share|watch)\/(\w+)/);
+        return match ? `https://www.loom.com/embed/${match[1]}` : null;
+      }
+      default:
+        return url;
+    }
+  };
+
+  const getPlatformName = (platform: VideoPlatform): string => {
+    const names: Record<VideoPlatform, string> = {
+      youtube: 'YouTube', facebook: 'Facebook', instagram: 'Instagram',
+      tiktok: 'TikTok', twitter: 'X (Twitter)', vimeo: 'Vimeo',
+      dailymotion: 'Dailymotion', wistia: 'Wistia', loom: 'Loom', other: 'Link',
+    };
+    return names[platform] || 'Link';
   };
 
   const getPlatformIcon = (platform: VideoPlatform) => {
@@ -676,67 +789,21 @@ export default function MediaTab({ initialData, onDataChange }: MediaTabProps) {
                 <Video className="w-8 h-8 text-gray-400" />
               </div>
               <p className="text-gray-500">No videos added yet.</p>
-              <p className="text-sm text-gray-400 mt-1">Add product videos from YouTube or Vimeo.</p>
+              <p className="text-sm text-gray-400 mt-1">Add product videos from YouTube, Vimeo, Facebook, Instagram, TikTok, and more.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {videos?.map((video, index) => (
-                <div key={index} className="border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow">
-                  <div className="aspect-video bg-gradient-to-br from-gray-900 to-gray-800 relative group cursor-pointer">
-                    {video.thumbnail && video.thumbnail !== '' ? (
-                      <Image
-                        src={video.thumbnail}
-                        alt={video.title || 'Video thumbnail'}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                        unoptimized
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        {getPlatformIcon(video.platform || 'youtube')}
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center">
-                        <Play className="w-5 h-5 text-gray-800" />
-                      </div>
-                    </div>
-                    <a
-                      href={video.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="absolute top-2 right-2 p-1.5 bg-black/50 rounded-lg text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  </div>
-                  
-                  <div className="p-4 space-y-2">
-                    <input
-                      {...register(`videos.${index}.title`)}
-                      type="text"
-                      placeholder="Video title"
-                      className="w-full text-sm px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                    />
-                    <div className="flex items-center gap-2">
-                      {getPlatformIcon(video.platform || 'youtube')}
-                      <input
-                        {...register(`videos.${index}.url`)}
-                        type="text"
-                        placeholder="Video URL"
-                        className="flex-1 text-sm px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                      />
-                    </div>
-                    <button
-                      onClick={() => removeVideo(index)}
-                      className="w-full mt-2 text-xs text-red-600 hover:text-red-700 font-medium flex items-center justify-center gap-1"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      Remove Video
-                    </button>
-                  </div>
-                </div>
+                <VideoPreviewCard
+                  key={index}
+                  video={video}
+                  index={index}
+                  register={register}
+                  removeVideo={removeVideo}
+                  getPlatformIcon={getPlatformIcon}
+                  getEmbedUrl={getEmbedUrl}
+                  getPlatformName={getPlatformName}
+                />
               ))}
             </div>
           )}
@@ -747,6 +814,156 @@ export default function MediaTab({ initialData, onDataChange }: MediaTabProps) {
       {showVideoModal && (
         <AddVideoModal onClose={() => setShowVideoModal(false)} onAdd={handleAddVideo} />
       )}
+    </div>
+  );
+}
+
+// Video Preview Card — handles embed fallback gracefully
+function VideoPreviewCard({
+  video,
+  index,
+  register,
+  removeVideo,
+  getPlatformIcon,
+  getEmbedUrl,
+  getPlatformName,
+}: {
+  video: { url: string; title?: string; thumbnail?: string; platform?: VideoPlatform };
+  index: number;
+  register: any;
+  removeVideo: (i: number) => void;
+  getPlatformIcon: (p: VideoPlatform) => React.ReactNode;
+  getEmbedUrl: (url: string, p: VideoPlatform) => string | null;
+  getPlatformName: (p: VideoPlatform) => string;
+}) {
+  const [embedFailed, setEmbedFailed] = useState(false);
+  const platform = video.platform || 'youtube';
+  const embedUrl = getEmbedUrl(video.url, platform);
+  const isDirectVideo = video.url?.endsWith('.mp4') || video.url?.endsWith('.webm') || video.url?.endsWith('.ogg');
+  const showIframe = !embedFailed && !isDirectVideo && embedUrl;
+  const hasThumbnail = video.thumbnail && video.thumbnail !== '';
+
+  return (
+    <div className="border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow">
+      <div className="aspect-video bg-gradient-to-br from-gray-900 to-gray-800 relative group overflow-hidden">
+        {isDirectVideo ? (
+          <video
+            src={video.url}
+            controls
+            poster={video.thumbnail}
+            className="w-full h-full object-cover"
+          />
+        ) : showIframe ? (
+          <>
+            <iframe
+              src={embedUrl!}
+              title={video.title || 'Video'}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="w-full h-full border-0"
+              onError={() => setEmbedFailed(true)}
+              onLoad={(e) => {
+                // Detect if iframe was blocked (blank body)
+                try {
+                  const doc = (e.target as HTMLIFrameElement).contentDocument;
+                  if (doc && doc.body && doc.body.innerHTML === '') {
+                    setEmbedFailed(true);
+                  }
+                } catch {
+                  // Cross-origin — can't check, assume it's fine
+                }
+              }}
+            />
+          </>
+        ) : (
+          /* Fallback: clickable preview card with thumbnail + platform branding */
+          <a
+            href={video.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full h-full flex flex-col items-center justify-center gap-3 group/link"
+          >
+            {hasThumbnail ? (
+              <div className="w-full h-full relative">
+                <Image
+                  src={video.thumbnail!}
+                  alt={video.title || 'Video thumbnail'}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  unoptimized
+                />
+                <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-2 opacity-0 group-hover/link:opacity-100 transition-opacity">
+                  <div className="w-14 h-14 bg-white/90 rounded-full flex items-center justify-center">
+                    <Play className="w-6 h-6 text-gray-900 ml-0.5" />
+                  </div>
+                  <span className="text-white text-xs font-medium bg-black/60 px-3 py-1 rounded-full">
+                    Watch on {getPlatformName(platform)}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-3">
+                <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center">
+                  {getPlatformIcon(platform)}
+                </div>
+                <div className="text-center">
+                  <p className="text-white text-sm font-medium">
+                    {video.title || getPlatformName(platform)}
+                  </p>
+                  <p className="text-gray-400 text-xs mt-1">
+                    Click to open on {getPlatformName(platform)}
+                  </p>
+                </div>
+              </div>
+            )}
+          </a>
+        )}
+
+        {/* Hover overlay — only for iframe/direct video */}
+        {(showIframe || isDirectVideo) && (
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center">
+              <Play className="w-5 h-5 text-gray-800" />
+            </div>
+          </div>
+        )}
+
+        <a
+          href={video.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute top-2 right-2 p-1.5 bg-black/50 rounded-lg text-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <ExternalLink className="w-3.5 h-3.5" />
+        </a>
+      </div>
+
+      <div className="p-4 space-y-2">
+        <input
+          {...register(`videos.${index}.title`)}
+          type="text"
+          placeholder="Video title"
+          className="w-full text-sm px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+        />
+        <div className="flex items-center gap-2">
+          {getPlatformIcon(platform)}
+          <input
+            {...register(`videos.${index}.url`)}
+            type="text"
+            placeholder="Video URL"
+            className="flex-1 text-sm px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+          />
+        </div>
+        <button
+          onClick={() => removeVideo(index)}
+          className="w-full mt-2 text-xs text-red-600 hover:text-red-700 font-medium flex items-center justify-center gap-1"
+        >
+          <Trash2 className="w-3 h-3" />
+          Remove Video
+        </button>
+      </div>
     </div>
   );
 }

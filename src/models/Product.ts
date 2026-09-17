@@ -228,7 +228,7 @@ const ProductVideoSchema = new Schema({
   thumbnail: String,
   platform: {
     type: String,
-    enum: ["youtube", "vimeo", "other"],
+    enum: ["youtube", "vimeo", "facebook", "instagram", "tiktok", "twitter", "dailymotion", "wistia", "loom", "other"],
     default: "youtube"
   }
 }, { _id: false });

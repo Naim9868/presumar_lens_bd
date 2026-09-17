@@ -50,6 +50,9 @@ export type VideoPlatform =
   | "tiktok"
   | "twitter"
   | "vimeo"
+  | "dailymotion"
+  | "wistia"
+  | "loom"
   | "other";
 
 /* ==================================================
