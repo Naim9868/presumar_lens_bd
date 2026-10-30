@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
     await connectDB();
     const from = new Date(range.from);
     const to = new Date(range.to);
+    to.setUTCHours(23, 59, 59, 999);
 
     const [daily, methods, coupons] = await Promise.all([
       Order.aggregate([
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
         {
           $group: {
             _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-            revenue: { $sum: '$totalAmount' },
+            revenue: { $sum: '$pricing.total' },
             orders: { $sum: 1 },
           },
         },
@@ -37,18 +38,18 @@ export async function GET(req: NextRequest) {
         {
           $group: {
             _id: '$paymentMethod',
-            revenue: { $sum: '$totalAmount' },
+            revenue: { $sum: '$pricing.total' },
             count: { $sum: 1 },
           },
         },
       ]),
       Order.aggregate([
-        { $match: { createdAt: { $gte: from, $lte: to }, couponCode: { $ne: null } } },
+        { $match: { createdAt: { $gte: from, $lte: to }, 'coupon.code': { $ne: null } } },
         {
           $group: {
-            _id: '$couponCode',
+            _id: '$coupon.code',
             usage: { $sum: 1 },
-            discount: { $sum: '$discount' },
+            discount: { $sum: '$coupon.discountAmount' },
           },
         },
         { $sort: { usage: -1 } },
@@ -64,6 +65,12 @@ export async function GET(req: NextRequest) {
       orders: d.orders || 0,
       customers: d.customers ?? d.orders ?? 0,
       units: d.units ?? d.orders ?? 0,
+    }));
+    payload.dailyOrders = payload.trend.map((point) => ({
+      date: point.date,
+      orders: point.orders,
+      revenue: point.revenue,
+      units: point.units,
     }));
     if (methods.length) {
       const totalMethodRevenue = methods.reduce(
@@ -86,7 +93,8 @@ export async function GET(req: NextRequest) {
       }));
     }
     return NextResponse.json(payload);
-  } catch {
-    return NextResponse.json(mockSales(range));
+  } catch (err) {
+    console.error('[GET /api/admin/analytics/sales]', err);
+    return NextResponse.json({ error: 'Failed to load sales analytics' }, { status: 500 });
   }
 }

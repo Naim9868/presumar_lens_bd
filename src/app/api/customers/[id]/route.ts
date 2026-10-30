@@ -171,17 +171,12 @@ export async function DELETE(
     const { id } =
         await params;
 
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        return bad('Invalid customer id');
+    }
+
     const customer =
-        await Customer.findByIdAndUpdate(
-            id,
-            {
-                status:
-                    'ARCHIVED',
-            },
-            {
-                new: true,
-            }
-        );
+        await Customer.findByIdAndDelete(id);
 
     if (!customer) {
         return bad(
@@ -195,7 +190,7 @@ export async function DELETE(
             true,
 
         message:
-            'Customer archived',
+            'Customer deleted permanently',
     });
 }
 

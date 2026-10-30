@@ -1,5 +1,41 @@
 // src/services/settings.service.ts
 import Setting from '@/models/Setting';
+import crypto from 'node:crypto';
+
+const ENCRYPTED_PREFIX = 'enc:v1:';
+
+function encryptionKey() {
+  const raw =
+    process.env.SETTINGS_ENCRYPTION_KEY ||
+    process.env.AUTH_SECRET ||
+    process.env.NEXTAUTH_SECRET;
+  if (!raw) throw new Error('SETTINGS_ENCRYPTION_KEY is not configured');
+  return crypto.createHash('sha256').update(raw).digest();
+}
+
+function encrypt(value: string) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', encryptionKey(), iv);
+  const encrypted = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
+  return `${ENCRYPTED_PREFIX}${iv.toString('base64')}:${cipher
+    .getAuthTag()
+    .toString('base64')}:${encrypted.toString('base64')}`;
+}
+
+function decrypt(value: string) {
+  if (!value.startsWith(ENCRYPTED_PREFIX)) return value;
+  const [, ivText, tagText, encryptedText] = value.split(':');
+  const decipher = crypto.createDecipheriv(
+    'aes-256-gcm',
+    encryptionKey(),
+    Buffer.from(ivText, 'base64')
+  );
+  decipher.setAuthTag(Buffer.from(tagText, 'base64'));
+  return Buffer.concat([
+    decipher.update(Buffer.from(encryptedText, 'base64')),
+    decipher.final(),
+  ]).toString('utf8');
+}
 
 /** Load all settings for a group as a flat key→value record */
 export async function getSettings(group: string): Promise<Record<string, string>> {
@@ -29,7 +65,7 @@ export async function saveSettings(
     return {
       updateOne: {
         filter: { group, key },
-        update: { $set: { value, encrypted: isSensitive } },
+        update: { $set: { value: isSensitive ? encrypt(value) : value, encrypted: isSensitive } },
         upsert: true,
       },
     };
@@ -44,6 +80,6 @@ export async function saveSettings(
 export async function getRawSettings(group: string): Promise<Record<string, string>> {
   const docs = await Setting.find({ group }).lean();
   const out: Record<string, string> = {};
-  docs.forEach((d) => { out[d.key] = d.value; });
+  docs.forEach((d) => { out[d.key] = d.encrypted ? decrypt(d.value) : d.value; });
   return out;
 }

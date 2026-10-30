@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
           $group: {
             _id: '$customer',
             orders: { $sum: 1 },
-            ltv: { $sum: '$totalAmount' },
+            ltv: { $sum: '$pricing.total' },
           },
         },
         { $sort: { ltv: -1 } },
@@ -71,7 +71,8 @@ export async function GET(req: NextRequest) {
       joinedAt: '',
     }));
     return NextResponse.json(payload);
-  } catch {
-    return NextResponse.json(mockCustomers(range));
+  } catch (err) {
+    console.error('[GET /api/admin/analytics/customers]', err);
+    return NextResponse.json({ error: 'Failed to load customer analytics' }, { status: 500 });
   }
 }

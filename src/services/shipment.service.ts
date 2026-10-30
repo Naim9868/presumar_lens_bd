@@ -5,6 +5,7 @@ import { bookSteadFastOrder, trackSteadFastOrder } from '@/integrations/steadfas
 import { bookPathaoOrder, getPathaoCities, getPathaoZones } from '@/integrations/pathao';
 import { bookRedXOrder, trackRedXOrder } from '@/integrations/redx';
 import { connectDB } from '@/lib/dbConnect';
+import { getCourierSettings } from '@/services/courier-config.service';
 
 export type CourierProvider = 'STEADFAST' | 'PATHAO' | 'REDX';
 
@@ -27,8 +28,17 @@ export async function bookShipment(input: BookShipmentInput) {
   const order = await Order.findById(input.orderId);
   if (!order) throw new Error('Order not found');
 
-  const isCOD = true; // extend later with payment check
+  const existingShipment = await Shipment.findOne({
+    orderId: order._id,
+    status: { $nin: ['CANCELLED', 'FAILED', 'RETURNED'] },
+  });
+  if (existingShipment) {
+    throw new Error('This order already has an active shipment');
+  }
+
+  const isCOD = order.paymentMethod === 'COD' && order.paymentStatus !== 'PAID';
   const codAmount = isCOD ? order.pricing.total : 0;
+  const courierSettings = await getCourierSettings();
 
   let result: unknown = {};
   let consignmentId = '';
@@ -86,7 +96,7 @@ export async function bookShipment(input: BookShipmentInput) {
         merchant_invoice_id: order.orderId,
         cash_collection_amount: codAmount,
         parcel_details_amount: order.pricing.total,
-        pickup_store_id: parseInt(process.env.REDX_STORE_ID || '0'),
+        pickup_store_id: parseInt(courierSettings.redxStoreId, 10),
         parcel_weight: 500,
       });
       consignmentId = (result as any).tracking_id?.toString() || '';
@@ -111,15 +121,19 @@ export async function bookShipment(input: BookShipmentInput) {
   });
 
   // Update order status
-  await Order.findByIdAndUpdate(input.orderId, { status: 'SHIPPED' });
+  if (status === 'BOOKED') {
+    await Order.findByIdAndUpdate(input.orderId, { status: 'SHIPPED' });
+  }
 
   // Log timeline
-  await OrderEvent.create({
-    orderId: input.orderId,
-    status: 'SHIPPED',
-    source: 'SYSTEM',
-    note: `Booked with ${input.provider}. Tracking: ${trackingId}`,
-  });
+  if (status === 'BOOKED') {
+    await OrderEvent.create({
+      orderId: input.orderId,
+      status: 'SHIPPED',
+      source: 'SYSTEM',
+      note: `Booked with ${input.provider}. Tracking: ${trackingId}`,
+    });
+  }
 
   return shipment;
 }
@@ -176,21 +190,29 @@ export async function handleCourierWebhook(
   const shipment = await Shipment.findOne({ trackingId });
   if (!shipment) return;
 
+  const normalizedStatus = newStatus.trim().toLowerCase().replace(/[\s-]+/g, '_');
+  const orderStatus =
+    ['delivered', 'delivery_completed'].includes(normalizedStatus) ? 'DELIVERED' :
+    ['out_for_delivery', 'outfordelivery'].includes(normalizedStatus) ? 'OUT_FOR_DELIVERY' :
+    ['in_transit', 'transit', 'picked', 'picked_up', 'pickup'].includes(normalizedStatus) ? 'IN_TRANSIT' :
+    ['returned', 'return'].includes(normalizedStatus) ? 'RETURNED' :
+    ['cancelled', 'canceled'].includes(normalizedStatus) ? 'CANCELLED' :
+    'SHIPPED';
+
   // Push new event
   await Shipment.findByIdAndUpdate(shipment._id, {
     status: newStatus,
     $push: { events: { status: newStatus, note, time: new Date() } },
   });
 
-  // Map courier status to order status
-  const deliveredStatuses = ['delivered', 'DELIVERED', 'delivery_completed'];
-  if (deliveredStatuses.includes(newStatus)) {
-    await Order.findByIdAndUpdate(shipment.orderId, { status: 'DELIVERED' });
+  const order = await Order.findById(shipment.orderId).select('status');
+  if (order && order.status !== orderStatus) {
+    await Order.findByIdAndUpdate(shipment.orderId, { status: orderStatus });
     await OrderEvent.create({
       orderId: shipment.orderId,
-      status: 'DELIVERED',
+      status: orderStatus,
       source: 'COURIER',
-      note: `Marked delivered by ${provider}`,
+      note: `Courier status "${newStatus}" received from ${provider}`,
     });
   }
 }
@@ -310,4 +332,3 @@ export async function getShipmentById(id: string) {
   if (!shipment) throw new Error('Shipment not found');
   return shipment;
 }
-

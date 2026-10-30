@@ -57,7 +57,8 @@ export async function GET(req: NextRequest) {
       }));
     }
     return NextResponse.json(payload);
-  } catch {
-    return NextResponse.json(mockProducts(range));
+  } catch (err) {
+    console.error('[GET /api/admin/analytics/products]', err);
+    return NextResponse.json({ error: 'Failed to load product analytics' }, { status: 500 });
   }
 }

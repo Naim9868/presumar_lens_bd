@@ -178,6 +178,26 @@ export default function SmsSettingsClient() {
         </button>
       </Section>
 
+      <Section title="Sending Workflows" description="Choose when messages are sent automatically or manually.">
+        <Toggle value={s.sms_status_automation || 'false'} onChange={v => set('sms_status_automation', v)}
+          label="Automatic status messages" description="Send the matching template when an order status changes." />
+        <Toggle value={s.sms_bulk_enabled || 'true'} onChange={v => set('sms_bulk_enabled', v)}
+          label="Allow bulk messages by status" description="Enable administrators to message all orders in a selected status." />
+        <Toggle value={s.sms_manual_enabled || 'true'} onChange={v => set('sms_manual_enabled', v)}
+          label="Allow manual messages" description="Enable editing and sending an individual order message." />
+        <Field label="Default bulk status" hint="Used as the initial status in bulk messaging workflows">
+          <Select value={s.sms_bulk_status || 'PENDING'} onChange={v => set('sms_bulk_status', v)}
+            options={[
+              { value: 'PENDING', label: 'Pending' },
+              { value: 'CONFIRMED', label: 'Confirmed' },
+              { value: 'PROCESSING', label: 'Processing' },
+              { value: 'SHIPPED', label: 'Shipped' },
+              { value: 'DELIVERED', label: 'Delivered' },
+              { value: 'CANCELLED', label: 'Cancelled' },
+            ]} />
+        </Field>
+      </Section>
+
       {/* Rate Limiting */}
       <Section title="Rate Limiting & Opt-out" description="Protect your SMS credits and comply with regulations">
         <Grid2>

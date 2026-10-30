@@ -28,6 +28,9 @@ export async function PATCH(
     return successResponse({ order });
   } catch (err) {
     console.error('[PATCH /api/orders/[id]/status]', err);
-    return errorResponse('Failed to update order status', 500);
+    return errorResponse(
+      err instanceof Error ? err.message : 'Failed to update order status',
+      500
+    );
   }
 }

@@ -1,12 +1,14 @@
 // RedX Courier Integration — Bangladesh
 // Docs: https://openapi.redx.com.bd
+import { getCourierSettings } from '@/services/courier-config.service';
 
 const REDX_API = 'https://openapi.redx.com.bd/v1.0.0-beta';
 
-function getHeaders() {
+async function getHeaders() {
+  const settings = await getCourierSettings();
   return {
     'Content-Type': 'application/json',
-    'ACCESS-TOKEN': process.env.REDX_ACCESS_TOKEN!,
+    'ACCESS-TOKEN': settings.redxAccessToken,
   };
 }
 
@@ -26,7 +28,7 @@ export interface RedXOrderInput {
 export async function bookRedXOrder(data: RedXOrderInput) {
   const res = await fetch(`${REDX_API}/parcel`, {
     method: 'POST',
-    headers: getHeaders(),
+    headers: await getHeaders(),
     body: JSON.stringify(data),
   });
 
@@ -40,14 +42,14 @@ export async function bookRedXOrder(data: RedXOrderInput) {
 
 export async function trackRedXOrder(trackingId: string) {
   const res = await fetch(`${REDX_API}/parcel/info/${trackingId}`, {
-    headers: getHeaders(),
+    headers: await getHeaders(),
   });
   return res.json();
 }
 
 export async function getRedXAreas(district: string) {
   const res = await fetch(`${REDX_API}/area?district=${encodeURIComponent(district)}`, {
-    headers: getHeaders(),
+    headers: await getHeaders(),
   });
   return res.json();
 }
@@ -55,7 +57,7 @@ export async function getRedXAreas(district: string) {
 export async function cancelRedXOrder(trackingId: string) {
   const res = await fetch(`${REDX_API}/parcel/cancel/${trackingId}`, {
     method: 'POST',
-    headers: getHeaders(),
+    headers: await getHeaders(),
   });
   return res.json();
 }

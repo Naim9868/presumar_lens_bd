@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
       Order.find({ createdAt: { $gte: from, $lte: to } })
         .sort({ createdAt: -1 })
         .limit(10)
-        .select('orderId customer totalAmount pricing shipping status createdAt')
+        .select('orderId pricing shipping status createdAt')
         .lean(),
       Order.aggregate([
         { $match: { createdAt: { $gte: from, $lte: to } } },
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
 
     const displayName = (o: any) => o.customer?.name || o.shipping?.name || 'Guest';
     const displayAmount = (o: any) =>
-      Math.round(o.totalAmount || o.pricing?.total || 0);
+      Math.round(o.pricing?.total || 0);
     const payload: OverviewResponse = mockOverview(range);
     const recentMapped = recent.map((o: any) => ({
       id: o.orderId,
@@ -66,7 +66,8 @@ export async function GET(req: NextRequest) {
       };
     });
     return NextResponse.json(payload);
-  } catch {
-    return NextResponse.json(mockOverview(range));
+  } catch (err) {
+    console.error('[GET /api/admin/analytics/orders]', err);
+    return NextResponse.json({ error: 'Failed to load order analytics' }, { status: 500 });
   }
 }

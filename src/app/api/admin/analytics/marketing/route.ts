@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
           $group: {
             _id: '$source',
             orders: { $sum: 1 },
-            revenue: { $sum: '$totalAmount' },
+            revenue: { $sum: '$pricing.total' },
           },
         },
         { $sort: { revenue: -1 } },
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
           $group: {
             _id: { source: '$source', medium: '$utmMedium' },
             orders: { $sum: 1 },
-            revenue: { $sum: '$totalAmount' },
+            revenue: { $sum: '$pricing.total' },
           },
         },
         { $sort: { revenue: -1 } },
@@ -65,7 +65,8 @@ export async function GET(req: NextRequest) {
       }));
     }
     return NextResponse.json(payload);
-  } catch {
-    return NextResponse.json(mockMarketing(range));
+  } catch (err) {
+    console.error('[GET /api/admin/analytics/marketing]', err);
+    return NextResponse.json({ error: 'Failed to load marketing analytics' }, { status: 500 });
   }
 }

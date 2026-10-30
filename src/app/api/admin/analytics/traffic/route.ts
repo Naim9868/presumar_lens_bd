@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
             conversions: {
               $sum: { $cond: [{ $in: ['$status', ['paid', 'shipped', 'delivered', 'in_transit']] }, 1, 0] },
             },
-            revenue: { $sum: '$totalAmount' },
+            revenue: { $sum: '$pricing.total' },
           },
         },
         { $sort: { sessions: -1 } },
@@ -128,7 +128,8 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json(payload);
-  } catch {
-    return NextResponse.json(mockTraffic(range));
+  } catch (err) {
+    console.error('[GET /api/admin/analytics/traffic]', err);
+    return NextResponse.json({ error: 'Failed to load traffic analytics' }, { status: 500 });
   }
 }

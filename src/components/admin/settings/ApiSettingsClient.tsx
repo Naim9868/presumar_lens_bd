@@ -66,6 +66,19 @@ export default function ApiSettingsClient() {
             <Field label="Default Store ID" hint="Get from Pathao merchant portal">
               <Input value={s.pathao_store_id || ''} onChange={v => set('pathao_store_id', v)} placeholder="12345" monospace />
             </Field>
+            <Field label="Default City ID" hint="Used by quick booking from the order table">
+              <Input value={s.pathao_city_id || ''} onChange={v => set('pathao_city_id', v)} placeholder="City ID" monospace />
+            </Field>
+            <Field label="Default Zone ID" hint="Used by quick booking from the order table">
+              <Input value={s.pathao_zone_id || ''} onChange={v => set('pathao_zone_id', v)} placeholder="Zone ID" monospace />
+            </Field>
+            <Field label="Default Delivery Type">
+              <Select value={s.pathao_delivery_type || '48'} onChange={v => set('pathao_delivery_type', v)}
+                options={[{ value: '48', label: 'Normal' }, { value: '12', label: 'Express' }]} />
+            </Field>
+            <Field label="Default Item Weight (KG)">
+              <Input value={s.pathao_item_weight || '0.5'} onChange={v => set('pathao_item_weight', v)} placeholder="0.5" monospace />
+            </Field>
             <Field label="Environment">
               <Select value={s.pathao_env || 'sandbox'} onChange={v => set('pathao_env', v)}
                 options={[{ value: 'sandbox', label: '🧪 Sandbox' }, { value: 'live', label: '🚀 Live' }]} />

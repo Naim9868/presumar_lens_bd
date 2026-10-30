@@ -59,8 +59,7 @@ const menuItems: MenuItem[] = [
   {
     name: 'Orders',
     href: '/admin/orders',
-    icon: ShoppingCart,
-    badge: 12
+    icon: ShoppingCart
   },
   {
     name: 'Customers',
@@ -145,6 +144,7 @@ interface AdminSidebarProps {
 export default function AdminSidebar({ isOpen, onClose, isMobile }: AdminSidebarProps) {
   const pathname = usePathname();
   const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({});
+  const [pendingOrderCount, setPendingOrderCount] = useState<number | null>(null);
   
   // Initialize open submenus based on current path
   useEffect(() => {
@@ -159,6 +159,31 @@ export default function AdminSidebar({ isOpen, onClose, isMobile }: AdminSidebar
     });
     setOpenSubmenus(prev => ({ ...prev, ...newOpenSubmenus }));
   }, [pathname]);
+
+  useEffect(() => {
+    let active = true;
+    const fetchPendingOrderCount = async () => {
+      try {
+        const response = await fetch('/api/orders/stats', { cache: 'no-store' });
+        const payload = await response.json();
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.message || 'Failed to load pending order count');
+        }
+        if (active) {
+          setPendingOrderCount(Number(payload.data?.pendingOrders ?? 0));
+        }
+      } catch (error) {
+        console.error('Failed to load pending order count:', error);
+      }
+    };
+
+    fetchPendingOrderCount();
+    const interval = window.setInterval(fetchPendingOrderCount, 15000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, []);
   
   const isActive = (href: string) => {
     if (href === '/admin') {
@@ -237,11 +262,15 @@ export default function AdminSidebar({ isOpen, onClose, isMobile }: AdminSidebar
                         <span>{item.name}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        {item.badge && (
+                        {item.name === 'Orders' && pendingOrderCount !== null ? (
+                          <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-white">
+                            {pendingOrderCount}
+                          </span>
+                        ) : item.badge ? (
                           <span className="inline-flex items-center justify-center rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-white">
                             {item.badge}
                           </span>
-                        )}
+                        ) : null}
                         {openSubmenus[item.href] ? (
                           <ChevronDown className="h-4 w-4 transition-transform" />
                         ) : (
@@ -298,11 +327,15 @@ export default function AdminSidebar({ isOpen, onClose, isMobile }: AdminSidebar
                       <item.icon className="mr-3 h-5 w-5 flex-shrink-0" />
                       <span>{item.name}</span>
                     </div>
-                    {item.badge && (
+                    {item.name === 'Orders' && pendingOrderCount !== null ? (
+                      <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-white">
+                        {pendingOrderCount}
+                      </span>
+                    ) : item.badge ? (
                       <span className="inline-flex items-center justify-center rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-white">
                         {item.badge}
                       </span>
-                    )}
+                    ) : null}
                   </Link>
                 )}
               </div>

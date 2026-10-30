@@ -90,7 +90,8 @@ export async function GET(req: NextRequest) {
       }));
     }
     return NextResponse.json(payload);
-  } catch {
-    return NextResponse.json(mockInventory(range));
+  } catch (err) {
+    console.error('[GET /api/admin/analytics/inventory]', err);
+    return NextResponse.json({ error: 'Failed to load inventory analytics' }, { status: 500 });
   }
 }

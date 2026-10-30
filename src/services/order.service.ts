@@ -214,7 +214,7 @@ export async function createOrder(input: CreateOrderInput): Promise<IOrder> {
         name: input.shipping.name,
         phone: input.shipping.phone,
         email: input.shipping.email,
-        address: [{
+        addresses: [{
           label: 'Home',
           ...input.shipping,
           isDefault: true
@@ -334,8 +334,10 @@ export async function updateOrderStatus(
     }
 
     const previousStatus = order.status;
-    if (previousStatus === status)
+    if (previousStatus === status) {
+      await session.abortTransaction();
       return order;
+    }
 
     // If cancelling, release inventory
     if (status === 'CANCELLED' && previousStatus !== 'CANCELLED') {
@@ -371,20 +373,56 @@ export async function updateOrderStatus(
     order.status = status;
 
     await order.save({
-      session
+      session,
+      validateModifiedOnly: true,
     });
 
+    const customerSet: Record<string, unknown> = {
+      name: order.shipping.name,
+      phone: order.shipping.phone,
+      updatedAt: new Date(),
+    };
+    if (order.shipping.email) customerSet.email = order.shipping.email;
+    if (order.userId) customerSet.userId = order.userId;
+
+    await Customer.findOneAndUpdate(
+      { phone: order.shipping.phone },
+      {
+        $set: customerSet,
+        $setOnInsert: {
+          address: [{
+            label: 'Home',
+            ...order.shipping,
+            isDefault: true,
+          }],
+          stats: {
+            ordersCount: 1,
+            totalSpent: order.pricing.total,
+            firstOrderAt: order.createdAt,
+            lastOrderAt: order.createdAt,
+          },
+          account: {
+            hasLogin: Boolean(order.userId),
+          },
+        },
+      },
+      { upsert: true, session, setDefaultsOnInsert: true },
+    );
+
     // Log event
-    await OrderEvent.create({
-      orderId: order._id,
-      status,
-      previousStatus,
-      source: adminId ? 'ADMIN' : 'SYSTEM',
-      note:
-        note ??
-        `Status → ${status}`,
-      createdBy: adminId ? new mongoose.Types.ObjectId(adminId) : undefined,
-    });
+    await OrderEvent.create(
+      [{
+        orderId: order._id,
+        status,
+        previousStatus,
+        source: adminId ? 'ADMIN' : 'SYSTEM',
+        note:
+          note ??
+          `Status → ${status}`,
+        createdBy: adminId ? new mongoose.Types.ObjectId(adminId) : undefined,
+      }],
+      { session }
+    );
 
     await session.commitTransaction();
 
@@ -395,7 +433,9 @@ export async function updateOrderStatus(
 
     return order;
   } catch (error) {
-    await session.abortTransaction();
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
     throw error;
   } finally {
     session.endSession();

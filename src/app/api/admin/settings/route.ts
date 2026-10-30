@@ -6,7 +6,16 @@ import { getSettings, saveSettings } from '@/services/settings.service';
 // Sensitive keys per group that should be stored encrypted / masked on read
 const SENSITIVE_KEYS: Record<string, string[]> = {
   payment: ['sslcommerz_store_pass', 'bkash_app_secret', 'bkash_password', 'nagad_merchant_key'],
-  api: ['meta_access_token', 'tiktok_access_token', 'ga4_api_secret', 'pathao_client_secret', 'pathao_password', 'steadfast_secret_key', 'redx_access_token'],
+  api: [
+    'meta_access_token',
+    'tiktok_access_token',
+    'ga4_api_secret',
+    'pathao_client_secret',
+    'pathao_password',
+    'steadfast_secret_key',
+    'redx_access_token',
+    'redx_api_key',
+  ],
   marketing: ['meta_access_token', 'tiktok_access_token', 'ga4_api_secret', 'whatsapp_token', 'telegram_bot_token'],
   sms: ['sms_api_key'],
   notifications: ['brevo_api_key', 'smtp_password'],

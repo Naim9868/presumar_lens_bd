@@ -1,13 +1,15 @@
 // SteadFast Courier Integration — Bangladesh
 // Docs: https://portal.steadfast.com.bd/public/api/v1
+import { getCourierSettings } from '@/services/courier-config.service';
 
 const STEADFAST_API = 'https://portal.steadfast.com.bd/public/api/v1';
 
-function getHeaders() {
+async function getHeaders() {
+  const settings = await getCourierSettings();
   return {
     'Content-Type': 'application/json',
-    'Api-Key': process.env.STEADFAST_API_KEY!,
-    'Secret-Key': process.env.STEADFAST_SECRET_KEY!,
+    'Api-Key': settings.steadfastApiKey,
+    'Secret-Key': settings.steadfastSecretKey,
   };
 }
 
@@ -39,7 +41,7 @@ export interface SteadFastOrderResponse {
 export async function bookSteadFastOrder(data: SteadFastOrderInput): Promise<SteadFastOrderResponse> {
   const res = await fetch(`${STEADFAST_API}/create_order`, {
     method: 'POST',
-    headers: getHeaders(),
+    headers: await getHeaders(),
     body: JSON.stringify(data),
   });
 
@@ -53,21 +55,21 @@ export async function bookSteadFastOrder(data: SteadFastOrderInput): Promise<Ste
 
 export async function trackSteadFastOrder(trackingCode: string) {
   const res = await fetch(`${STEADFAST_API}/status_by_trackingid/${trackingCode}`, {
-    headers: getHeaders(),
+    headers: await getHeaders(),
   });
   return res.json();
 }
 
 export async function trackSteadFastByInvoice(invoice: string) {
   const res = await fetch(`${STEADFAST_API}/status_by_invoice/${invoice}`, {
-    headers: getHeaders(),
+    headers: await getHeaders(),
   });
   return res.json();
 }
 
 export async function getSteadFastBalance() {
   const res = await fetch(`${STEADFAST_API}/get_balance`, {
-    headers: getHeaders(),
+    headers: await getHeaders(),
   });
   return res.json();
 }

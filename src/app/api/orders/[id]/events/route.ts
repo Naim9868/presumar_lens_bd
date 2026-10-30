@@ -25,7 +25,7 @@ export async function GET(
       .sort({ createdAt: -1 })
       .limit(100);
 
-    return NextResponse.json(events);
+    return NextResponse.json({ events });
   } catch (error: any) {
     console.error('Get order events error:', error);
     return NextResponse.json(

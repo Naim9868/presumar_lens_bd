@@ -1,5 +1,6 @@
 // Pathao Courier Integration — Bangladesh
 // Docs: https://merchant.pathao.com/aladdin/api/v1
+import { getCourierSettings } from '@/services/courier-config.service';
 
 const PATHAO_API = process.env.NODE_ENV === 'production'
   ? 'https://merchant.pathao.com/aladdin/api/v1'
@@ -13,14 +14,15 @@ export async function getPathaoToken(): Promise<string> {
     return tokenCache.token;
   }
 
+  const settings = await getCourierSettings();
   const res = await fetch(`${PATHAO_API}/issue-token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      client_id: process.env.PATHAO_CLIENT_ID,
-      client_secret: process.env.PATHAO_CLIENT_SECRET,
-      username: process.env.PATHAO_USERNAME,
-      password: process.env.PATHAO_PASSWORD,
+      client_id: settings.pathaoClientId,
+      client_secret: settings.pathaoClientSecret,
+      username: settings.pathaoUsername,
+      password: settings.pathaoPassword,
       grant_type: 'password',
     }),
   });

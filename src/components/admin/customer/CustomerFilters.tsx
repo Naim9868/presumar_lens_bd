@@ -14,6 +14,7 @@ interface CustomerFiltersProps {
   onFilterChange: (key: string, value: string) => void;
   selectedCount: number;
   onBulkSMS: () => void;
+  onClearSelection: () => void;
   onRefresh: () => void;
   loading: boolean;
 }
@@ -23,6 +24,7 @@ export default function CustomerFilters({
   onFilterChange,
   selectedCount,
   onBulkSMS,
+  onClearSelection,
   onRefresh,
   loading,
 }: CustomerFiltersProps) {
@@ -134,7 +136,7 @@ export default function CustomerFilters({
               Send SMS
             </button>
             <button
-              onClick={() => onFilterChange('selected', 'clear')}
+              onClick={onClearSelection}
               className="px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors text-sm"
             >
               Clear Selection

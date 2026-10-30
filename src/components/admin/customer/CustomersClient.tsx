@@ -382,6 +382,7 @@ export default function CustomersClient({
         onFilterChange={handleFilterChange}
         selectedCount={selectedCustomers.length}
         onBulkSMS={handleBulkSMS}
+        onClearSelection={() => setSelectedCustomers([])}
         onRefresh={fetchCustomers}
         loading={loading}
       />

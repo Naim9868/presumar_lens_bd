@@ -2,6 +2,48 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/dbConnect';
 import { getOrderById, updateOrderStatus } from '@/services/order.service';
+import Order from '@/models/Order';
+import OrderEvent from '@/models/OrderEvent';
+import mongoose from 'mongoose';
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await connectDB();
+
+    const { id } = await params;
+    
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return NextResponse.json(
+        { error: 'Invalid order ID' },
+        { status: 400 }
+      );
+    }
+
+    const order = await Order.findByIdAndDelete(id);
+
+    if (!order) {
+      return NextResponse.json(
+        { error: 'Order not found' },
+        { status: 404 }
+      );
+    }
+
+    // Also delete associated events
+    await OrderEvent.deleteMany({ orderId: new mongoose.Types.ObjectId(id) });
+
+    return NextResponse.json({ success: true, message: 'Order deleted successfully' });
+  } catch (error: unknown) {
+    console.error('Delete order error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to delete order';
+    return NextResponse.json(
+      { error: message },
+      { status: 500 }
+    );
+  }
+}
 
 export async function GET(
   req: NextRequest,
@@ -27,10 +69,11 @@ export async function GET(
       .limit(50);
 
     return NextResponse.json({ order, events });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get order detail error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to fetch order';
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch order' },
+      { error: message },
       { status: 500 }
     );
   }
@@ -64,10 +107,11 @@ export async function PATCH(
     }
 
     return NextResponse.json(order);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Update order status error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to update order';
     return NextResponse.json(
-      { error: error.message || 'Failed to update order' },
+      { error: message },
       { status: 500 }
     );
   }

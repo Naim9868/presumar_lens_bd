@@ -4,14 +4,19 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     MoreVertical, Eye, Edit2, Trash2, MessageSquare, Truck,
-    Shield, Send, ChevronDown, AlertTriangle, CheckCircle,
+    Send, ChevronDown, AlertTriangle, CheckCircle,
     XCircle, Package, MapPin, Phone, Mail, User, ExternalLink,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
-import { Order, OrderStatus, STATUS_CONFIG, FraudResult } from '@/types/order';
+import { Order, OrderStatus, STATUS_CONFIG } from '@/types/order';
 
-const COURIERS = ['STEADFAST', 'PATHAO', 'REDX', 'PAPERFLY'];
+const COURIERS = ['STEADFAST', 'PATHAO', 'REDX'];
+const ALL_STATUSES: OrderStatus[] = [
+    'PENDING', 'AWAITING_PAYMENT', 'CONFIRMED', 'PROCESSING', 'PACKED',
+    'READY_TO_SHIP', 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY',
+    'DELIVERED', 'CANCELLED', 'RETURN_REQUESTED', 'RETURNED', 'REFUNDED',
+];
 
 const SOURCE_BADGE: Record<string, { label: string; cls: string }> = {
     facebook: { label: 'FB', cls: 'bg-blue-100 text-blue-700' },
@@ -25,38 +30,95 @@ const SOURCE_BADGE: Record<string, { label: string; cls: string }> = {
     direct: { label: 'DIR', cls: 'bg-gray-100 text-gray-600' },
 };
 
-const STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-    PENDING: ['CONFIRMED', 'CANCELLED'],
-    AWAITING_PAYMENT: ['CONFIRMED', 'CANCELLED'],
-    CONFIRMED: ['PROCESSING', 'CANCELLED'],
-    PROCESSING: ['PACKED', 'CANCELLED'],
-    PACKED: ['READY_TO_SHIP', 'CANCELLED'],
-    READY_TO_SHIP: ['SHIPPED'],
-    SHIPPED: ['IN_TRANSIT', 'DELIVERED'],
-    IN_TRANSIT: ['OUT_FOR_DELIVERY', 'DELIVERED'],
-    OUT_FOR_DELIVERY: ['DELIVERED', 'RETURNED'],
-    DELIVERED: ['RETURN_REQUESTED', 'REFUNDED'],
-    CANCELLED: ['CONFIRMED'],
-    RETURN_REQUESTED: ['RETURNED', 'REFUNDED'],
-    RETURNED: ['REFUNDED'],
-    REFUNDED: [],
-};
-
 interface Props {
     orders: Order[];
     loading: boolean;
     onStatusUpdate: (orderId: string, status: OrderStatus) => void;
     onAddNote: (order: Order) => void;
     onRefresh: () => void;
+    selectedIds?: string[];
+    onSelectionChange?: (ids: string[]) => void;
 }
 
-function FraudBadge({ score, risk }: { score: number; risk: string }) {
-    const cls = risk === 'high' ? 'bg-red-100 text-red-700' : risk === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700';
-    const icon = risk === 'high' ? '🚨' : risk === 'medium' ? '⚠️' : '✓';
+function orderMessage(order: Order) {
+    return `Hello ${order.shipping.name}, your order ${order.orderId} is currently ${order.status}. Total: ৳${(order.pricing.total || 0).toLocaleString()}. Thank you for shopping with us.`;
+}
+
+function SmsComposer({ order, onClose, onSent }: { order: Order; onClose: () => void; onSent: () => void }) {
+    const [message, setMessage] = useState(orderMessage(order));
+    const [sending, setSending] = useState(false);
+
+    const send = async () => {
+        setSending(true);
+        try {
+            const response = await fetch(`/api/orders/${order._id}/message`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message }),
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) throw new Error(data.message || 'Message failed');
+            toast.success(`Message sent by ${data.channel}${data.fallback ? ' (SMS fallback)' : ''}`);
+            onSent();
+            onClose();
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Failed to send message');
+        } finally {
+            setSending(false);
+        }
+    };
+
     return (
-        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold ${cls}`}>
-            {icon} {score}
-        </span>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+            <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl" onClick={event => event.stopPropagation()}>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h3 className="text-base font-bold text-gray-900">Message customer</h3>
+                        <p className="text-xs text-gray-500">{order.shipping.name} · {order.shipping.phone}</p>
+                    </div>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-700">✕</button>
+                </div>
+                <textarea value={message} onChange={event => setMessage(event.target.value)} rows={6}
+                    className="mt-4 w-full rounded-xl border border-gray-200 p-3 text-sm text-gray-800 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100" />
+                <div className="mt-1 flex justify-between text-[11px] text-gray-400">
+                    <span>WhatsApp first, SMS fallback</span><span>{message.length} characters</span>
+                </div>
+                <div className="mt-4 flex justify-end gap-2">
+                    <button onClick={onClose} className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600">Cancel</button>
+                    <button onClick={send} disabled={sending || !message.trim()}
+                        className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50">
+                        {sending ? 'Sending…' : 'Send message'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function SmsBadge({ order, onSent }: { order: Order; onSent: () => void }) {
+    const [open, setOpen] = useState(false);
+    const [previewOpen, setPreviewOpen] = useState(false);
+    useEffect(() => {
+        const handler = () => setOpen(true);
+        const eventName = `open-order-sms-${order._id}`;
+        window.addEventListener(eventName, handler);
+        return () => window.removeEventListener(eventName, handler);
+    }, [order._id]);
+    return (
+        <>
+            <div className="relative inline-block" onMouseEnter={() => setPreviewOpen(true)} onMouseLeave={() => setPreviewOpen(false)}>
+                <button onClick={() => setOpen(true)} className="inline-flex items-center gap-1 rounded-md bg-violet-50 px-2 py-1 text-[11px] font-semibold text-violet-700 hover:bg-violet-100">
+                    <MessageSquare className="h-3 w-3" /> SMS
+                </button>
+                {previewOpen && (
+                    <div className="absolute right-0 top-full z-40 mt-1 w-64 rounded-xl border border-gray-200 bg-white p-3 text-xs text-gray-600 shadow-xl">
+                        <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">Message preview</p>
+                        {orderMessage(order)}
+                    </div>
+                )}
+            </div>
+            {open && <SmsComposer order={order} onClose={() => setOpen(false)} onSent={onSent} />}
+        </>
     );
 }
 
@@ -64,7 +126,7 @@ function StatusBadge({ status, orderId, onUpdate }: { status: OrderStatus; order
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
     const cfg = STATUS_CONFIG[status];
-    const transitions = STATUS_TRANSITIONS[status] || [];
+    const transitions = ALL_STATUSES.filter((candidate) => candidate !== status);
 
     useEffect(() => {
         const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
@@ -75,7 +137,7 @@ function StatusBadge({ status, orderId, onUpdate }: { status: OrderStatus; order
     return (
         <div className="relative" ref={ref}>
             <button
-                onClick={() => transitions.length > 0 && setOpen(!open)}
+                onClick={() => setOpen(!open)}
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${cfg.bg} ${cfg.color} ${cfg.border} transition-colors ${transitions.length > 0 ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
             >
                 <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
@@ -103,7 +165,7 @@ function StatusBadge({ status, orderId, onUpdate }: { status: OrderStatus; order
 
 function ActionsMenu({ order, onAddNote, onRefresh }: { order: Order; onAddNote: (o: Order) => void; onRefresh: () => void }) {
     const [open, setOpen] = useState(false);
-    const [courierHover, setCourierHover] = useState(false);
+    const [courierOpen, setCourierOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
     const router = useRouter();
 
@@ -112,19 +174,6 @@ function ActionsMenu({ order, onAddNote, onRefresh }: { order: Order; onAddNote:
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
     }, []);
-
-    const handleCheckFraud = async () => {
-        setOpen(false);
-        const res = await fetch(`/api/orders/${order._id}/fraud`);
-        const data = await res.json();
-        if (data.fraud) {
-            const { risk, score, flags } = data.fraud as FraudResult;
-            toast(`Fraud: ${risk.toUpperCase()} (${score}/100)\n${flags.map(f => f.message).join(', ')}`, {
-                duration: 5000,
-                icon: risk === 'high' ? '🚨' : risk === 'medium' ? '⚠️' : '✅',
-            });
-        }
-    };
 
     const handleSendToCourier = async (provider: string) => {
         setOpen(false);
@@ -138,14 +187,16 @@ function ActionsMenu({ order, onAddNote, onRefresh }: { order: Order; onAddNote:
             if (data.success || data.shipment) {
                 toast.success(`Booked with ${provider}`);
                 onRefresh();
-            } else toast.error(data.error || 'Booking failed');
-        } catch { toast.error('Failed to book courier'); }
+            } else toast.error(data.message || data.error || 'Booking failed');
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Failed to book courier');
+        }
     };
 
     const handleSendToMeta = async () => {
         setOpen(false);
         try {
-            await fetch('/api/track', {
+            const res = await fetch('/api/track', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -156,6 +207,10 @@ function ActionsMenu({ order, onAddNote, onRefresh }: { order: Order; onAddNote:
                     fbclid: order.marketing?.fbclid,
                 }),
             });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.error || 'Meta event failed');
+            }
             toast.success('Event sent to Meta');
         } catch { toast.error('Failed to send event'); }
     };
@@ -179,19 +234,19 @@ function ActionsMenu({ order, onAddNote, onRefresh }: { order: Order; onAddNote:
             </button>
             {open && (
                 <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden py-1">
-                    <button onClick={handleCheckFraud}
+                    <button onClick={() => { setOpen(false); window.dispatchEvent(new CustomEvent(`open-order-sms-${order._id}`)); }}
                         className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5">
-                        <Shield className="w-4 h-4 text-amber-500" /> Check Fraud
+                        <MessageSquare className="w-4 h-4 text-violet-500" /> Send SMS
                     </button>
 
                     {/* Send to Courier with submenu */}
-                    <div className="relative" onMouseEnter={() => setCourierHover(true)} onMouseLeave={() => setCourierHover(false)}>
-                        <button className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 justify-between">
+                    <div className="relative">
+                        <button onClick={() => setCourierOpen((value) => !value)} className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 justify-between">
                             <span className="flex items-center gap-2.5"><Truck className="w-4 h-4 text-blue-500" /> Send to Courier</span>
                             <ChevronDown className="w-3 h-3 -rotate-90 text-gray-400" />
                         </button>
-                        {courierHover && (
-                            <div className="absolute right-full top-0 mr-1 w-36 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden py-1">
+                        {courierOpen && (
+                            <div className="absolute right-0 top-full mt-1 w-36 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden py-1">
                                 {COURIERS.map(c => (
                                     <button key={c} onClick={() => handleSendToCourier(c)}
                                         className="w-full text-left px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50">
@@ -230,8 +285,48 @@ function ActionsMenu({ order, onAddNote, onRefresh }: { order: Order; onAddNote:
     );
 }
 
-export default function OrderTable({ orders, loading, onStatusUpdate, onAddNote, onRefresh }: Props) {
+export default function OrderTable({ 
+    orders, 
+    loading, 
+    onStatusUpdate, 
+    onAddNote, 
+    onRefresh,
+    selectedIds = [],
+    onSelectionChange
+}: Props) {
     const router = useRouter();
+    const selectAllRef = useRef<HTMLInputElement>(null);
+
+    const allIds = orders.map(o => o._id);
+    const isAllSelected = allIds.length > 0 && allIds.every(id => selectedIds.includes(id));
+    const isIndeterminate = selectedIds.length > 0 && !isAllSelected;
+
+    useEffect(() => {
+        if (selectAllRef.current) {
+            selectAllRef.current.indeterminate = isIndeterminate;
+            selectAllRef.current.checked = isAllSelected;
+        }
+    }, [isAllSelected, isIndeterminate]);
+
+    const handleSelectAll = () => {
+        if (onSelectionChange) {
+            if (isAllSelected) {
+                onSelectionChange([]);
+            } else {
+                onSelectionChange(allIds);
+            }
+        }
+    };
+
+    const handleRowSelect = (id: string, checked: boolean) => {
+        if (onSelectionChange) {
+            if (checked) {
+                onSelectionChange([...selectedIds, id]);
+            } else {
+                onSelectionChange(selectedIds.filter(i => i !== id));
+            }
+        }
+    };
 
     if (loading) {
         return (
@@ -239,6 +334,7 @@ export default function OrderTable({ orders, loading, onStatusUpdate, onAddNote,
                 <table className="w-full">
                     <thead>
                         <tr className="bg-gray-50 border-b border-gray-100">
+                            <th className="w-12 px-4 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap"></th>
                             {['Order', 'Customer', 'Products', 'Status', 'Total', 'Courier', 'Fraud', ''].map(h => (
                                 <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
                             ))}
@@ -247,6 +343,7 @@ export default function OrderTable({ orders, loading, onStatusUpdate, onAddNote,
                     <tbody>
                         {Array.from({ length: 8 }).map((_, i) => (
                             <tr key={i} className="border-b border-gray-50">
+                                <td className="px-4 py-4"><div className="h-4 bg-gray-100 rounded animate-pulse w-5" /></td>
                                 {Array.from({ length: 8 }).map((_, j) => (
                                     <td key={j} className="px-4 py-4">
                                         <div className="h-4 bg-gray-100 rounded animate-pulse" style={{ width: `${60 + Math.random() * 40}%` }} />
@@ -275,8 +372,18 @@ export default function OrderTable({ orders, loading, onStatusUpdate, onAddNote,
             <table className="w-full">
                 <thead>
                     <tr className="bg-gray-50/70 border-t border-b border-gray-400">
-                        {['Order Info', 'Customer', 'Products', 'Status', 'Payment', 'Courier', 'Fraud', 'Actions'].map(h => (
-                            <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap first:pl-5 last:pr-5">{h}</th>
+                        <th className="w-12 px-3 py-3 first:pl-5">
+                            <input
+                                ref={selectAllRef}
+                                type="checkbox"
+                                checked={isAllSelected}
+                                onChange={handleSelectAll}
+                                className="w-4 h-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
+                                aria-label="Select all orders"
+                            />
+                        </th>
+                        {['Order Info', 'Customer', 'Products', 'Status', 'Payment', 'Courier', 'SMS', 'Actions'].map(h => (
+                            <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap last:pr-5">{h}</th>
                         ))}
                     </tr>
                 </thead>
@@ -284,10 +391,20 @@ export default function OrderTable({ orders, loading, onStatusUpdate, onAddNote,
                     {orders.map((order) => {
                         const src = order.marketing?.source?.toLowerCase();
                         const srcBadge = src ? SOURCE_BADGE[src] : SOURCE_BADGE.direct;
-                        const fraud = order.fraudScore;
+
+                        const isSelected = selectedIds.includes(order._id);
 
                         return (
-                            <tr key={order._id} className="hover:bg-gray-50/50 border-b border-gray-300 transition-colors group">
+                            <tr key={order._id} className={`hover:bg-gray-50/50 border-b border-gray-300 transition-colors group ${isSelected ? 'bg-violet-50' : ''}`}>
+                                <td className="px-3 py-3.5 pl-5">
+                                    <input
+                                        type="checkbox"
+                                        checked={isSelected}
+                                        onChange={(e) => handleRowSelect(order._id, e.target.checked)}
+                                        className="w-4 h-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
+                                        aria-label={`Select order ${order.orderId}`}
+                                    />
+                                </td>
                                 {/* 1. Order Info */}
                                 <td className="px-4 py-3.5 pl-5">
                                     <div className="space-y-1">
@@ -428,18 +545,9 @@ export default function OrderTable({ orders, loading, onStatusUpdate, onAddNote,
                                     )}
                                 </td>
 
-                                {/* 7. Fraud */}
+                                {/* 7. SMS */}
                                 <td className="px-4 py-3.5">
-                                    {fraud ? (
-                                        <div className="space-y-1">
-                                            <FraudBadge score={fraud.score} risk={fraud.risk} />
-                                            {fraud.flags.slice(0, 2).map((f, i) => (
-                                                <p key={i} className="text-[10px] text-gray-400 leading-tight">{f.message.slice(0, 30)}…</p>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <span className="text-[11px] text-gray-300">—</span>
-                                    )}
+                                    <SmsBadge order={order} onSent={onRefresh} />
                                 </td>
 
                                 {/* 8. Actions */}

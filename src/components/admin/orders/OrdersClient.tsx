@@ -5,6 +5,7 @@ import {
   Search, RefreshCw, Download, ChevronDown,
   ChevronLeft, ChevronRight, X, Calendar,
   Package, TrendingUp, Clock, CheckCircle2, SlidersHorizontal,
+  Trash2, Check,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Order, OrderStats, OrderStatus, STATUS_CONFIG } from '@/types/order';
@@ -51,7 +52,41 @@ export default function OrdersClient({
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [sortBy, setSortBy] = useState('-createdAt');
   const [noteModal, setNoteModal] = useState<{ open: boolean; order: Order | null }>({ open: false, order: null });
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkAction, setBulkAction] = useState('');
+  const pendingCountRef = useRef<number | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const checkPendingOrders = async () => {
+      try {
+        const response = await fetch('/api/orders?status=PENDING&limit=1&page=1', {
+          cache: 'no-store',
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || data.error || 'Failed to check pending orders');
+        const count = Number(data.pagination?.total ?? 0);
+        if (active && pendingCountRef.current !== null && count > pendingCountRef.current) {
+          toast(`New pending order received (${count - pendingCountRef.current})`, {
+            icon: '🔔',
+            duration: 6000,
+          });
+        }
+        if (active) pendingCountRef.current = count;
+      } catch (error) {
+        console.error('Pending order notification error:', error);
+      }
+    };
+
+    checkPendingOrders();
+    const interval = window.setInterval(checkPendingOrders, 15000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, []);
 
   const fetchOrders = useCallback(async (page = currentPage) => {
     setLoading(true);
@@ -115,6 +150,7 @@ export default function OrdersClient({
     if (searchTimer.current) clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => { 
       setCurrentPage(1); 
+      setSelectedIds([]);
       fetchOrders(1); 
     }, 350);
     return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
@@ -122,11 +158,13 @@ export default function OrdersClient({
 
   useEffect(() => { 
     setCurrentPage(1); 
+    setSelectedIds([]);
     fetchOrders(1); 
   }, [statusFilter, dateFrom, dateTo, pageLimit, sortBy]);
 
   useEffect(() => { 
     if (currentPage > 0) {
+      setSelectedIds([]);
       fetchOrders(currentPage); 
     }
   }, [currentPage]);
@@ -158,7 +196,7 @@ export default function OrdersClient({
         toast.success(`Updated to ${STATUS_CONFIG[status].label}`);
         fetchOrders(currentPage);
       } else {
-        toast.error(data.error || 'Update failed');
+        toast.error(data.message || data.error || 'Update failed');
       }
     } catch (error) {
       console.error('Status update error:', error);
@@ -188,14 +226,93 @@ export default function OrdersClient({
     }
   };
 
-  const clearFilters = () => { 
+const clearFilters = () => { 
     setSearch(''); 
     setStatusFilter(''); 
     setDateFrom(''); 
     setDateTo(''); 
+    setSelectedIds([]);
   };
-  
+   
   const hasActiveFilters = !!(search || statusFilter || dateFrom || dateTo);
+
+  const handleSelectionChange = (ids: string[]) => {
+    setSelectedIds(ids);
+  };
+
+  const handleBulkDelete = async (ids: string[]) => {
+    setBulkDeleting(true);
+    try {
+      const res = await fetch('/api/orders/bulk', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderIds: ids }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(data.message || `${data.deletedCount} orders deleted`);
+        setSelectedIds([]);
+        fetchOrders(currentPage);
+      } else {
+        toast.error(data.error || 'Failed to delete orders');
+      }
+    } catch (error) {
+      console.error('Bulk delete error:', error);
+      toast.error('Failed to delete orders');
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const handleBulkAction = async (action: string) => {
+    if (!selectedIds.length) return;
+    if (action === 'delete') {
+      await handleBulkDelete(selectedIds);
+      setBulkAction('');
+      return;
+    }
+    if (action === 'export') {
+      const url = new URL('/api/orders', window.location.origin);
+      url.searchParams.set('export', 'csv');
+      window.open(url.toString(), '_blank');
+      setBulkAction('');
+      return;
+    }
+    const message = action === 'message'
+      ? window.prompt('Message template (use {name}, {orderId}, {total}, {status})', 'Hello {name}, your order {orderId} is currently {status}. Total: {total}.')
+      : undefined;
+    if (action === 'message' && !message) {
+      setBulkAction('');
+      return;
+    }
+    const statusActions = ['confirm', 'cancel', 'process', 'ship', 'deliver'];
+    const endpointAction = statusActions.includes(action) ? action : action === 'courier' ? 'courier' : 'message';
+    const provider = action === 'courier'
+      ? window.prompt('Courier provider: STEADFAST, PATHAO, or REDX', 'STEADFAST')?.toUpperCase()
+      : undefined;
+    if (action === 'courier' && !provider) {
+      setBulkAction('');
+      return;
+    }
+    try {
+      setBulkDeleting(true);
+      const response = await fetch('/api/orders/bulk', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderIds: selectedIds, action: endpointAction, message, provider }),
+      });
+      const data = await response.json();
+      if (!response.ok && response.status !== 207) throw new Error(data.error || data.message || 'Bulk action failed');
+      toast.success(data.message || 'Bulk action completed');
+      setSelectedIds([]);
+      fetchOrders(currentPage);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Bulk action failed');
+    } finally {
+      setBulkDeleting(false);
+      setBulkAction('');
+    }
+  };
 
   // Calculate total safely
   const totalOrders = pagination?.total || 0;
@@ -329,6 +446,39 @@ export default function OrdersClient({
           </div>
         )}
 
+        {/* Bulk Actions Bar */}
+        {selectedIds.length > 0 && (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Check className="w-5 h-5 text-red-600" />
+              <span className="text-sm font-medium text-red-800">{selectedIds.length} order(s) selected</span>
+              <button onClick={() => setSelectedIds([])} className="text-xs text-red-600 hover:underline font-medium">Clear selection</button>
+            </div>
+            <select value={bulkAction} onChange={(event) => {
+              const value = event.target.value;
+              setBulkAction(value);
+              if (value) void handleBulkAction(value);
+            }} disabled={bulkDeleting}
+              className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none">
+              <option value="">Bulk actions</option>
+              <option value="confirm">Mark confirmed</option>
+              <option value="process">Mark processing</option>
+              <option value="ship">Mark shipped</option>
+              <option value="deliver">Mark delivered</option>
+              <option value="message">Send SMS / WhatsApp</option>
+              <option value="courier">Book courier shipments</option>
+              <option value="export">Export selected</option>
+              <option value="delete">Delete selected</option>
+            </select>
+            {/* Kept as a dedicated visible action for quick destructive operations. */}
+            <button onClick={() => handleBulkDelete(selectedIds)} disabled={bulkDeleting}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors">
+              <Trash2 className="w-4 h-4" />
+              {bulkDeleting ? 'Deleting...' : 'Delete Selected'}
+            </button>
+          </div>
+        )}
+
         {/* Table Container */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
@@ -345,7 +495,9 @@ export default function OrdersClient({
           <OrderTable orders={orders} loading={loading}
             onStatusUpdate={handleStatusUpdate}
             onAddNote={(order) => setNoteModal({ open: true, order })}
-            onRefresh={() => fetchOrders(currentPage)} />
+            onRefresh={() => fetchOrders(currentPage)}
+            selectedIds={selectedIds}
+            onSelectionChange={handleSelectionChange} />
 
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-5 py-4 border-t border-gray-100">

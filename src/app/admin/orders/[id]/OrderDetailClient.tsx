@@ -12,13 +12,17 @@ import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { Order, OrderStatus, STATUS_CONFIG, FraudResult } from '@/types/order';
 
-// ── Print styles injected inline ─────────────────────────
 const PRINT_STYLES = `
-  @media print {
-    body > *:not(#invoice-print) { display: none !important; }
-    #invoice-print { display: block !important; position: fixed; inset: 0; background: white; z-index: 9999; padding: 32px; }
-    @page { margin: 20mm; }
-  }
+  @page { margin: 14mm; size: A4; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #fff; color: #111827; }
+  body * { visibility: hidden !important; }
+  #invoice-print,
+  #invoice-print * { visibility: visible !important; }
+  #invoice-print { display: block !important; position: fixed !important; inset: 0 !important; padding: 0; overflow: visible; }
+  #invoice-print > div { max-width: 760px; margin: 0 auto; }
+  table { page-break-inside: auto; }
+  tr { page-break-inside: avoid; page-break-after: auto; }
 `;
 
 interface TimelineEvent {
@@ -29,22 +33,11 @@ interface TimelineEvent {
   createdAt: string;
 }
 
-const STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  PENDING:          ['CONFIRMED', 'CANCELLED'],
-  AWAITING_PAYMENT: ['CONFIRMED', 'CANCELLED'],
-  CONFIRMED:        ['PROCESSING', 'CANCELLED'],
-  PROCESSING:       ['PACKED', 'CANCELLED'],
-  PACKED:           ['READY_TO_SHIP', 'CANCELLED'],
-  READY_TO_SHIP:    ['SHIPPED'],
-  SHIPPED:          ['IN_TRANSIT', 'DELIVERED'],
-  IN_TRANSIT:       ['OUT_FOR_DELIVERY', 'DELIVERED'],
-  OUT_FOR_DELIVERY: ['DELIVERED', 'RETURNED'],
-  DELIVERED:        ['RETURN_REQUESTED', 'REFUNDED'],
-  CANCELLED:        ['CONFIRMED'],
-  RETURN_REQUESTED: ['RETURNED', 'REFUNDED'],
-  RETURNED:         ['REFUNDED'],
-  REFUNDED:         [],
-};
+const ALL_STATUSES: OrderStatus[] = [
+  'PENDING', 'AWAITING_PAYMENT', 'CONFIRMED', 'PROCESSING', 'PACKED',
+  'READY_TO_SHIP', 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY',
+  'DELIVERED', 'CANCELLED', 'RETURN_REQUESTED', 'RETURNED', 'REFUNDED',
+];
 
 interface Props { order: Order }
 
@@ -71,7 +64,8 @@ export default function OrderDetailClient({ order: initial }: Props) {
 
   useEffect(() => {
     fetch(`/api/orders/${order._id}/events`).then(r => r.json()).then(d => {
-      if (d.events) setTimeline(d.events);
+      if (Array.isArray(d)) setTimeline(d);
+      else if (Array.isArray(d.events)) setTimeline(d.events);
     });
   }, [order._id]);
 
@@ -82,11 +76,22 @@ export default function OrderDetailClient({ order: initial }: Props) {
   };
 
   const handlePrint = () => {
+    if (!printRef.current) {
+      toast.error('Invoice preview is not available');
+      return;
+    }
+
     const style = document.createElement('style');
-    style.innerHTML = PRINT_STYLES;
+    style.setAttribute('data-invoice-print-style', 'true');
+    style.textContent = PRINT_STYLES;
     document.head.appendChild(style);
-    window.print();
-    setTimeout(() => document.head.removeChild(style), 1000);
+
+    const cleanup = () => {
+      style.remove();
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup, { once: true });
+    window.setTimeout(() => window.print(), 100);
   };
 
   const handleStatusChange = async (status: OrderStatus) => {
@@ -102,9 +107,12 @@ export default function OrderDetailClient({ order: initial }: Props) {
         setOrder(o => ({ ...o, status }));
         toast.success(`Status → ${STATUS_CONFIG[status].label}`);
         // Refresh timeline
-        fetch(`/api/orders/${order._id}/events`).then(r => r.json()).then(d => { if (d.events) setTimeline(d.events); });
-      } else toast.error(data.error || 'Update failed');
-    } catch { toast.error('Failed'); }
+        fetch(`/api/orders/${order._id}/events`).then(r => r.json()).then(d => {
+          if (Array.isArray(d)) setTimeline(d);
+          else if (Array.isArray(d.events)) setTimeline(d.events);
+        });
+      } else toast.error(data.message || data.error || 'Update failed');
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Failed to update status'); }
     finally { router.refresh();}
   };
 
@@ -124,8 +132,8 @@ export default function OrderDetailClient({ order: initial }: Props) {
         setOrder(o => ({ ...o, shipping: editData.shipping, paymentStatus: editData.paymentStatus }));
         setEditMode(false);
         toast.success('Order updated');
-      } else toast.error(data.error || 'Failed');
-    } catch { toast.error('Failed to save'); }
+      } else toast.error(data.message || data.error || 'Failed');
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Failed to save'); }
     finally {
        setSaving(false); 
        router.refresh();
@@ -150,8 +158,8 @@ export default function OrderDetailClient({ order: initial }: Props) {
         const oRes = await fetch(`/api/orders/${order._id}`);
         const oData = await oRes.json();
         if (oData.data?.order) setOrder(oData.data.order);
-      } else toast.error(data.error || 'Failed');
-    } catch { toast.error('Failed'); }
+      } else toast.error(data.message || data.error || 'Failed');
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Failed'); }
     finally {
        setAddingNote(false); 
        router.refresh();
@@ -159,7 +167,7 @@ export default function OrderDetailClient({ order: initial }: Props) {
   };
 
   const statusCfg = STATUS_CONFIG[order.status];
-  const nextStatuses = STATUS_TRANSITIONS[order.status] || [];
+  const nextStatuses = ALL_STATUSES.filter((status) => status !== order.status);
 
   return (
     <>

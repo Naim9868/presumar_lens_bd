@@ -24,7 +24,7 @@ import type {
 export type AnalyticsSource = 'mock' | 'api';
 
 const SOURCE: AnalyticsSource =
-  (process.env.NEXT_PUBLIC_ANALYTICS_SOURCE as AnalyticsSource) || 'mock';
+  (process.env.NEXT_PUBLIC_ANALYTICS_SOURCE as AnalyticsSource) || 'api';
 
 export const analyticsSource = SOURCE;
 
@@ -39,7 +39,7 @@ function qs(range: DateRange): string {
 }
 
 async function apiGet<T>(path: string, range: DateRange): Promise<T> {
-  const res = await fetch(`/api/admin/analytics/${path}?${qs(range)}`, {
+  const res = await fetch(`/api/admin/analytics/${path}?${qs(range)}&source=db`, {
     cache: 'no-store',
   });
   if (!res.ok) throw new Error(`Analytics API failed: ${res.status}`);

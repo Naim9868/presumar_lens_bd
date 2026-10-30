@@ -1,5 +1,6 @@
 import Order from '@/models/Order';
 import { IOrder } from '@/models/Order';
+import { sendOrderMessage } from '@/services/messaging.service';
 
 // ─────────────────────────────────────────────
 // WhatsApp Cloud API
@@ -149,11 +150,8 @@ export async function sendOrderNotification(order: IOrder, event: string): Promi
 
   const tasks: Promise<void>[] = [];
 
-  // WhatsApp
-  tasks.push(sendWhatsApp(phone, message).catch(console.error));
-
-  // SMS
-  tasks.push(sendSMS(phone, message.replace(/\*/g, '').replace(/_/g, '')).catch(console.error));
+  // WhatsApp first with configured SMS fallback.
+  tasks.push(sendOrderMessage(order, message).then(() => undefined).catch(console.error));
 
   // Email
   if (email) {
