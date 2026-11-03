@@ -285,7 +285,108 @@ function ActionsMenu({ order, onAddNote, onRefresh }: { order: Order; onAddNote:
     );
 }
 
-export default function OrderTable({ 
+function OrderMobileCard({
+    order,
+    selected,
+    onSelect,
+    onStatusUpdate,
+    onAddNote,
+    onRefresh,
+}: {
+    order: Order;
+    selected: boolean;
+    onSelect: (checked: boolean) => void;
+    onStatusUpdate: (orderId: string, status: OrderStatus) => void;
+    onAddNote: (order: Order) => void;
+    onRefresh: () => void;
+}) {
+    const router = useRouter();
+    const src = order.marketing?.source?.toLowerCase();
+    const srcBadge = src ? SOURCE_BADGE[src] : SOURCE_BADGE.direct;
+
+    return (
+        <article className={`rounded-xl border p-4 ${selected ? 'border-violet-200 bg-violet-50' : 'border-gray-100 bg-white'}`}>
+            <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-3">
+                    <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={(event) => onSelect(event.target.checked)}
+                        className="mt-1 h-4 w-4 flex-shrink-0 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                        aria-label={`Select order ${order.orderId}`}
+                    />
+                    <div className="min-w-0">
+                        <button
+                            onClick={() => router.push(`/admin/orders/${order._id}`)}
+                            className="flex items-center gap-1 text-sm font-bold text-violet-600 hover:text-violet-800 hover:underline"
+                        >
+                            #{order.orderId}
+                            <ExternalLink className="h-3 w-3" />
+                        </button>
+                        <p className="mt-1 text-[11px] text-gray-400">
+                            {format(new Date(order.createdAt), 'dd MMM yy, h:mm a')}
+                        </p>
+                        {srcBadge && (
+                            <span className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold ${srcBadge.cls}`}>
+                                {srcBadge.label}
+                            </span>
+                        )}
+                    </div>
+                </div>
+                <ActionsMenu order={order} onAddNote={onAddNote} onRefresh={onRefresh} />
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-3 border-t border-gray-100 pt-3 sm:grid-cols-2">
+                <div className="min-w-0">
+                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Customer</p>
+                    <p className="truncate text-sm font-semibold text-gray-800">{order.shipping.name}</p>
+                    <p className="text-xs text-gray-500">{order.shipping.phone}</p>
+                    <p className="truncate text-xs text-gray-400">{order.shipping.area}, {order.shipping.city}</p>
+                    <button onClick={() => onAddNote(order)} className="mt-1 flex items-center gap-1 text-[11px] font-medium text-violet-500">
+                        <MessageSquare className="h-3 w-3" />
+                        {order.notes?.length ? `${order.notes.length} note${order.notes.length > 1 ? 's' : ''}` : 'Add note'}
+                    </button>
+                </div>
+                <div className="min-w-0">
+                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Products</p>
+                    {order.items.slice(0, 2).map((item, index) => (
+                        <p key={index} className="truncate text-xs text-gray-700">
+                            {item.snapshot?.name || 'Unnamed Product'} ×{item.quantity}
+                        </p>
+                    ))}
+                    {order.items.length > 2 && <p className="text-[11px] text-gray-400">+{order.items.length - 2} more items</p>}
+                </div>
+                <div>
+                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Status</p>
+                    <StatusBadge status={order.status} orderId={order._id} onUpdate={onStatusUpdate} />
+                    <p className="mt-1 text-[11px] text-gray-400">
+                        {order.delivery.type === 'INSIDE_DHAKA' ? '🏙 Dhaka' : '🗺 Outside Dhaka'}
+                    </p>
+                </div>
+                <div>
+                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Payment</p>
+                    <p className="text-sm font-bold text-gray-900">৳{order.pricing.total.toLocaleString()}</p>
+                    <p className="text-xs text-gray-500">{order.paymentMethod} · {order.paymentStatus}</p>
+                    {order.coupon && <p className="text-[11px] text-green-600">🏷 {order.coupon.code}</p>}
+                </div>
+                <div>
+                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Courier</p>
+                    {order.shipment ? (
+                        <>
+                            <p className="text-xs font-semibold text-blue-700">{order.shipment.provider}</p>
+                            <p className="break-all text-[11px] text-gray-500">{order.shipment.trackingId || order.shipment.status}</p>
+                        </>
+                    ) : <p className="text-[11px] text-gray-400">Not booked</p>}
+                </div>
+                <div className="flex items-end">
+                    <SmsBadge order={order} onSent={onRefresh} />
+                </div>
+            </div>
+        </article>
+    );
+}
+
+export default function OrderTable({
     orders, 
     loading, 
     onStatusUpdate, 
@@ -296,6 +397,39 @@ export default function OrderTable({
 }: Props) {
     const router = useRouter();
     const selectAllRef = useRef<HTMLInputElement>(null);
+    const tableScrollRef = useRef<HTMLDivElement>(null);
+    const topScrollRef = useRef<HTMLDivElement>(null);
+    const bottomScrollRef = useRef<HTMLDivElement>(null);
+    const tableRef = useRef<HTMLTableElement>(null);
+    const [tableWidth, setTableWidth] = useState(0);
+    const [isOverflowing, setIsOverflowing] = useState(false);
+
+    useEffect(() => {
+        const table = tableRef.current;
+        const container = tableScrollRef.current;
+        if (!table || !container) return;
+
+        const updateWidth = () => {
+            setTableWidth(table.scrollWidth);
+            setIsOverflowing(table.scrollWidth > container.clientWidth + 1);
+        };
+        updateWidth();
+        const observer = new ResizeObserver(updateWidth);
+        observer.observe(table);
+        observer.observe(container);
+        return () => observer.disconnect();
+    }, [orders.length, loading]);
+
+    const syncScroll = (source: 'top' | 'table' | 'bottom') => {
+        const refs = { top: topScrollRef, table: tableScrollRef, bottom: bottomScrollRef };
+        const sourceElement = refs[source].current;
+        if (!sourceElement) return;
+        (Object.keys(refs) as Array<'top' | 'table' | 'bottom'>).forEach((key) => {
+            if (key === source) return;
+            const target = refs[key].current;
+            if (target) target.scrollLeft = sourceElement.scrollLeft;
+        });
+    };
 
     const allIds = orders.map(o => o._id);
     const isAllSelected = allIds.length > 0 && allIds.every(id => selectedIds.includes(id));
@@ -330,8 +464,22 @@ export default function OrderTable({
 
     if (loading) {
         return (
-            <div className="w-full overflow-x-auto">
-                <table className="w-full">
+            <>
+            <div className="space-y-3 p-4 md:hidden">
+                {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="h-36 animate-pulse rounded-xl bg-gray-100" />
+                ))}
+            </div>
+            <div
+                ref={topScrollRef}
+                onScroll={() => syncScroll('top')}
+                className="sticky top-0 z-20 hidden overflow-x-auto border-y border-gray-100 bg-white shadow-sm md:block"
+                aria-label="Scroll order table horizontally"
+            >
+                <div style={{ width: tableWidth || '100%', height: 16 }} />
+            </div>
+            <div ref={tableScrollRef} onScroll={() => syncScroll('table')} className="hidden w-full overflow-x-auto md:block">
+                <table ref={tableRef} className="w-full min-w-[1200px]">
                     <thead>
                         <tr className="bg-gray-50 border-b border-gray-100">
                             <th className="w-12 px-4 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap"></th>
@@ -354,6 +502,7 @@ export default function OrderTable({
                     </tbody>
                 </table>
             </div>
+            </>
         );
     }
 
@@ -368,8 +517,23 @@ export default function OrderTable({
     }
 
     return (
-        <div className="w-full overflow-x-auto">
-            <table className="w-full">
+        <>
+        <div className="space-y-3 p-4 md:hidden">
+            {orders.map((order) => (
+                <OrderMobileCard
+                    key={order._id}
+                    order={order}
+                    selected={selectedIds.includes(order._id)}
+                    onSelect={(checked) => handleRowSelect(order._id, checked)}
+                    onStatusUpdate={onStatusUpdate}
+                    onAddNote={onAddNote}
+                    onRefresh={onRefresh}
+                />
+            ))}
+        </div>
+        <div className="hidden md:block">
+            <div ref={tableScrollRef} onScroll={() => syncScroll('table')} className="w-full overflow-x-auto no-scrollbar">
+                <table ref={tableRef} className="w-full min-w-[1200px]">
                 <thead>
                     <tr className="bg-gray-50/70 border-t border-b border-gray-400">
                         <th className="w-12 px-3 py-3 first:pl-5">
@@ -559,6 +723,18 @@ export default function OrderTable({
                     })}
                 </tbody>
             </table>
+            </div>
+            {isOverflowing && (
+                <div
+                    ref={bottomScrollRef}
+                    onScroll={() => syncScroll('bottom')}
+                    className="sticky bottom-0 z-20 overflow-x-auto border-t border-gray-200 bg-white shadow-[0_-4px_6px_-6px_rgba(0,0,0,0.15)]"
+                    aria-label="Scroll order table horizontally"
+                >
+                    <div style={{ width: tableWidth || '100%', height: 14 }} />
+                </div>
+            )}
         </div>
+        </>
     );
 }

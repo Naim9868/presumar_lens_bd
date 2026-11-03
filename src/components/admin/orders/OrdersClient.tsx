@@ -480,8 +480,8 @@ const clearFilters = () => {
         )}
 
         {/* Table Container */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 rounded-t-2xl">
             <span className="text-sm text-gray-500">{loading ? 'Loading...' : `${totalOrders} orders`}</span>
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-400">Show</span>
@@ -500,7 +500,7 @@ const clearFilters = () => {
             onSelectionChange={handleSelectionChange} />
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-5 py-4 border-t border-gray-100">
+            <div className="flex items-center justify-between px-5 py-4 border-t border-gray-100 rounded-b-2xl">
               <p className="text-sm text-gray-500">
                 Showing {((currentPage-1)*pageLimit)+1}–{Math.min(currentPage*pageLimit, totalOrders)} of {totalOrders}
               </p>
