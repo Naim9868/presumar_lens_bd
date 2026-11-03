@@ -31,7 +31,7 @@ export default function ApiSettingsClient() {
         <StatusChip connected={!!(s.steadfast_api_key && s.steadfast_secret_key)} />
         <div className="mt-4">
           <Grid2>
-            <Field label="API Key" required docUrl="https://portal.steadfast.com.bd/public/api/v1">
+            <Field label="API Key" required docUrl="https://portal.packzy.com/api/v1">
               <Input value={s.steadfast_api_key || ''} onChange={v => set('steadfast_api_key', v)} placeholder="SteadFast API Key" monospace />
             </Field>
             <Field label="Secret Key" required>

@@ -1,8 +1,8 @@
 // SteadFast Courier Integration — Bangladesh
-// Docs: https://portal.steadfast.com.bd/public/api/v1
+// Docs: https://portal.packzy.com/api/v1
 import { getCourierSettings } from '@/services/courier-config.service';
 
-const STEADFAST_API = 'https://portal.steadfast.com.bd/public/api/v1';
+const STEADFAST_API = process.env.STEADFAST_BASE_URL || 'https://portal.packzy.com/api/v1';
 
 async function getHeaders() {
   const settings = await getCourierSettings();
@@ -11,6 +11,16 @@ async function getHeaders() {
     'Api-Key': settings.steadfastApiKey,
     'Secret-Key': settings.steadfastSecretKey,
   };
+}
+
+async function steadfastFetch(path: string, init?: RequestInit) {
+  try {
+    return await fetch(`${STEADFAST_API}${path}`, init);
+  } catch (err) {
+    const cause = (err as Error & { cause?: { code?: string; message?: string } }).cause;
+    const detail = cause?.code || cause?.message || (err as Error).message;
+    throw new Error(`SteadFast API unreachable at ${STEADFAST_API} (${detail})`);
+  }
 }
 
 export interface SteadFastOrderInput {
@@ -39,7 +49,7 @@ export interface SteadFastOrderResponse {
 }
 
 export async function bookSteadFastOrder(data: SteadFastOrderInput): Promise<SteadFastOrderResponse> {
-  const res = await fetch(`${STEADFAST_API}/create_order`, {
+  const res = await steadfastFetch('/create_order', {
     method: 'POST',
     headers: await getHeaders(),
     body: JSON.stringify(data),
@@ -54,21 +64,21 @@ export async function bookSteadFastOrder(data: SteadFastOrderInput): Promise<Ste
 }
 
 export async function trackSteadFastOrder(trackingCode: string) {
-  const res = await fetch(`${STEADFAST_API}/status_by_trackingid/${trackingCode}`, {
+  const res = await steadfastFetch(`/status_by_trackingid/${trackingCode}`, {
     headers: await getHeaders(),
   });
   return res.json();
 }
 
 export async function trackSteadFastByInvoice(invoice: string) {
-  const res = await fetch(`${STEADFAST_API}/status_by_invoice/${invoice}`, {
+  const res = await steadfastFetch(`/status_by_invoice/${invoice}`, {
     headers: await getHeaders(),
   });
   return res.json();
 }
 
 export async function getSteadFastBalance() {
-  const res = await fetch(`${STEADFAST_API}/get_balance`, {
+  const res = await steadfastFetch('/get_balance', {
     headers: await getHeaders(),
   });
   return res.json();
