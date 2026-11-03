@@ -24,7 +24,8 @@ function encrypt(value: string) {
 
 function decrypt(value: string) {
   if (!value.startsWith(ENCRYPTED_PREFIX)) return value;
-  const [, ivText, tagText, encryptedText] = value.split(':');
+  // 'enc:v1:iv:tag:cipher' → skip the 'enc' and 'v1' segments
+  const [, , ivText, tagText, encryptedText] = value.split(':');
   const decipher = crypto.createDecipheriv(
     'aes-256-gcm',
     encryptionKey(),
@@ -81,6 +82,13 @@ export async function saveSettings(
 export async function getRawSettings(group: string): Promise<Record<string, string>> {
   const docs = await Setting.find({ group }).lean();
   const out: Record<string, string> = {};
-  docs.forEach((d) => { out[d.key] = d.encrypted ? decrypt(d.value) : d.value; });
+  docs.forEach((d) => {
+    try {
+      out[d.key] = d.encrypted ? decrypt(d.value) : d.value;
+    } catch (error) {
+      console.error(`[getRawSettings] Failed to decrypt "${group}.${d.key}"`, error);
+      out[d.key] = '';
+    }
+  });
   return out;
 }
