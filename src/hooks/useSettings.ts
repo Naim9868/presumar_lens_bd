@@ -15,11 +15,15 @@ export function useSettings(group: string) {
     try {
       const res = await fetch(`/api/admin/settings?group=${group}`);
       const data = await res.json();
-      if (data.settings) {
+      if (!res.ok) {
+        throw new Error(data.error || `Failed to load settings (${res.status})`);
+      }
+      if (data.success && data.settings) {
         setSettings(data.settings);
         setDirty(false);
       }
-    } catch {
+    } catch (error) {
+      console.error('[useSettings.load]', error);
       toast.error('Failed to load settings');
     } finally {
       setLoading(false);
@@ -42,14 +46,15 @@ export function useSettings(group: string) {
         body: JSON.stringify({ group, settings }),
       });
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
         toast.success('Settings saved');
         setDirty(false);
-        load(); // reload to get masked values
+        await load(); // reload to get masked values
       } else {
-        toast.error(data.error || 'Failed to save');
+        toast.error(data.error || `Failed to save settings (${res.status})`);
       }
-    } catch {
+    } catch (error) {
+      console.error('[useSettings.save]', error);
       toast.error('Failed to save settings');
     } finally {
       setSaving(false);

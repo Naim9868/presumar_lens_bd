@@ -56,24 +56,25 @@ export async function saveSettings(
   data: Record<string, string>,
   sensitiveKeys: string[] = []
 ): Promise<void> {
-  const ops = Object.entries(data).map(([key, value]) => {
-    // Don't overwrite encrypted value if user submitted the mask
+  const updates = Object.entries(data).map(async ([key, value]) => {
     const isSensitive = sensitiveKeys.includes(key);
-    const isMasked = value === '••••••••';
-    if (isSensitive && isMasked) return null; // skip — unchanged
 
-    return {
-      updateOne: {
-        filter: { group, key },
-        update: { $set: { value: isSensitive ? encrypt(value) : value, encrypted: isSensitive } },
-        upsert: true,
+    // Do not overwrite an encrypted value when the client submits its mask.
+    if (isSensitive && value === '••••••••') return;
+
+    await Setting.updateOne(
+      { group, key },
+      {
+        $set: {
+          value: isSensitive ? encrypt(value) : value,
+          encrypted: isSensitive,
+        },
       },
-    };
-  }).filter(Boolean);
+      { upsert: true },
+    );
+  });
 
-  if (ops.length) {
-    await Setting.bulkWrite(ops as Parameters<typeof Setting.bulkWrite>[0]);
-  }
+  await Promise.all(updates);
 }
 
 /** Raw get — actual values (server-side only, never send to client) */
